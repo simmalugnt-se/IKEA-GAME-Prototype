@@ -1,6 +1,70 @@
 import * as THREE from 'three'
 
-export const SETTINGS = {
+export type Vec3 = [number, number, number]
+
+type PaletteEntry = {
+  base: string
+  mid: string
+}
+
+const palette = {
+  one: { base: '#45253A', mid: '#3C1F33' },
+  two: { base: '#558DCE', mid: '#4781C6' },
+  three: { base: '#D9B5A3', mid: '#B38F7D' },
+  four: { base: '#665747', mid: '#59443A' },
+  five: { base: '#FF2D19', mid: '#E52233' },
+}
+
+export type PaletteName = keyof typeof palette | 'default'
+
+type Settings = {
+  debug: {
+    enabled: boolean
+    showColliders: boolean
+    showStats: boolean
+  }
+  colors: {
+    background: string
+    shadow: string
+    outline: string
+  }
+  palette: Record<PaletteName, PaletteEntry>
+  lines: {
+    enabled: boolean
+    thickness: number
+    creaseAngle: number
+    threshold: number
+  }
+  camera: {
+    zoom: number
+    position: Vec3
+    near: number
+    far: number
+    followLerp: number
+  }
+  light: {
+    position: Vec3
+    intensity: number
+    shadowMapSize: number
+    shadowBias: number
+    shadowNormalBias: number
+    shadowArea: number
+  }
+  material: {
+    highlightStep: number
+    midtoneStep: number
+  }
+  player: {
+    impulseStrength: number
+    jumpStrength: number
+    linearDamping: number
+    angularDamping: number
+    mass: number
+    friction: number
+  }
+}
+
+export const SETTINGS: Settings = {
   // --- DEBUG ---
   debug: {
     enabled: true,        // Master-toggle för allt debug
@@ -16,17 +80,7 @@ export const SETTINGS = {
   },
 
   // --- FÄRGPALETT (Toon Material) ---
-  palette: (() => {
-    const p = {
-      one: { base: '#45253A', mid: '#3C1F33' },
-      two: { base: '#558DCE', mid: '#4781C6' },
-      three: { base: '#D9B5A3', mid: '#B38F7D' },
-      four: { base: '#665747', mid: '#59443A' },
-      five: { base: '#FF2D19', mid: '#E52233' },
-    }
-    p.default = p.one
-    return p
-  })(),
+  palette: { ...palette, default: palette.one },
 
   // --- LINJER (Outlines & Creases) ---
   lines: {
@@ -63,15 +117,14 @@ export const SETTINGS = {
 
   // --- SPELARFYSIK ---
   player: {
-    impulseStrength: .02, // Hur hårt bollen knuffas
+    impulseStrength: 0.02, // Hur hårt bollen knuffas
     jumpStrength: 0.08,       // Hur högt bollen hoppar
     linearDamping: 1.5,      // Luftmotstånd (bromsar farten framåt)
     angularDamping: 2.0,     // Rotationsmotstånd (bromsar rullandet)
-    mass: .1,               // Bollens tyngd
+    mass: 0.1,               // Bollens tyngd
     friction: 1.5,           // Grepp mot underlaget
   },
 }
-
 
 // Hjälpfunktion för att få ljusets position som en Vector3
 export const getLightDir = () => {

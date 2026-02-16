@@ -4,7 +4,13 @@ import App from './App'
 import './index.css' // Se till att din CSS importeras här
 
 // Viktigt: 'root' måste matcha id:t i din index.html
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root')
+
+if (!rootElement) {
+  throw new Error('Missing #root element in index.html')
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,

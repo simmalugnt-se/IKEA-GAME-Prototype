@@ -4,10 +4,10 @@ import { useRapier } from '@react-three/rapier'
 export function PhysicsStepper() {
   const { step } = useRapier()
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     // Vi kör fysiken manuellt här med step()
     // Prioritet 1 gör att detta sker efter Reacts updates men före rendering
-    step()
+    step(delta)
   }, 1)
 
   return null

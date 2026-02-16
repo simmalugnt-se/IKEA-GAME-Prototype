@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
-import { InvisibleFloor } from './SceneComponents'
 import { GameLights } from './Lights'
 // import { GameEffects } from './Effects' <--- BORTTAGEN HÄRIFRÅN
 import { SETTINGS } from './GameSettings'
@@ -29,7 +28,7 @@ export default function App() {
         gl={{
           antialias: false,
           stencil: false,
-          depth: true
+          depth: true,
         }}
       >
         <color attach="background" args={[SETTINGS.colors.background]} />
@@ -37,7 +36,11 @@ export default function App() {
         <OrthographicCamera
           makeDefault
           zoom={SETTINGS.camera.zoom}
-          position={SETTINGS.camera.position}
+          position={[
+            SETTINGS.camera.position[0],
+            SETTINGS.camera.position[1],
+            SETTINGS.camera.position[2],
+          ]}
           near={SETTINGS.camera.near}
           far={SETTINGS.camera.far}
         />

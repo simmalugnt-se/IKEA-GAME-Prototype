@@ -1,19 +1,36 @@
 import { useKeyboardControls } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { RigidBody, BallCollider, useRapier } from '@react-three/rapier'
+import { RigidBody, BallCollider, useRapier, type RapierRigidBody } from '@react-three/rapier'
 import { useRef, forwardRef, useImperativeHandle } from 'react'
 import { SphereElement } from './SceneComponents'
-import { SETTINGS } from './GameSettings'
+import { SETTINGS, type Vec3 } from './GameSettings'
 
-export const Player = forwardRef(({ position }, ref) => {
-  const rb = useRef()
+type ControlState = {
+  forward: boolean
+  backward: boolean
+  left: boolean
+  right: boolean
+  jump: boolean
+}
+type ControlName = keyof ControlState
+
+export type PlayerHandle = {
+  getPosition: () => { x: number; y: number; z: number } | undefined
+}
+
+type PlayerProps = {
+  position: Vec3
+}
+
+export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ position }, ref) {
+  const rb = useRef<RapierRigidBody | null>(null)
   const { rapier, world } = useRapier()
-  const [, getKeys] = useKeyboardControls()
+  const [, getKeys] = useKeyboardControls<ControlName>()
 
   // Exponera spelarens position till parent (CameraFollow)
   useImperativeHandle(ref, () => ({
-    getPosition: () => rb.current?.translation()
-  }))
+    getPosition: () => rb.current?.translation(),
+  }), [])
 
   // Beräkna densitet för att nå målmassan (Massa / Volym)
   // Volym för r=0.1 är ca 0.004188
@@ -21,17 +38,15 @@ export const Player = forwardRef(({ position }, ref) => {
 
   useFrame((_state, delta) => {
     if (!rb.current) return
-    const { forward, backward, left, right, jump } = getKeys()
 
+    const { forward, backward, left, right, jump } = getKeys()
     const strength = SETTINGS.player.impulseStrength * (delta * 60)
 
-    const impulse = {
+    rb.current.applyImpulse({
       x: (left ? -strength : 0) + (right ? strength : 0),
       y: 0,
-      z: (forward ? -strength : 0) + (backward ? strength : 0)
-    }
-
-    rb.current.applyImpulse(impulse, true)
+      z: (forward ? -strength : 0) + (backward ? strength : 0),
+    }, true)
 
     // Raycast för hopp
     const currentPos = rb.current.translation()
@@ -54,11 +69,10 @@ export const Player = forwardRef(({ position }, ref) => {
       angularDamping={SETTINGS.player.angularDamping}
       friction={SETTINGS.player.friction}
       // CCD stoppar bollen från att åka igenom objekt (Tunneling)
-      ccd={true}
+      ccd
     >
       <BallCollider args={[0.1]} density={targetDensity} />
-
-      <SphereElement radius={0.1} baseColor="red" />
+      <SphereElement radius={0.1} color="five" />
     </RigidBody>
   )
 })

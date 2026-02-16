@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { shaderMaterial } from '@react-three/drei'
-import { extend } from '@react-three/fiber'
-import { SETTINGS, getLightDir } from './GameSettings'
+import { SETTINGS, getLightDir, type PaletteName } from './GameSettings'
 
 const PALETTE = SETTINGS.palette
 
@@ -9,14 +8,13 @@ const ToonShaderMaterial = shaderMaterial(
   {
     ...THREE.UniformsLib.lights,
     ...THREE.UniformsLib.fog,
-
     uBaseColor: new THREE.Color('#ffffff'),
     uMidColor: new THREE.Color('#888888'),
     uShadowColor: new THREE.Color('#000000'),
     uLightDir: new THREE.Vector3(1, 1, 1),
     uHighlightStep: 0.6,
     uMidtoneStep: 0.2,
-  },
+  } as any,
   // --- VERTEX SHADER ---
   `
     #include <common>
@@ -49,7 +47,7 @@ const ToonShaderMaterial = shaderMaterial(
     uniform vec3 uLightDir;
     uniform float uHighlightStep;
     uniform float uMidtoneStep;
-    
+
     varying vec3 vWorldNormal;
 
     #include <common>
@@ -63,9 +61,9 @@ const ToonShaderMaterial = shaderMaterial(
       float NdotL = dot(vWorldNormal, uLightDir);
       float shadow = getShadowMask();
       float intensity = NdotL * shadow;
-      
+
       vec3 color;
-      
+
       if (intensity > uHighlightStep) {
         color = uBaseColor;
       } else if (intensity > uMidtoneStep) {
@@ -75,25 +73,43 @@ const ToonShaderMaterial = shaderMaterial(
       }
 
       gl_FragColor = vec4(color, 1.0);
-      
+
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
       #include <fog_fragment>
     }
-  `
+  `,
 )
 
-extend({ ToonShaderMaterial })
+type ToonMaterialInstance = THREE.ShaderMaterial & {
+  lights: boolean
+  uniforms: {
+    uBaseColor: { value: THREE.Color }
+    uMidColor: { value: THREE.Color }
+    uShadowColor: { value: THREE.Color }
+    uLightDir: { value: THREE.Vector3 }
+    uHighlightStep: { value: number }
+    uMidtoneStep: { value: number }
+  }
+}
 
 // --- Material cache ---
 // Samma material-instans delas av alla meshes med samma färgkombination
-const materialCache = new Map()
+const materialCache = new Map<string, ToonMaterialInstance>()
 
-function getOrCreateMaterial(baseHex, midHex, shadowHex, highlightStep, midtoneStep, lightDir) {
+function getOrCreateMaterial(
+  baseHex: string,
+  midHex: string,
+  shadowHex: string,
+  highlightStep: number,
+  midtoneStep: number,
+  lightDir: THREE.Vector3,
+): ToonMaterialInstance {
   const key = `${baseHex}-${midHex}-${shadowHex}-${highlightStep}-${midtoneStep}`
-  if (materialCache.has(key)) return materialCache.get(key)
+  const cached = materialCache.get(key)
+  if (cached) return cached
 
-  const mat = new ToonShaderMaterial()
+  const mat = new ToonShaderMaterial() as unknown as ToonMaterialInstance
   mat.lights = true
   mat.uniforms.uBaseColor.value = new THREE.Color(baseHex)
   mat.uniforms.uMidColor.value = new THREE.Color(midHex)
@@ -105,10 +121,21 @@ function getOrCreateMaterial(baseHex, midHex, shadowHex, highlightStep, midtoneS
   return mat
 }
 
+type C4DMaterialProps = {
+  color?: PaletteName
+  singleTone?: boolean
+  baseColor?: string
+  midColor?: string
+  shadowColor?: string
+  highlightStep?: number
+  midtoneStep?: number
+  lightDir?: THREE.Vector3 | null
+  [key: string]: unknown
+}
+
 export function C4DMaterial({
-  color,           // Palette name, e.g. "one", "two", "five"
+  color,
   singleTone = false,
-  // Legacy fallback: raw hex values (used if no color name)
   baseColor,
   midColor,
   shadowColor = SETTINGS.colors.shadow,
@@ -116,10 +143,11 @@ export function C4DMaterial({
   midtoneStep = SETTINGS.material.midtoneStep,
   lightDir = null,
   ...props
-}) {
+}: C4DMaterialProps) {
   const finalLightDir = lightDir || getLightDir()
 
-  let baseHex, midHex
+  let baseHex: string
+  let midHex: string
 
   if (color) {
     const entry = PALETTE[color] || PALETTE.default
@@ -134,7 +162,14 @@ export function C4DMaterial({
     midHex = singleTone ? entry.base : entry.mid
   }
 
-  const material = getOrCreateMaterial(baseHex, midHex, shadowColor, highlightStep, midtoneStep, finalLightDir)
+  const material = getOrCreateMaterial(
+    baseHex,
+    midHex,
+    shadowColor,
+    highlightStep,
+    midtoneStep,
+    finalLightDir,
+  )
 
   return <primitive object={material} attach="material" {...props} />
 }

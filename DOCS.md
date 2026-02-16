@@ -1,6 +1,6 @@
 # IKEA Game — Projektdokumentation
 
-> **Tech:** Vite + React 19 + Three.js r182 + React Three Fiber 9 + Rapier Physics
+> **Tech:** Vite + React 19 + TypeScript (strict) + Three.js r182 + React Three Fiber 9 + Rapier Physics
 > **Repo:** [IKEA-GAME-Prototype](https://github.com/petersimmalugnt/IKEA-GAME-Prototype)
 > **Dev:** `npm run dev` → `http://localhost:5173` (spel) / `http://localhost:5173/converter` (konverterare) / `http://localhost:5173/docs` (dokumentation)
 
@@ -10,38 +10,38 @@
 
 ```mermaid
 graph TD
-    A[main.jsx] --> B[App.jsx]
-    B -->|"/"| C[Scene.jsx]
-    B -->|"/converter"| D[GltfConverter.jsx]
-    B -->|"/docs"| L[DocsPage.jsx]
-    C --> E[Player.jsx]
+    A[main.tsx] --> B[App.tsx]
+    B -->|"/"| C[Scene.tsx]
+    B -->|"/converter"| D[GltfConverter.tsx]
+    B -->|"/docs"| L[DocsPage.tsx]
+    C --> E[Player.tsx]
     C --> F[SceneComponents]
-    C --> G[CameraFollow.jsx]
+    C --> G[CameraFollow.tsx]
     C --> H[GameEffects]
-    H --> I[SurfaceIdEffect.jsx]
-    F --> J[Materials.jsx]
-    J --> K[GameSettings.jsx]
+    H --> I[SurfaceIdEffect.tsx]
+    F --> J[Materials.tsx]
+    J --> K[GameSettings.ts]
 ```
 
 | Fil | Ansvar |
 |-----|--------|
-| `App.jsx` | Routing (`/` = spel, `/converter` = C4D-konverterare, `/docs` = dokumentation), Canvas-setup, kamera, ljus |
-| `GameSettings.jsx` | **Centrala konfigurationen** — färger, material, kamera, fysik, debug |
-| `Scene.jsx` | Spelscenen med Physics-wrapper, alla element, keyboard controls |
-| `Player.jsx` | Spelarbol med physics, keyboard input, hopp (raycast) |
-| `SceneComponents.jsx` | Återanvändbara element: Cube, Sphere, Cylinder, Spline, InvisibleFloor, C4DMesh |
-| `Materials.jsx` | Custom toon shader (GLSL), material-cache, C4DMaterial-komponent |
-| `Lights.jsx` | DirectionalLight med shadow-konfiguration |
-| `CameraFollow.jsx` | Isometrisk kamera som följer spelaren med lerp + skugg-target |
-| `Effects.jsx` | Post-processing pipeline (EffectComposer + SMAA) |
-| `SurfaceIdEffect.jsx` | Custom outline-effekt: surface-ID + normal-baserade kanter |
-| `GltfConverter.jsx` | FBX/GLB → JSX konverterare (drag & drop) |
-| `DocsPage.jsx` | Visar `DOCS.md` i browser med sidebar + Mermaid-diagram |
-| `PhysicsStepper.jsx` | Manuell physics-stepping (oanvänd för tillfället) |
+| `App.tsx` | Routing (`/` = spel, `/converter` = C4D-konverterare, `/docs` = dokumentation), Canvas-setup, kamera, ljus |
+| `GameSettings.ts` | **Centrala konfigurationen** — färger, material, kamera, fysik, debug |
+| `Scene.tsx` | Spelscenen med Physics-wrapper, alla element, keyboard controls |
+| `Player.tsx` | Spelarbol med physics, keyboard input, hopp (raycast) |
+| `SceneComponents.tsx` | Återanvändbara element: Cube, Sphere, Cylinder, Spline, InvisibleFloor, C4DMesh |
+| `Materials.tsx` | Custom toon shader (GLSL), material-cache, C4DMaterial-komponent |
+| `Lights.tsx` | DirectionalLight med shadow-konfiguration |
+| `CameraFollow.tsx` | Isometrisk kamera som följer spelaren med lerp + skugg-target |
+| `Effects.tsx` | Post-processing pipeline (EffectComposer + SMAA) |
+| `SurfaceIdEffect.tsx` | Custom outline-effekt: surface-ID + normal-baserade kanter |
+| `GltfConverter.tsx` | FBX/GLB → TSX-konverterare (drag & drop) |
+| `DocsPage.tsx` | Visar `DOCS.md` i browser med sidebar + Mermaid-diagram |
+| `PhysicsStepper.ts` | Manuell physics-stepping (oanvänd för tillfället) |
 
 ---
 
-## GameSettings.jsx — Central konfiguration
+## GameSettings.ts — Central konfiguration
 
 All visuell och gameplay-konfiguration samlas i `SETTINGS`-objektet:
 
@@ -71,7 +71,7 @@ palette: {
 
 ## Rendering Pipeline
 
-### 1. Toon Shader (`Materials.jsx`)
+### 1. Toon Shader (`Materials.tsx`)
 
 Custom GLSL shader med tre zoner:
 - **Highlight** (NdotL × shadow > 0.6) → `base` color
@@ -80,7 +80,7 @@ Custom GLSL shader med tre zoner:
 
 Material cachas per unik färgkombination. Alla meshes med samma palette-token delar samma material-instans.
 
-### 2. Outline Effect (`SurfaceIdEffect.jsx`)
+### 2. Outline Effect (`SurfaceIdEffect.tsx`)
 
 Post-processing effekt med **två render-passes per frame:**
 1. **Surface ID pass** — Varje mesh med `userData.surfaceId` renderas med en unik färg
@@ -127,7 +127,7 @@ Wrapper runt `<mesh>` som auto-genererar ett unikt `surfaceId` för outline-dete
 />
 ```
 
-### Spelaren (`Player.jsx`)
+### Spelaren (`Player.tsx`)
 - `RigidBody` med `BallCollider` (r=0.1)
 - Densitet beräknas från `SETTINGS.player.mass`
 - Impulse-baserad rörelse (WASD/piltangenter)
@@ -223,11 +223,13 @@ Genererar `useAnimations` hook med crossfade-logik:
 - `animation={null}` → rest position
 - `CINEMA_4D_Main` filtreras bort automatiskt
 - Crossfade: gamla animationer fadar ut, ny fadar in
+- Konverteraren sätter nu `name={nodes['...'].name}` på genererade `C4DMesh` och grupper så att Three.js track-binding fungerar (`THREE.PropertyBinding` kräver nodnamn som matchar animationstracks).
+- Om animationer inte spelar: kontrollera först browser-console för `No target node found for track` (betyder oftast att nodnamn saknas/mismatchar).
 
 ### Spara till projekt
 Knappen "SAVE TO PROJECT" sparar:
 - `.glb` — konverterat modell-fil
-- `.jsx` — genererad React-komponent
+- `.tsx` — genererad React-komponent
 
 Filer sparas via **File System Access API** (kräver användarens permission).
 
@@ -256,29 +258,39 @@ Miljövariabler:
 - `CDP_PORT` (default `9222`)
 - `CONSOLE_LISTEN_MS` (default `5000`)
 
+### TypeScript-check
+```bash
+npm run typecheck
+```
+
+### TS-migrering (status)
+- Hela `src/` är migrerat till `.ts`/`.tsx`.
+- `tsconfig.json` kör strict-läge (`strict: true`) och `allowJs: false`.
+- Konverteraren genererar `.tsx` i `src/assets/models/`.
+
 ---
 
 ## Projektstruktur
 
 ```
 src/
-├── App.jsx                 # Routing & Canvas
-├── main.jsx                # React entry point
-├── GameSettings.jsx        # Central konfiguration
-├── Scene.jsx               # Spelscen
-├── Player.jsx              # Spelarlogik
-├── SceneComponents.jsx     # Cube, Sphere, Cylinder, Spline, C4DMesh, InvisibleFloor
-├── Materials.jsx           # Toon shader & C4DMaterial
-├── Lights.jsx              # Ljus & skuggor
-├── CameraFollow.jsx        # Isometrisk kamera-follow
-├── Effects.jsx             # Post-processing wrapper
-├── SurfaceIdEffect.jsx     # Custom outline-effekt
-├── PhysicsStepper.jsx      # Manuell physics step (oanvänd)
-├── GltfConverter.jsx       # FBX/GLB → JSX konverterare
-├── DocsPage.jsx            # Browser-renderad dokumentation
+├── App.tsx                 # Routing & Canvas
+├── main.tsx                # React entry point
+├── GameSettings.ts         # Central konfiguration
+├── Scene.tsx               # Spelscen
+├── Player.tsx              # Spelarlogik
+├── SceneComponents.tsx     # Cube, Sphere, Cylinder, Spline, C4DMesh, InvisibleFloor
+├── Materials.tsx           # Toon shader & C4DMaterial
+├── Lights.tsx              # Ljus & skuggor
+├── CameraFollow.tsx        # Isometrisk kamera-follow
+├── Effects.tsx             # Post-processing wrapper
+├── SurfaceIdEffect.tsx     # Custom outline-effekt
+├── PhysicsStepper.ts       # Manuell physics step (oanvänd)
+├── GltfConverter.tsx       # FBX/GLB → TSX konverterare
+├── DocsPage.tsx            # Browser-renderad dokumentation
 ├── DocsPage.css            # Stil för docs-sidan
 └── assets/
-    ├── models/             # Genererade GLB + JSX filer
+    ├── models/             # Genererade GLB + TSX filer
     └── splineAndAnimTest.glb
 ```
 

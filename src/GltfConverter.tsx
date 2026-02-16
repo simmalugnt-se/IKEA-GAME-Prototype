@@ -1,19 +1,45 @@
-import React, { useState, useEffect } from 'react'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader'
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter'
+import * as THREE from 'three'
+import { useState, useEffect, type DragEvent } from 'react'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+
+type ParsedSpline = {
+  name: string
+  points: number[][]
+  closed: boolean
+  tension: number
+  transform: {
+    position: THREE.Vector3
+    rotation: THREE.Euler
+    scale: THREE.Vector3
+  }
+}
+
+type GenerateSettings = {
+  useSourceImport: boolean
+  modelPath: string
+  componentPath: string
+  animations?: Array<{ name: string }>
+  splines?: ParsedSpline[]
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return String(error)
+}
 
 export function GltfConverter() {
     // State
-    const [jsxOutput, setJsxOutput] = useState('')
-    const [error, setError] = useState(null)
-    const [fileName, setFileName] = useState('')
-    const [fileData, setFileData] = useState(null)       // raw binary for save
-    const [glbData, setGlbData] = useState(null)          // converted GLB (from FBX)
-    const [parsedScene, setParsedScene] = useState(null)
-    const [parsedAnimations, setParsedAnimations] = useState([])
-    const [parsedSplines, setParsedSplines] = useState([])
+    const [jsxOutput, setJsxOutput] = useState<string>('')
+    const [error, setError] = useState<string | null>(null)
+    const [fileName, setFileName] = useState<string>('')
+    const [fileData, setFileData] = useState<ArrayBuffer | null>(null)       // raw binary for save
+    const [glbData, setGlbData] = useState<ArrayBuffer | null>(null)         // converted GLB (from FBX)
+    const [parsedScene, setParsedScene] = useState<THREE.Object3D | null>(null)
+    const [parsedAnimations, setParsedAnimations] = useState<THREE.AnimationClip[]>([])
+    const [parsedSplines, setParsedSplines] = useState<ParsedSpline[]>([])
     const [isFbxSource, setIsFbxSource] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
 
@@ -25,19 +51,19 @@ export function GltfConverter() {
     // Modal State
     const [showModal, setShowModal] = useState(false)
     const [conflictName, setConflictName] = useState('')
-    const [dirHandle, setDirHandle] = useState(null)
+    const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null)
 
     // Load saved handle on mount
     useEffect(() => {
-        getDirectoryHandle().then(handle => {
+        getDirectoryHandle().then((handle) => {
             if (handle) {
                 console.log("Restored directory handle")
                 setDirHandle(handle)
             }
-        }).catch(err => console.log("DB Error", err))
+        }).catch((err: unknown) => console.log("DB Error", err))
     }, [])
 
-    const processGlb = (arrayBuffer, originalFileName) => {
+    const processGlb = (arrayBuffer: ArrayBuffer, originalFileName: string) => {
         setIsProcessing(true)
         setError(null)
 
@@ -47,7 +73,7 @@ export function GltfConverter() {
             dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/')
             loader.setDRACOLoader(dracoLoader)
 
-            loader.parse(arrayBuffer, '', (gltf) => {
+            loader.parse(arrayBuffer, '', (gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }) => {
                 try {
                     const glbFileName = originalFileName.replace(/\.(glb|gltf)$/, '.glb')
                     const generatedJsx = generateJsxFromScene(gltf.scene, glbFileName, {
@@ -61,40 +87,40 @@ export function GltfConverter() {
                     setParsedSplines([])
                     setIsFbxSource(false)
                     setIsProcessing(false)
-                } catch (innerErr) {
+                } catch (innerErr: unknown) {
                     console.error("Generator error:", innerErr)
-                    setError("Error generating JSX: " + innerErr.message)
+                    setError("Error generating TSX: " + toErrorMessage(innerErr))
                     setIsProcessing(false)
                 }
-            }, (err) => {
+            }, (err: unknown) => {
                 console.error("Parse error:", err)
                 setError("Failed to parse file. Check console (Draco decoder might be blocked?).")
                 setIsProcessing(false)
             })
-        } catch (e) {
-            setError(e.message)
+        } catch (e: unknown) {
+            setError(toErrorMessage(e))
             setIsProcessing(false)
         }
     }
 
-    const processFbx = async (arrayBuffer, originalFileName) => {
+    const processFbx = async (arrayBuffer: ArrayBuffer, originalFileName: string) => {
         setIsProcessing(true)
         setError(null)
 
         try {
             const loader = new FBXLoader()
-            const fbxScene = loader.parse(arrayBuffer)
+            const fbxScene = loader.parse(arrayBuffer, '')
 
             // --- Extrahera splines (THREE.Line med NurbsCurve-geometri) ---
-            const splines = []
+            const splines: ParsedSpline[] = []
 
-            fbxScene.traverse((child) => {
+            fbxScene.traverse((child: any) => {
                 // FBXLoader skapar Line-objekt från NurbsCurve
                 if (child.isLine) {
                     const geo = child.geometry
                     const posAttr = geo.getAttribute('position')
                     if (posAttr) {
-                        const points = []
+                        const points: number[][] = []
                         for (let i = 0; i < posAttr.count; i++) {
                             points.push([
                                 parseFloat(posAttr.getX(i).toFixed(4)),
@@ -133,25 +159,31 @@ export function GltfConverter() {
             // --- Bygg en ren scene för GLB-export (bara meshes, inga Lines) ---
             // Klona hela scenen men markera lines för borttagning
             const clonedScene = fbxScene.clone(true)
-            const linesToRemove = []
-            clonedScene.traverse((child) => {
+            const linesToRemove: THREE.Object3D[] = []
+            clonedScene.traverse((child: any) => {
                 if (child.isLine) linesToRemove.push(child)
             })
-            linesToRemove.forEach(line => line.parent?.remove(line))
+            linesToRemove.forEach((line) => line.parent?.remove(line))
 
             // --- Extrahera animationer ---
             const animations = fbxScene.animations || []
 
             // --- Exportera till GLB ---
             const exporter = new GLTFExporter()
-            const glbBuffer = await new Promise((resolve, reject) => {
-                exporter.parse(clonedScene, (result) => resolve(result), (err) => reject(err), {
+            const glbBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+                exporter.parse(clonedScene, (result: unknown) => {
+                    if (result instanceof ArrayBuffer) {
+                        resolve(result)
+                    } else {
+                        reject(new Error('GLTFExporter did not return an ArrayBuffer in binary mode.'))
+                    }
+                }, (err: unknown) => reject(err), {
                     binary: true,
                     animations: animations,
                 })
             })
 
-            // --- Generera JSX ---
+            // --- Generera TSX ---
             const glbFileName = originalFileName.replace(/\.fbx$/i, '.glb')
 
             // Ladda GLB:en med GLTFLoader för att få korrekt scene-hierarki
@@ -160,7 +192,7 @@ export function GltfConverter() {
             dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/')
             gltfLoader.setDRACOLoader(dracoLoader)
 
-            gltfLoader.parse(glbBuffer, '', (gltf) => {
+            gltfLoader.parse(glbBuffer, '', (gltf: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }) => {
                 try {
                     const generatedJsx = generateJsxFromScene(gltf.scene, glbFileName, {
                         useSourceImport, modelPath, componentPath,
@@ -174,25 +206,25 @@ export function GltfConverter() {
                     setGlbData(glbBuffer)
                     setIsFbxSource(true)
                     setIsProcessing(false)
-                } catch (innerErr) {
-                    console.error("JSX generator error:", innerErr)
-                    setError("Error generating JSX: " + innerErr.message)
+                } catch (innerErr: unknown) {
+                    console.error("TSX generator error:", innerErr)
+                    setError("Error generating TSX: " + toErrorMessage(innerErr))
                     setIsProcessing(false)
                 }
-            }, (err) => {
+            }, (err: unknown) => {
                 console.error("GLB re-parse error:", err)
-                setError("Failed to re-parse converted GLB: " + err.message)
+                setError("Failed to re-parse converted GLB: " + toErrorMessage(err))
                 setIsProcessing(false)
             })
 
-        } catch (e) {
+        } catch (e: unknown) {
             console.error("FBX processing error:", e)
-            setError("FBX Error: " + e.message)
+            setError("FBX Error: " + toErrorMessage(e))
             setIsProcessing(false)
         }
     }
 
-    const onFileDrop = (e) => {
+    const onFileDrop = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault()
         const file = e.dataTransfer.files[0]
         if (!file) return
@@ -215,12 +247,19 @@ export function GltfConverter() {
         setIsProcessing(true)
 
         const reader = new FileReader()
-        reader.onload = (event) => {
-            setFileData(event.target.result)
+        reader.onload = (event: ProgressEvent<FileReader>) => {
+            const result = event.target?.result
+            if (!(result instanceof ArrayBuffer)) {
+                setError('Failed to read file as ArrayBuffer.')
+                setIsProcessing(false)
+                return
+            }
+
+            setFileData(result)
             if (isFbx) {
-                processFbx(event.target.result, file.name)
+                processFbx(result, file.name)
             } else {
-                processGlb(event.target.result, file.name)
+                processGlb(result, file.name)
             }
         }
         reader.readAsArrayBuffer(file)
@@ -235,12 +274,16 @@ export function GltfConverter() {
         }
 
         try {
-            let handle = dirHandle
+            let handle: FileSystemDirectoryHandle | null = dirHandle
 
             if (handle) {
-                const opts = { mode: 'readwrite' }
-                if ((await handle.queryPermission(opts)) !== 'granted') {
-                    if ((await handle.requestPermission(opts)) !== 'granted') {
+                const permissionTarget = handle as unknown as {
+                    queryPermission?: (descriptor: { mode: 'readwrite' }) => Promise<'granted' | 'denied' | 'prompt'>
+                    requestPermission?: (descriptor: { mode: 'readwrite' }) => Promise<'granted' | 'denied' | 'prompt'>
+                }
+                const opts = { mode: 'readwrite' as const }
+                if (permissionTarget.queryPermission && (await permissionTarget.queryPermission(opts)) !== 'granted') {
+                    if (permissionTarget.requestPermission && (await permissionTarget.requestPermission(opts)) !== 'granted') {
                         handle = null
                     }
                 }
@@ -258,7 +301,7 @@ export function GltfConverter() {
             // Alla sparas som .glb (FBX konverteras)
             const baseName = fileName.replace(/\.(glb|gltf|fbx)$/i, '')
             const glbName = baseName + '.glb'
-            const jsxName = toPascalCase(baseName) + '.jsx'
+            const jsxName = toPascalCase(baseName) + '.tsx'
 
             const conflict = (await fileExists(handle, jsxName)) || (await fileExists(handle, glbName))
 
@@ -269,14 +312,14 @@ export function GltfConverter() {
                 await performSave(handle, baseName, false)
             }
 
-        } catch (e) {
-            if (e.name !== 'AbortError') setError(e.message)
+        } catch (e: unknown) {
+            if (!(e instanceof Error) || e.name !== 'AbortError') setError(toErrorMessage(e))
         }
     }
 
-    const performSave = async (handle, baseName, increment) => {
+    const performSave = async (handle: FileSystemDirectoryHandle, baseName: string, increment: boolean) => {
         let finalGlbName = baseName + '.glb'
-        let finalJsxName = toPascalCase(baseName) + '.jsx'
+        let finalJsxName = toPascalCase(baseName) + '.tsx'
 
         if (increment) {
             let counter = 1
@@ -284,7 +327,7 @@ export function GltfConverter() {
             while (found) {
                 const testBase = `${baseName}${counter}`
                 const testGlb = `${testBase}.glb`
-                const testJsx = `${toPascalCase(testBase)}.jsx`
+                const testJsx = `${toPascalCase(testBase)}.tsx`
 
                 const testGlbExists = await fileExists(handle, testGlb)
                 const testJsxExists = await fileExists(handle, testJsx)
@@ -297,7 +340,12 @@ export function GltfConverter() {
             }
         }
 
-        // Regenerera JSX med rätt filnamn
+        // Regenerera TSX med rätt filnamn
+        if (!parsedScene) {
+            setError('No parsed scene available to save.')
+            return
+        }
+
         const newJsx = generateJsxFromScene(parsedScene, finalGlbName, {
             useSourceImport, modelPath, componentPath,
             animations: parsedAnimations,
@@ -306,6 +354,10 @@ export function GltfConverter() {
 
         // Välj rätt binär-data: FBX → använd konverterad GLB, annars original
         const modelData = isFbxSource ? glbData : fileData
+        if (!modelData) {
+            setError('No model data available to write.')
+            return
+        }
 
         try {
             const modelHandle = await handle.getFileHandle(finalGlbName, { create: true })
@@ -320,8 +372,8 @@ export function GltfConverter() {
 
             alert(`Saved ${finalGlbName} and ${finalJsxName}!`)
             setShowModal(false)
-        } catch (e) {
-            setError("Write failed: " + e.message)
+        } catch (e: unknown) {
+            setError("Write failed: " + toErrorMessage(e))
             setShowModal(false)
         }
     }
@@ -408,7 +460,7 @@ export function GltfConverter() {
                             onClick={copyToClipboard}
                             style={{ padding: '8px 16px', background: '#fff', color: '#000', border: 'none', cursor: 'pointer', fontWeight: 'bold', borderRadius: 4 }}
                         >
-                            COPY JSX
+                            COPY TSX
                         </button>
                         <button
                             onClick={handleSaveToProject}
@@ -434,13 +486,17 @@ export function GltfConverter() {
                         <p>A file with the name <strong>{conflictName}</strong> already exists in the selected folder.</p>
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
                             <button
-                                onClick={() => performSave(dirHandle, conflictName, false)}
+                                onClick={() => {
+                                    if (dirHandle) void performSave(dirHandle, conflictName, false)
+                                }}
                                 style={{ padding: '10px 20px', background: '#ff5555', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
                             >
                                 Overwrite
                             </button>
                             <button
-                                onClick={() => performSave(dirHandle, conflictName, true)}
+                                onClick={() => {
+                                    if (dirHandle) void performSave(dirHandle, conflictName, true)
+                                }}
                                 style={{ padding: '10px 20px', background: '#4dff88', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer' }}
                             >
                                 Increment Name (e.g. {conflictName}1)
@@ -461,16 +517,16 @@ export function GltfConverter() {
 
 // --- HELPER FUNCTIONS ---
 
-function sanitizeName(name) {
+function sanitizeName(name: string): string {
     return name.replace(/[^a-zA-Z0-9]/g, '_').replace(/^_+/, '').replace(/_+$/, '')
 }
 
-function toPascalCase(str) {
+function toPascalCase(str: string): string {
     const result = sanitizeName(str)
     return result.charAt(0).toUpperCase() + result.slice(1)
 }
 
-function getTransformProps(obj) {
+function getTransformProps(obj: any): string {
     const p = obj.position
     const r = obj.rotation
     const s = obj.scale
@@ -481,7 +537,7 @@ function getTransformProps(obj) {
     return str
 }
 
-function generateJsxFromScene(scene, originalFileName, settings) {
+function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, settings: GenerateSettings): string {
     const { useSourceImport, modelPath, componentPath, animations = [], splines = [] } = settings
     const baseName = originalFileName.replace(/\.(glb|gltf)$/, '')
     const componentName = toPascalCase(baseName || 'Model')
@@ -497,58 +553,66 @@ function generateJsxFromScene(scene, originalFileName, settings) {
     }
 
     // Filtrera bort CINEMA_4D_Main-taken (rest position)
-    const selectableAnims = animations.filter(a => a.name !== 'CINEMA_4D_Main')
+    const selectableAnims = animations.filter((a) => a.name !== 'CINEMA_4D_Main')
     const hasAnimations = selectableAnims.length > 0
     const hasSplines = splines.length > 0
 
     // --- Steg 1: Samla unika _color-tokens från hela scenen ---
-    const colorSet = new Set()
+    const colorSet = new Set<string>()
 
-    function collectColors(obj) {
+    function collectColors(obj: any): void {
         const colorMatch = obj.name.match(/_color([A-Za-z0-9]+)/)
         if (colorMatch) colorSet.add(colorMatch[1].toLowerCase())
-        obj.children.forEach(child => collectColors(child))
+        obj.children.forEach((child: any) => collectColors(child))
     }
-    scene.children.forEach(child => collectColors(child))
+    scene.children.forEach((child) => collectColors(child))
 
     if (colorSet.size === 0) colorSet.add('default')
 
-    function getColorFromName(name) {
+    function getColorFromName(name: string): string | null {
         const match = name.match(/_color([A-Za-z0-9]+)/)
         return match ? match[1].toLowerCase() : null
     }
 
-    function hasSingleTone(name) {
+    function hasSingleTone(name: string): boolean {
         return name.toLowerCase().includes('_singletone')
     }
 
     // --- Steg 2: Bygg output ---
     let output = `/*\nAuto-generated by C4D to R3F Converter\nModel: ${originalFileName}\n*/\n\n`
-    output += `import React, { useRef, useEffect } from 'react'\n`
+    output += `import * as THREE from 'three'\n`
+    output += `import { useRef, useEffect } from 'react'\n`
     output += `import { useGLTF${hasAnimations ? ', useAnimations' : ''} } from '@react-three/drei'\n`
     output += `import { RigidBody, ConvexHullCollider } from '@react-three/rapier'\n`
+    output += `import type { ThreeElements } from '@react-three/fiber'\n`
     output += `import { C4DMesh, C4DMaterial${hasSplines ? ', SplineElement' : ''} } from '${componentPath}'\n`
+    output += `import type { PaletteName } from '../../GameSettings'\n`
     if (importStr) output += `${importStr}\n`
     output += `\n`
 
+    output += `type ${componentName}Props = ThreeElements['group'] & {\n`
+    output += `  animation?: string | null\n`
+    output += `  fadeDuration?: number\n`
+    output += `}\n\n`
+
     // Komponent-signatur med animation-props
     if (hasAnimations) {
-        output += `export function ${componentName}({ animation = null, fadeDuration = 0.3, ...props }) {\n`
+        output += `export function ${componentName}({ animation = null, fadeDuration = 0.3, ...props }: ${componentName}Props) {\n`
     } else {
-        output += `export function ${componentName}(props) {\n`
+        output += `export function ${componentName}(props: ${componentName}Props) {\n`
     }
 
     // Refs och hooks
     if (hasAnimations) {
-        output += `  const group = useRef()\n`
-        output += `  const { nodes, animations } = useGLTF(${loadPathStr})\n`
+        output += `  const group = useRef<THREE.Group | null>(null)\n`
+        output += `  const { nodes, animations } = useGLTF(${loadPathStr}) as unknown as { nodes: Record<string, THREE.Mesh>; animations: THREE.AnimationClip[] }\n`
         output += `  const { actions } = useAnimations(animations, group)\n\n`
 
         // Crossfade-logik
         output += `  // Crossfade mellan animationer\n`
         output += `  // animation={null} = rest position, animation="${selectableAnims[0]?.name || 'Anim1'}" = spela\n`
         output += `  useEffect(() => {\n`
-        output += `    Object.values(actions).forEach(a => a?.fadeOut(fadeDuration))\n`
+        output += `    Object.values(actions).forEach((a) => a?.fadeOut(fadeDuration))\n`
         output += `    if (animation && actions[animation]) {\n`
         output += `      actions[animation].reset().fadeIn(fadeDuration).play()\n`
         output += `    }\n`
@@ -557,12 +621,13 @@ function generateJsxFromScene(scene, originalFileName, settings) {
         // Kommentar med tillgängliga animationer
         output += `  // Tillgängliga animationer: ${selectableAnims.map(a => `"${a.name}"`).join(', ')}\n\n`
     } else {
-        output += `  const { nodes } = useGLTF(${loadPathStr})\n`
+        output += `  const { nodes } = useGLTF(${loadPathStr}) as unknown as { nodes: Record<string, THREE.Mesh> }\n`
     }
 
     // Colors-objekt
-    output += `  const colors = {\n`
-    colorSet.forEach(colorName => {
+    output += `  const colors: Record<string, PaletteName> = {\n`
+    output += `    default: 'default',\n`
+    colorSet.forEach((colorName) => {
         output += `    ${colorName}: '${colorName}',\n`
     })
     output += `  }\n\n`
@@ -574,7 +639,7 @@ function generateJsxFromScene(scene, originalFileName, settings) {
         output += `    <group {...props} dispose={null}>\n`
     }
 
-    function traverse(obj, indent = 6, inheritedColor = null) {
+    function traverse(obj: any, indent = 6, inheritedColor: string | null = null): string {
         let str = ''
         const spaces = ' '.repeat(indent)
         if (obj.userData?.ignore) return ''
@@ -589,7 +654,7 @@ function generateJsxFromScene(scene, originalFileName, settings) {
 
         if (!colorSet.has(currentColor)) colorSet.add(currentColor)
 
-        let physicsType = null
+        let physicsType: string | null = null
         let physicsProps = ''
         if (rawName.includes('_dynamic')) physicsType = 'dynamic'
         if (rawName.includes('_static') || rawName.includes('_fixed')) physicsType = 'fixed'
@@ -601,9 +666,9 @@ function generateJsxFromScene(scene, originalFileName, settings) {
         if (rawName.includes('_lockRot')) physicsProps += ` lockRotations`
         if (rawName.includes('_sensor')) physicsProps += ` sensor`
 
-        const isColliderName = (name) => name.toLowerCase().includes('_collider')
-        const colliderChildren = obj.children.filter(c => isColliderName(c.name))
-        const visualChildren = obj.children.filter(c => !isColliderName(c.name))
+        const isColliderName = (name: string): boolean => name.toLowerCase().includes('_collider')
+        const colliderChildren = obj.children.filter((c: any) => isColliderName(c.name))
+        const visualChildren = obj.children.filter((c: any) => !isColliderName(c.name))
 
         const singleToneProp = singleTone ? ' singleTone' : ''
 
@@ -612,7 +677,7 @@ function generateJsxFromScene(scene, originalFileName, settings) {
             const collidersAttr = hasExplicitColliders ? ' colliders={false}' : ''
             str += `${spaces}<RigidBody type="${physicsType}"${collidersAttr}${physicsProps}${transformProps}>\n`
             if (colliderChildren.length > 0) {
-                colliderChildren.forEach(c => {
+                colliderChildren.forEach((c: any) => {
                     const cSafeName = sanitizeName(c.name)
                     if (c.geometry) {
                         const colliderTransform = getTransformProps(c)
@@ -621,38 +686,38 @@ function generateJsxFromScene(scene, originalFileName, settings) {
                 })
             }
             if (obj.isMesh && !isColliderName(rawName)) {
-                str += `${spaces}  <C4DMesh geometry={nodes['${safeName}'].geometry} castShadow receiveShadow>\n`
+                str += `${spaces}  <C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow>\n`
                 str += `${spaces}    <C4DMaterial color={colors.${currentColor}}${singleToneProp} />\n`
-                visualChildren.forEach(child => str += traverse(child, indent + 4, currentColor))
+                visualChildren.forEach((child: any) => str += traverse(child, indent + 4, currentColor))
                 str += `${spaces}  </C4DMesh>\n`
             } else {
-                visualChildren.forEach(child => str += traverse(child, indent + 2, currentColor))
+                visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
             }
             str += `${spaces}</RigidBody>\n`
         } else if (obj.isMesh && !isColliderName(rawName)) {
-            str += `${spaces}<C4DMesh geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${transformProps}>\n`
+            str += `${spaces}<C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${transformProps}>\n`
             str += `${spaces}  <C4DMaterial color={colors.${currentColor}}${singleToneProp} />\n`
-            visualChildren.forEach(child => str += traverse(child, indent + 2, currentColor))
+            visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
             str += `${spaces}</C4DMesh>\n`
         } else if (!rawName.toLowerCase().includes('_collider')) {
             if (transformProps) {
-                str += `${spaces}<group${transformProps}>\n`
-                visualChildren.forEach(child => str += traverse(child, indent + 2, currentColor))
+                str += `${spaces}<group name={${JSON.stringify(rawName)}}${transformProps}>\n`
+                visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
                 str += `${spaces}</group>\n`
             } else {
-                visualChildren.forEach(child => str += traverse(child, indent, currentColor))
+                visualChildren.forEach((child: any) => str += traverse(child, indent, currentColor))
             }
         }
 
         return str
     }
 
-    scene.children.forEach(child => output += traverse(child))
+    scene.children.forEach((child) => output += traverse(child))
 
     // --- Lägg till splines ---
     if (hasSplines) {
         output += `\n      {/* Splines */}\n`
-        splines.forEach(spline => {
+        splines.forEach((spline) => {
             const cleanName = spline.name.split('\u0000')[0].trim() // Ta bort FBX null-suffix
             const tp = spline.transform
             let splineProps = ''
@@ -690,7 +755,7 @@ function generateJsxFromScene(scene, originalFileName, settings) {
 const DB_NAME = 'GltfConverterDB'
 const STORE_NAME = 'handles'
 
-async function fileExists(handle, fileName) {
+async function fileExists(handle: FileSystemDirectoryHandle, fileName: string): Promise<boolean> {
     try {
         await handle.getFileHandle(fileName)
         return true
@@ -699,11 +764,11 @@ async function fileExists(handle, fileName) {
     }
 }
 
-function openDB() {
-    return new Promise((resolve, reject) => {
+function openDB(): Promise<IDBDatabase> {
+    return new Promise<IDBDatabase>((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1)
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result
+        request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+            const db = (event.target as IDBOpenDBRequest).result
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME)
             }
@@ -713,9 +778,9 @@ function openDB() {
     })
 }
 
-async function saveDirectoryHandle(handle) {
+async function saveDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<void> {
     const db = await openDB()
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite')
         const store = tx.objectStore(STORE_NAME)
         store.put(handle, 'models_dir')
@@ -724,13 +789,13 @@ async function saveDirectoryHandle(handle) {
     })
 }
 
-async function getDirectoryHandle() {
+async function getDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
     const db = await openDB()
-    return new Promise((resolve, reject) => {
+    return new Promise<FileSystemDirectoryHandle | null>((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readonly')
         const store = tx.objectStore(STORE_NAME)
         const request = store.get('models_dir')
-        request.onsuccess = () => resolve(request.result)
+        request.onsuccess = () => resolve((request.result as FileSystemDirectoryHandle | undefined) || null)
         request.onerror = () => reject(request.error)
     })
 }
