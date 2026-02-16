@@ -197,14 +197,18 @@ Tokens sätts i **objektnamnet** i Cinema 4D:
 | `_fricX` | Sätter friktion | `Ramp_dynamic_fric3` |
 | `_lockRot` | Låser rotation | `Block_dynamic_lockRot` |
 | `_sensor` | Sensor (trigger, ej solid) | `Zone_dynamic_sensor` |
-| `_collider` | Markerar geo som kollisions-proxy | `Box_collider` |
+| `_collider` | Markerar collider-geo (proxy eller egen geo beroende på inställning) | `Box_collider` |
 
 ### Kollisions-hantering
 
 - Barn med `_collider` i namnet → `ConvexHullCollider` (ej synlig)
 - Position/rotation från collider-geon bevaras
-- `colliders={false}` sätts automatiskt på `RigidBody` (förhindrar auto-colliders)
-- **Viktigt:** Collider-geon och synlig geo ska vara i samma grupp
+- `colliders={false}` sätts automatiskt på `RigidBody` när explicita colliders genereras
+- Inställning: **Use Own Geo For `_collider`**
+- Om physics-objektet självt har `_collider` och är en mesh, används dess egen geo som `ConvexHullCollider`
+- Om physics-objektet självt har `_collider` men saknar egen geo (t.ex. grupp/null), skapas en omslutande `CuboidCollider` från barnens bounds
+- Om inget `_collider` används på physics-objektet behålls Rapier auto-colliders (default-beteende)
+- **Viktigt:** Redigera inte genererad TSX i `assets/models` manuellt; uppdatera konverteraren och kör ny FBX→GLB/TSX-konvertering
 
 ### Färg-arv
 Färg-tokens ärvs nedåt i hierarkin. Om en grupp har `_colorTwo`, får alla barn den färgen om de inte har en egen token.

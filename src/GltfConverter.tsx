@@ -21,6 +21,7 @@ type GenerateSettings = {
   useSourceImport: boolean
   modelPath: string
   componentPath: string
+  useOwnGeoColliders: boolean
   animations?: Array<{ name: string }>
   splines?: ParsedSpline[]
 }
@@ -47,6 +48,7 @@ export function GltfConverter() {
     const [useSourceImport, setUseSourceImport] = useState(true)
     const [modelPath, setModelPath] = useState('/models/')
     const [componentPath, setComponentPath] = useState('../../SceneComponents')
+    const [useOwnGeoColliders, setUseOwnGeoColliders] = useState(true)
 
     // Modal State
     const [showModal, setShowModal] = useState(false)
@@ -78,6 +80,7 @@ export function GltfConverter() {
                     const glbFileName = originalFileName.replace(/\.(glb|gltf)$/, '.glb')
                     const generatedJsx = generateJsxFromScene(gltf.scene, glbFileName, {
                         useSourceImport, modelPath, componentPath,
+                        useOwnGeoColliders,
                         animations: gltf.animations || [],
                         splines: [],
                     })
@@ -196,6 +199,7 @@ export function GltfConverter() {
                 try {
                     const generatedJsx = generateJsxFromScene(gltf.scene, glbFileName, {
                         useSourceImport, modelPath, componentPath,
+                        useOwnGeoColliders,
                         animations: gltf.animations || [],
                         splines,
                     })
@@ -348,6 +352,7 @@ export function GltfConverter() {
 
         const newJsx = generateJsxFromScene(parsedScene, finalGlbName, {
             useSourceImport, modelPath, componentPath,
+            useOwnGeoColliders,
             animations: parsedAnimations,
             splines: parsedSplines,
         })
@@ -414,6 +419,23 @@ export function GltfConverter() {
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontWeight: 'bold' }}>Target: Source Folder (src/)</span>
                             <span style={{ fontSize: 11, opacity: 0.6 }}>Best for <code>src/assets/models/</code>. Generates <code>import</code>.</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <input
+                            type="checkbox"
+                            checked={useOwnGeoColliders}
+                            onChange={(e) => setUseOwnGeoColliders(e.target.checked)}
+                            style={{ width: 18, height: 18 }}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 'bold' }}>Use Own Geo For `_collider`</span>
+                            <span style={{ fontSize: 11, opacity: 0.6 }}>
+                                Om ett physics-objekt har <code>_collider</code>: använd dess egen mesh som collider. För grupper utan geo används en enkel omslutande <code>CuboidCollider</code>.
+                            </span>
                         </div>
                     </label>
                 </div>
@@ -537,10 +559,52 @@ function getTransformProps(obj: any): string {
     return str
 }
 
+function getLocalBoundsForObject(obj: THREE.Object3D): { center: THREE.Vector3; size: THREE.Vector3 } | null {
+    const bounds = new THREE.Box3()
+    const inverseRootWorld = new THREE.Matrix4().copy(obj.matrixWorld).invert()
+    const localMatrix = new THREE.Matrix4()
+    const corner = new THREE.Vector3()
+    let hasGeometry = false
+
+    const addCorner = (x: number, y: number, z: number) => {
+        corner.set(x, y, z).applyMatrix4(localMatrix)
+        bounds.expandByPoint(corner)
+        hasGeometry = true
+    }
+
+    obj.traverse((child) => {
+        const mesh = child as THREE.Mesh
+        if (!mesh.isMesh || !mesh.geometry) return
+
+        const geometry = mesh.geometry as THREE.BufferGeometry
+        if (!geometry.boundingBox) geometry.computeBoundingBox()
+        if (!geometry.boundingBox) return
+
+        localMatrix.multiplyMatrices(inverseRootWorld, mesh.matrixWorld)
+
+        const { min, max } = geometry.boundingBox
+        addCorner(min.x, min.y, min.z)
+        addCorner(min.x, min.y, max.z)
+        addCorner(min.x, max.y, min.z)
+        addCorner(min.x, max.y, max.z)
+        addCorner(max.x, min.y, min.z)
+        addCorner(max.x, min.y, max.z)
+        addCorner(max.x, max.y, min.z)
+        addCorner(max.x, max.y, max.z)
+    })
+
+    if (!hasGeometry || bounds.isEmpty()) return null
+
+    const center = bounds.getCenter(new THREE.Vector3())
+    const size = bounds.getSize(new THREE.Vector3())
+    return { center, size }
+}
+
 function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, settings: GenerateSettings): string {
-    const { useSourceImport, modelPath, componentPath, animations = [], splines = [] } = settings
+    const { useSourceImport, modelPath, componentPath, useOwnGeoColliders, animations = [], splines = [] } = settings
     const baseName = originalFileName.replace(/\.(glb|gltf)$/, '')
     const componentName = toPascalCase(baseName || 'Model')
+    scene.updateMatrixWorld(true)
 
     let loadPathStr = ''
     let importStr = ''
@@ -578,12 +642,16 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         return name.toLowerCase().includes('_singletone')
     }
 
+    let usesRigidBody = false
+    let usesConvexHullCollider = false
+    let usesCuboidCollider = false
+
     // --- Steg 2: Bygg output ---
     let output = `/*\nAuto-generated by C4D to R3F Converter\nModel: ${originalFileName}\n*/\n\n`
     output += `import * as THREE from 'three'\n`
     output += `import { useRef, useEffect } from 'react'\n`
     output += `import { useGLTF${hasAnimations ? ', useAnimations' : ''} } from '@react-three/drei'\n`
-    output += `import { RigidBody, ConvexHullCollider } from '@react-three/rapier'\n`
+    output += `__RAPIER_IMPORT__\n`
     output += `import type { ThreeElements } from '@react-three/fiber'\n`
     output += `import { C4DMesh, C4DMaterial${hasSplines ? ', SplineElement' : ''} } from '${componentPath}'\n`
     output += `import type { PaletteName } from '../../GameSettings'\n`
@@ -667,25 +735,64 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         if (rawName.includes('_sensor')) physicsProps += ` sensor`
 
         const isColliderName = (name: string): boolean => name.toLowerCase().includes('_collider')
+        const isSelfCollider = isColliderName(rawName)
         const colliderChildren = obj.children.filter((c: any) => isColliderName(c.name))
+        const explicitColliderMeshes = colliderChildren.filter((c: any) => Boolean(c.geometry))
         const visualChildren = obj.children.filter((c: any) => !isColliderName(c.name))
 
         const singleToneProp = singleTone ? ' singleTone' : ''
 
         if (physicsType) {
-            const hasExplicitColliders = colliderChildren.length > 0
-            const collidersAttr = hasExplicitColliders ? ' colliders={false}' : ''
+            usesRigidBody = true
+
+            const useSelfMeshCollider = useOwnGeoColliders
+                && isSelfCollider
+                && obj.isMesh
+                && Boolean(obj.geometry)
+                && explicitColliderMeshes.length === 0
+
+            const useFallbackCuboidCollider = useOwnGeoColliders
+                && isSelfCollider
+                && !useSelfMeshCollider
+                && explicitColliderMeshes.length === 0
+
+            const fallbackBounds = useFallbackCuboidCollider ? getLocalBoundsForObject(obj) : null
+            const hasFallbackCollider = Boolean(fallbackBounds && fallbackBounds.size.lengthSq() > 0.0000001)
+
+            const hasExplicitColliders = explicitColliderMeshes.length > 0
+            const disableAutoColliders = hasExplicitColliders || useSelfMeshCollider || hasFallbackCollider
+            const collidersAttr = disableAutoColliders ? ' colliders={false}' : ''
+
             str += `${spaces}<RigidBody type="${physicsType}"${collidersAttr}${physicsProps}${transformProps}>\n`
-            if (colliderChildren.length > 0) {
-                colliderChildren.forEach((c: any) => {
+
+            if (hasExplicitColliders) {
+                explicitColliderMeshes.forEach((c: any) => {
                     const cSafeName = sanitizeName(c.name)
-                    if (c.geometry) {
-                        const colliderTransform = getTransformProps(c)
-                        str += `${spaces}  <ConvexHullCollider args={[nodes['${cSafeName}'].geometry.attributes.position.array]}${colliderTransform} />\n`
-                    }
+                    const colliderTransform = getTransformProps(c)
+                    str += `${spaces}  <ConvexHullCollider args={[nodes['${cSafeName}'].geometry.attributes.position.array]}${colliderTransform} />\n`
+                    usesConvexHullCollider = true
                 })
             }
-            if (obj.isMesh && !isColliderName(rawName)) {
+
+            if (useSelfMeshCollider) {
+                str += `${spaces}  <ConvexHullCollider args={[nodes['${safeName}'].geometry.attributes.position.array]} />\n`
+                usesConvexHullCollider = true
+            } else if (hasFallbackCollider && fallbackBounds) {
+                const halfX = Math.max(parseFloat((fallbackBounds.size.x * 0.5).toFixed(4)), 0.001)
+                const halfY = Math.max(parseFloat((fallbackBounds.size.y * 0.5).toFixed(4)), 0.001)
+                const halfZ = Math.max(parseFloat((fallbackBounds.size.z * 0.5).toFixed(4)), 0.001)
+                const center = fallbackBounds.center
+                let cuboidTransform = ''
+                if (Math.abs(center.x) > 0.0001 || Math.abs(center.y) > 0.0001 || Math.abs(center.z) > 0.0001) {
+                    cuboidTransform = ` position={[${parseFloat(center.x.toFixed(4))}, ${parseFloat(center.y.toFixed(4))}, ${parseFloat(center.z.toFixed(4))}]}`
+                }
+                str += `${spaces}  <CuboidCollider args={[${halfX}, ${halfY}, ${halfZ}]}${cuboidTransform} />\n`
+                usesCuboidCollider = true
+            }
+
+            const shouldRenderOwnColliderMesh = useSelfMeshCollider
+
+            if (obj.isMesh && (!isSelfCollider || shouldRenderOwnColliderMesh)) {
                 str += `${spaces}  <C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow>\n`
                 str += `${spaces}    <C4DMaterial color={colors.${currentColor}}${singleToneProp} />\n`
                 visualChildren.forEach((child: any) => str += traverse(child, indent + 4, currentColor))
@@ -694,7 +801,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
                 visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
             }
             str += `${spaces}</RigidBody>\n`
-        } else if (obj.isMesh && !isColliderName(rawName)) {
+        } else if (obj.isMesh && !isSelfCollider) {
             str += `${spaces}<C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${transformProps}>\n`
             str += `${spaces}  <C4DMaterial color={colors.${currentColor}}${singleToneProp} />\n`
             visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
@@ -713,6 +820,17 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     }
 
     scene.children.forEach((child) => output += traverse(child))
+
+    const rapierImports: string[] = []
+    if (usesRigidBody) {
+        rapierImports.push('RigidBody')
+        if (usesConvexHullCollider) rapierImports.push('ConvexHullCollider')
+        if (usesCuboidCollider) rapierImports.push('CuboidCollider')
+    }
+    const rapierImportLine = rapierImports.length > 0
+        ? `import { ${rapierImports.join(', ')} } from '@react-three/rapier'`
+        : ''
+    output = output.replace('__RAPIER_IMPORT__', rapierImportLine)
 
     // --- Lägg till splines ---
     if (hasSplines) {
