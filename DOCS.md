@@ -59,13 +59,40 @@ palette: {
 ### Viktiga inställningar
 | Sektion | Nyckelparametrar |
 |---------|-----------------|
-| `debug` | `enabled`, `showColliders`, `showStats` |
+| `debug` | `enabled`, `showColliders`, `showStats`, `benchmark`, `streaming` |
+| `streaming` | `enabled`, `cellSize`, `preloadRadius`, `renderLoadRadius`, `renderUnloadRadius`, `physicsLoadRadius`, `physicsUnloadRadius` |
 | `colors` | `background`, `shadow`, `outline` |
 | `lines` | `enabled`, `thickness`, `creaseAngle` |
 | `camera` | `zoom` (300), `position` ([5,5,5]), `followLerp` |
 | `light` | `position`, `shadowMapSize` (4096), `shadowBias` |
 | `material` | `highlightStep` (0.6), `midtoneStep` (0.1), `castMidtoneStep` (0.2), `castShadowStep` (0.6) |
 | `player` | `impulseStrength`, `jumpStrength`, `linearDamping`, `mass` |
+
+### Benchmark-läge (Debug)
+
+För att stress-testa render + outlines på större scenmängd utan att bygga om banan manuellt finns auto-genererad benchmark i `SETTINGS.debug.benchmark`:
+
+- `enabled` — aktiverar benchmark-objekt i scenen
+- `gridX`, `gridZ`, `layers` — hur många objekt som genereras
+- `spacing`, `heightStep`, `origin` — layout i världen
+- `usePhysics`, `fixedColliderEvery` — valfri fixed physics på en del av benchmark-objekten
+
+När `enabled: false` påverkas ordinarie bana inte.
+
+### Streaming-läge (Automatisk chunk-aktivering)
+
+`SETTINGS.streaming` styr automatiskt vilka benchmark/world-objekt som är aktiva utifrån spelarens position:
+
+- `cellSize` — chunkstorlek i world-units
+- `preloadRadius` — markerar chunkar för preload-zon
+- `renderLoadRadius` / `renderUnloadRadius` — visuell in/ut-laddning med hysteresis
+- `physicsLoadRadius` / `physicsUnloadRadius` — fysik in/ut med hysteresis
+- `updateIntervalMs` — hur ofta aktiveringsberäkning uppdateras
+
+`SETTINGS.debug.streaming` ger visuell debug i scenen:
+
+- Ringar runt spelaren för preload/render/physics-radier
+- Chunk-grid med färgkodning (preload/render/physics)
 
 ---
 

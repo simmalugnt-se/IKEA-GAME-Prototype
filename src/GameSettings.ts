@@ -22,6 +22,33 @@ type Settings = {
     enabled: boolean
     showColliders: boolean
     showStats: boolean
+    streaming: {
+      enabled: boolean
+      showRadii: boolean
+      showChunkBounds: boolean
+      showAllChunkBounds: boolean
+    }
+    benchmark: {
+      enabled: boolean
+      gridX: number
+      gridZ: number
+      layers: number
+      spacing: number
+      heightStep: number
+      origin: Vec3
+      usePhysics: boolean
+      fixedColliderEvery: number
+    }
+  }
+  streaming: {
+    enabled: boolean
+    cellSize: number
+    updateIntervalMs: number
+    preloadRadius: number
+    renderLoadRadius: number
+    renderUnloadRadius: number
+    physicsLoadRadius: number
+    physicsUnloadRadius: number
   }
   colors: {
     background: string
@@ -72,6 +99,35 @@ export const SETTINGS: Settings = {
     enabled: false,        // Master-toggle för allt debug
     showColliders: true,  // Visa fysik-kollisions-proxys (wireframe)
     showStats: true,      // Visa FPS / MS / MB
+    streaming: {
+      enabled: true,      // Visa streaming-debug i scenen
+      showRadii: true,     // Visar preload/render/physics-radier runt spelaren
+      showChunkBounds: true, // Visar chunk-gridfärger för aktiva zoner
+      showAllChunkBounds: true, // Om true: visar alla chunk-rutor (mycket brus)
+    },
+    benchmark: {
+      enabled: false,      // Aktivera tung benchmark-scen (många auto-genererade objekt)
+      gridX: 20,           // Antal objekt i X-led
+      gridZ: 20,           // Antal objekt i Z-led
+      layers: 2,           // Antal vertikala lager
+      spacing: 1.25,       // Avstånd mellan benchmark-objekt
+      heightStep: 0.45,    // Höjdskillnad mellan lager
+      origin: [-12, 0, -12], // Startposition för benchmark-grid
+      usePhysics: false,   // Om true: vissa benchmark-objekt får fixed physics
+      fixedColliderEvery: 4, // Var N:te objekt får fixed physics när usePhysics=true
+    },
+  },
+
+  // --- STREAMING (Automatisk chunk-aktivering) ---
+  streaming: {
+    enabled: true,        // Master-toggle för streaming av auto-genererade/world-objekt
+    cellSize: 8,           // Storlek på varje chunk-cell i world-units
+    updateIntervalMs: 120, // Hur ofta chunk-aktivering uppdateras
+    preloadRadius: 26,     // Chunks inom denna radie markeras som preload
+    renderLoadRadius: 20,  // Chunks laddas in visuellt inom denna radie
+    renderUnloadRadius: 24, // Chunks tas bort visuellt först utanför denna radie
+    physicsLoadRadius: 14, // Physics aktiveras inom denna radie
+    physicsUnloadRadius: 18, // Physics stängs av först utanför denna radie
   },
 
   // --- FÄRGER ---
