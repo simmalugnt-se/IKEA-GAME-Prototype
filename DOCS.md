@@ -1,6 +1,6 @@
 # IKEA Game — Projektdokumentation
 
-> **Tech:** Vite + React 19 + TypeScript (strict) + Three.js r182 + React Three Fiber 9 + Rapier Physics
+> **Tech:** Vite + React 19 + TypeScript (strict) + Three.js r182 + React Three Fiber 9 + Rapier Physics + Culori (OKLCH)
 > **Repo:** [IKEA-GAME-Prototype](https://github.com/petersimmalugnt/IKEA-GAME-Prototype)
 > **Dev:** `npm run dev` → `http://localhost:5173` (spel) / `http://localhost:5173/converter` (konverterare) / `http://localhost:5173/docs` (dokumentation)
 
@@ -46,15 +46,26 @@ graph TD
 All visuell och gameplay-konfiguration samlas i `SETTINGS`-objektet:
 
 ### Färgpalett (Toon Material)
-```js
+```ts
 palette: {
-  one:   { base: '#45253A', mid: '#3C1F33' },  // Mörklila (default)
-  two:   { base: '#558DCE', mid: '#4781C6' },  // Blå
-  three: { base: '#D9B5A3', mid: '#B38F7D' },  // Beige/hud
-  four:  { base: '#665747', mid: '#59443A' },  // Brun
-  five:  { base: '#FF2D19', mid: '#E52233' },  // Röd
+  active: 'classic', // globalt palettbyte
+  variants: {
+    classic: { one: { base: '#45253A' }, two: { base: '#558DCE' }, ... },
+    pine:    { one: { base: '#44553A' }, two: { base: '#5A8C7A' }, ... },
+    dusk:    { one: { base: '#3B3248' }, two: { base: '#5D7FB5' }, ... },
+  },
+  autoMid: {
+    enabled: true,
+    lightnessDelta: -0.06,
+    chromaDelta: -0.002,
+    hueShift: -4,
+  },
 }
 ```
+
+- `base` krävs per färgslot (`one`, `two`, `three`, `four`, `five`, `default`).
+- `mid` är valfri per slot. Om `mid` saknas auto-genereras den från `base` med OKLCH-reglagen i `autoMid`.
+- `active` byter hela paletten globalt utan att röra modellfiler.
 
 ### Viktiga inställningar
 | Sektion | Nyckelparametrar |
@@ -62,10 +73,11 @@ palette: {
 | `debug` | `enabled`, `showColliders`, `showStats`, `benchmark`, `streaming` |
 | `streaming` | `enabled`, `cellSize`, `preloadRadius`, `renderLoadRadius`, `renderUnloadRadius`, `physicsLoadRadius`, `physicsUnloadRadius` |
 | `colors` | `background`, `shadow`, `outline` |
+| `palette` | `active`, `variants`, `autoMid(lightnessDelta/chromaDelta/hueShift)` |
 | `lines` | `enabled`, `thickness`, `creaseAngle` |
 | `camera` | `zoom` (300), `position` ([5,5,5]), `followLerp` |
 | `light` | `position`, `shadowMapSize` (4096), `shadowBias` |
-| `material` | `highlightStep` (0.6), `midtoneStep` (0.1), `castMidtoneStep` (0.2), `castShadowStep` (0.6) |
+| `material` | `highlightStep` (0.6), `midtoneStep` (-1), `castMidtoneStep` (0.2), `castShadowStep` (0.6) |
 | `player` | `impulseStrength`, `jumpStrength`, `linearDamping`, `mass` |
 
 ### Benchmark-läge (Debug)

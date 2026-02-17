@@ -1,8 +1,15 @@
 import * as THREE from 'three'
 import { shaderMaterial } from '@react-three/drei'
-import { SETTINGS, getLightDir, type PaletteName } from './GameSettings'
+import { converter, formatHex } from 'culori'
+import {
+  SETTINGS,
+  getActivePalette,
+  getLightDir,
+  type PaletteAutoMidSettings,
+  type PaletteName,
+} from './GameSettings'
 
-const PALETTE = SETTINGS.palette
+const toOklch = converter('oklch')
 
 const ToonShaderMaterial = shaderMaterial(
   {
@@ -118,6 +125,37 @@ type ToonMaterialInstance = THREE.ShaderMaterial & {
 // --- Material cache ---
 // Samma material-instans delas av alla meshes med samma färgkombination
 const materialCache = new Map<string, ToonMaterialInstance>()
+const autoMidCache = new Map<string, string>()
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function normalizeHue(hue: number): number {
+  const wrapped = hue % 360
+  return wrapped < 0 ? wrapped + 360 : wrapped
+}
+
+function createAutoMidHex(baseHex: string, autoMid: PaletteAutoMidSettings): string {
+  if (!autoMid.enabled) return baseHex
+
+  const key = `${baseHex}-${autoMid.lightnessDelta}-${autoMid.chromaDelta}-${autoMid.hueShift}`
+  const cached = autoMidCache.get(key)
+  if (cached) return cached
+
+  const source = toOklch(baseHex)
+  if (!source) return baseHex
+
+  const midHex = formatHex({
+    mode: 'oklch',
+    l: clamp((source.l ?? 0.5) + autoMid.lightnessDelta, 0, 1),
+    c: clamp((source.c ?? 0) + autoMid.chromaDelta, 0, 0.5),
+    h: normalizeHue((source.h ?? 0) + autoMid.hueShift),
+  })
+
+  autoMidCache.set(key, midHex)
+  return midHex
+}
 
 function getOrCreateMaterial(
   baseHex: string,
@@ -175,21 +213,26 @@ export function C4DMaterial({
   ...props
 }: C4DMaterialProps) {
   const finalLightDir = lightDir || getLightDir()
+  const activePalette = getActivePalette()
+  const autoMid = SETTINGS.palette.autoMid
 
   let baseHex: string
   let midHex: string
 
   if (color) {
-    const entry = PALETTE[color] || PALETTE.default
+    const entry = activePalette[color] || activePalette.default
     baseHex = entry.base
-    midHex = singleTone ? entry.base : entry.mid
+    const fallbackMid = createAutoMidHex(baseHex, autoMid)
+    midHex = singleTone ? baseHex : (entry.mid || fallbackMid)
   } else if (baseColor) {
     baseHex = baseColor
-    midHex = singleTone ? baseColor : (midColor || baseColor)
+    const fallbackMid = createAutoMidHex(baseHex, autoMid)
+    midHex = singleTone ? baseHex : (midColor || fallbackMid)
   } else {
-    const entry = PALETTE.default
+    const entry = activePalette.default
     baseHex = entry.base
-    midHex = singleTone ? entry.base : entry.mid
+    const fallbackMid = createAutoMidHex(baseHex, autoMid)
+    midHex = singleTone ? baseHex : (entry.mid || fallbackMid)
   }
 
   const material = getOrCreateMaterial(

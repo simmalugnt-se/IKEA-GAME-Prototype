@@ -2,20 +2,24 @@ import * as THREE from 'three'
 
 export type Vec3 = [number, number, number]
 
-type PaletteEntry = {
+export type PaletteTone = 'one' | 'two' | 'three' | 'four' | 'five'
+export type PaletteName = PaletteTone | 'default'
+
+export type PaletteEntry = {
   base: string
-  mid: string
+  mid?: string
 }
 
-const palette = {
-  one: { base: '#45253A', mid: '#3C1F33' },
-  two: { base: '#558DCE', mid: '#4781C6' },
-  three: { base: '#D9B5A3', mid: '#B38F7D' },
-  four: { base: '#665747', mid: '#59443A' },
-  five: { base: '#FF2D19', mid: '#E52233' },
+export type PaletteDefinition = Record<PaletteName, PaletteEntry>
+
+export type PaletteAutoMidSettings = {
+  enabled: boolean
+  lightnessDelta: number
+  chromaDelta: number
+  hueShift: number
 }
 
-export type PaletteName = keyof typeof palette | 'default'
+export type PaletteVariantName = 'classic' | 'pine' | 'dusk'
 
 type Settings = {
   debug: {
@@ -55,7 +59,11 @@ type Settings = {
     shadow: string
     outline: string
   }
-  palette: Record<PaletteName, PaletteEntry>
+  palette: {
+    active: PaletteVariantName
+    variants: Record<PaletteVariantName, PaletteDefinition>
+    autoMid: PaletteAutoMidSettings
+  }
   lines: {
     enabled: boolean
     thickness: number
@@ -138,7 +146,41 @@ export const SETTINGS: Settings = {
   },
 
   // --- FÄRGPALETT (Toon Material) ---
-  palette: { ...palette, default: palette.one },
+  palette: {
+    active: 'classic',
+    variants: {
+      classic: {
+        one: { base: '#45253A' },
+        two: { base: '#558DCE' },
+        three: { base: '#D9B5A3' },
+        four: { base: '#665747' },
+        five: { base: '#FF2D19' },
+        default: { base: '#45253A' },
+      },
+      pine: {
+        one: { base: '#44553A' },
+        two: { base: '#5A8C7A' },
+        three: { base: '#D8C29A' },
+        four: { base: '#6D5A45' },
+        five: { base: '#C35C3B' },
+        default: { base: '#44553A' },
+      },
+      dusk: {
+        one: { base: '#3B3248' },
+        two: { base: '#5D7FB5' },
+        three: { base: '#C9B39B' },
+        four: { base: '#5B4A57' },
+        five: { base: '#D14F4A' },
+        default: { base: '#3B3248' },
+      },
+    },
+    autoMid: {
+      enabled: true,        // Auto-generera mid från base om mid saknas i paletten
+      lightnessDelta: -0.06, // Negativt = mörkare midtone
+      chromaDelta: -0.002,   // Negativt = lite mindre mättnad, positivt = mer punch
+      hueShift: -4,          // Negativt = vrider mot kallare toner i denna setup
+    },
+  },
 
   // --- LINJER (Outlines & Creases) ---
   lines: {
@@ -189,4 +231,8 @@ export const SETTINGS: Settings = {
 // Hjälpfunktion för att få ljusets position som en Vector3
 export const getLightDir = () => {
   return new THREE.Vector3(...SETTINGS.light.position).normalize()
+}
+
+export const getActivePalette = (): PaletteDefinition => {
+  return SETTINGS.palette.variants[SETTINGS.palette.active]
 }
