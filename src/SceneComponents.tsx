@@ -362,12 +362,12 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
   position,
   rotation = [0, 0, 0],
 }, ref) {
-  const { size, camera: rawCamera } = useThree()
+  const { size, camera: rawCamera, gl } = useThree()
   const camera = rawCamera as THREE.OrthographicCamera
   const rotationRadians = useMemo(() => toRadians(rotation), [rotation])
 
   const finalColor = color || SETTINGS.colors.outline
-  const finalLineWidth = lineWidth ?? SETTINGS.lines.thickness
+  const finalLineWidth = lineWidth ?? (SETTINGS.lines.thickness * gl.getPixelRatio())
 
   // Skapa kurvan och samplade punkter
   const curvePoints = useMemo(() => {

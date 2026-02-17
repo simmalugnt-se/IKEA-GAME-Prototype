@@ -30,22 +30,33 @@ const fragmentShader = `
       return;
     }
 
-    vec2 offsets[8];
-    offsets[0] = vec2(0.0, texel.y); offsets[1] = vec2(0.0, -texel.y);
-    offsets[2] = vec2(texel.x, 0.0);  offsets[3] = vec2(-texel.x, 0.0);
-    offsets[4] = vec2(texel.x, texel.y); offsets[5] = vec2(-texel.x, texel.y);
-    offsets[6] = vec2(texel.x, -texel.y); offsets[7] = vec2(-texel.x, -texel.y);
+    vec2 idOffsets[4];
+    idOffsets[0] = vec2(0.0, texel.y); idOffsets[1] = vec2(0.0, -texel.y);
+    idOffsets[2] = vec2(texel.x, 0.0); idOffsets[3] = vec2(-texel.x, 0.0);
+
+    vec2 normalOffsets[4];
+    normalOffsets[0] = vec2(0.0, texel.y); normalOffsets[1] = vec2(0.0, -texel.y);
+    normalOffsets[2] = vec2(texel.x, 0.0);  normalOffsets[3] = vec2(-texel.x, 0.0);
 
     float idEdge = 0.0;
     float normalEdge = 0.0;
 
-    for (int i = 0; i < 8; i++) {
-      vec2 neighborUv = uv + offsets[i];
+    for (int i = 0; i < 4; i++) {
+      vec2 neighborUv = uv + idOffsets[i];
 
       vec4 neighborId = texture2D(surfaceBuffer, neighborUv);
       float idDiff = distance(centerId.rgb, neighborId.rgb);
       if (idDiff > idThreshold) {
         idEdge = 1.0;
+      }
+    }
+
+    for (int i = 0; i < 4; i++) {
+      vec2 neighborUv = uv + normalOffsets[i];
+
+      vec4 neighborId = texture2D(surfaceBuffer, neighborUv);
+      float idDiff = distance(centerId.rgb, neighborId.rgb);
+      if (idDiff > idThreshold) {
         continue;
       }
 

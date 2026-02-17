@@ -191,7 +191,7 @@ export const SETTINGS: Settings = {
   // --- LINJER (Outlines & Creases) ---
   lines: {
     enabled: true,
-    thickness: 1,     // Tjocklek i pixlar
+    thickness: 1.5,     // Tjocklek i pixlar
     creaseAngle: 30,    // Vinkel i grader för inre linjer (30 = teknisk look)
     threshold: 0.01,    // Känslighet för surface-ID edge-detektion
     composerMultisampling: 4, // MSAA i postprocess-composer (0 stanger av)
