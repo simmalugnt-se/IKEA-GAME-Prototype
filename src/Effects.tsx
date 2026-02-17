@@ -2,6 +2,7 @@ import { EffectComposer, Pixelation, SMAA } from '@react-three/postprocessing'
 import { SMAAPreset } from 'postprocessing'
 import { SurfaceIdEffect } from './SurfaceIdEffect'
 import { SETTINGS, type SMAAPresetName } from './GameSettings'
+import { RetroPixelatedEffects } from './RetroPixelatedEffects'
 
 const SMAA_PRESET_MAP: Record<SMAAPresetName, SMAAPreset> = {
   low: SMAAPreset.LOW,
@@ -11,9 +12,19 @@ const SMAA_PRESET_MAP: Record<SMAAPresetName, SMAAPreset> = {
 }
 
 export function GameEffects() {
+  if (SETTINGS.render.style === 'retroPixelPass') {
+    return (
+      <RetroPixelatedEffects
+        pixelSize={SETTINGS.retroPixelPass.pixelSize}
+        normalEdgeStrength={SETTINGS.retroPixelPass.normalEdgeStrength}
+        depthEdgeStrength={SETTINGS.retroPixelPass.depthEdgeStrength}
+      />
+    )
+  }
+
   const outlineEnabled = SETTINGS.lines.enabled
   const smaaEnabled = SETTINGS.lines.smaaEnabled
-  const pixelationEnabled = SETTINGS.pixelation.enabled
+  const pixelationEnabled = SETTINGS.render.style === 'pixel' && SETTINGS.pixelation.enabled
 
   if (!outlineEnabled && !pixelationEnabled) return null
 

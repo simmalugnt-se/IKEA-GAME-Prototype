@@ -24,6 +24,7 @@ export type PaletteVariantName = 'classic' | 'pine' | 'green'
 export type SMAAPresetName = 'low' | 'medium' | 'high' | 'ultra'
 export type CameraMode = 'static' | 'follow'
 export type StreamingCenterSource = 'target' | 'cameraFocus'
+export type RenderStyle = 'toon' | 'pixel' | 'retroPixelPass'
 
 type AxisMask = {
   x: boolean
@@ -32,6 +33,9 @@ type AxisMask = {
 }
 
 type Settings = {
+  render: {
+    style: RenderStyle
+  }
   debug: {
     enabled: boolean
     showColliders: boolean
@@ -90,6 +94,11 @@ type Settings = {
     enabled: boolean
     granularity: number
   }
+  retroPixelPass: {
+    pixelSize: number
+    normalEdgeStrength: number
+    depthEdgeStrength: number
+  }
   camera: {
     mode: CameraMode
     base: {
@@ -138,6 +147,11 @@ type Settings = {
 }
 
 export const SETTINGS: Settings = {
+  // --- RENDER STYLE ---
+  render: {
+    style: 'retroPixelPass', // 'toon' | 'pixel' | 'retroPixelPass'
+  },
+
   // --- DEBUG ---
   debug: {
     enabled: false,        // Master-toggle för allt debug
@@ -237,8 +251,15 @@ export const SETTINGS: Settings = {
 
   // --- PIXELATION (Pixelart-test via postprocess-pass) ---
   pixelation: {
-    enabled: false,   // Slå av/på pixel-look
+    enabled: true,   // Används när render.style = 'pixel'
     granularity: 8,  // 1 = subtilt, högre = mer pixligt
+  },
+
+  // --- RETRO PIXEL PASS (three/examples RenderPixelatedPass) ---
+  retroPixelPass: {
+    pixelSize: 6,           // Storlek på "pixlarna"
+    normalEdgeStrength: 0.35, // Kantstyrka baserad på normaler
+    depthEdgeStrength: 0.45,  // Kantstyrka baserad på depth
   },
 
   // --- KAMERA ---
