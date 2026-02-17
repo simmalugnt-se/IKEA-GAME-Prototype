@@ -20,7 +20,7 @@ export type PaletteAutoMidSettings = {
   hueShift: number
 }
 
-export type PaletteVariantName = 'classic' | 'pine' | 'dusk'
+export type PaletteVariantName = 'classic' | 'pine' | 'green'
 
 type Settings = {
   debug: {
@@ -146,7 +146,7 @@ export const SETTINGS: Settings = {
 
   // --- FÄRGPALETT (Toon Material) ---
   palette: {
-    active: 'classic',
+    active: 'green',
     variants: {
       classic: {
         background: '#3D2C23',
@@ -166,14 +166,14 @@ export const SETTINGS: Settings = {
         five: { base: '#C35C3B' },
         default: { base: '#44553A' },
       },
-      dusk: {
-        background: '#2B2436',
-        one: { base: '#3B3248' },
-        two: { base: '#5D7FB5' },
-        three: { base: '#C9B39B' },
-        four: { base: '#5B4A57' },
-        five: { base: '#D14F4A' },
-        default: { base: '#3B3248' },
+      green: {
+        background: '#0E3420',
+        one: { base: '#669E10' },
+        two: { base: '#006B18' },
+        three: { base: '#e7e1d7' },
+        four: { base: '#007FB5' },
+        five: { base: '#C96C05' },
+        default: { base: '#006B18' },
       },
     },
     autoMid: {
