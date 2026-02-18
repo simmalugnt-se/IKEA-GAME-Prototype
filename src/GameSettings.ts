@@ -1,13 +1,13 @@
-import * as THREE from 'three'
+import * as THREE from "three";
 
-export type Vec3 = [number, number, number]
+export type Vec3 = [number, number, number];
 
 export type MaterialColorIndex = number
 
 export type PaletteEntry = {
-  base: string
-  mid?: string
-}
+  base: string;
+  mid?: string;
+};
 
 export type PaletteVariant = {
   background: string
@@ -15,179 +15,179 @@ export type PaletteVariant = {
 }
 
 export type PaletteAutoMidSettings = {
-  enabled: boolean
-  lightnessDelta: number
-  chromaDelta: number
-  hueShift: number
-}
+  enabled: boolean;
+  lightnessDelta: number;
+  chromaDelta: number;
+  hueShift: number;
+};
 
-export type PaletteVariantName = 'classic' | 'greyscale' | 'green'
-export type SMAAPresetName = 'low' | 'medium' | 'high' | 'ultra'
-export type CameraMode = 'static' | 'follow'
-export type StreamingCenterSource = 'target' | 'cameraFocus'
-export type RenderStyle = 'toon' | 'pixel' | 'retroPixelPass'
-export type ControlInputSource = 'keyboard' | 'external' | 'hybrid'
-export type ExternalControlMode = 'digital' | 'absolute'
+export type PaletteVariantName = "classic" | "greyscale" | "green";
+export type SMAAPresetName = "low" | "medium" | "high" | "ultra";
+export type CameraMode = "static" | "follow";
+export type StreamingCenterSource = "target" | "cameraFocus";
+export type RenderStyle = "toon" | "pixel" | "retroPixelPass";
+export type ControlInputSource = "keyboard" | "external" | "hybrid";
+export type ExternalControlMode = "digital" | "absolute";
 
 type AxisMask = {
-  x: boolean
-  y: boolean
-  z: boolean
-}
+  x: boolean;
+  y: boolean;
+  z: boolean;
+};
 
 type Settings = {
   render: {
-    style: RenderStyle
-  }
+    style: RenderStyle;
+  };
   controls: {
-    inputSource: ControlInputSource
+    inputSource: ControlInputSource;
     external: {
-      mode: ExternalControlMode
-      staleTimeoutMs: number
+      mode: ExternalControlMode;
+      staleTimeoutMs: number;
       absolute: {
-        followLerp: number
-        maxUnitsPerSecond: number
-        maxTargetStep: number
-      }
+        followLerp: number;
+        maxUnitsPerSecond: number;
+        maxTargetStep: number;
+      };
       websocket: {
-        enabled: boolean
-        url: string
-        reconnectMs: number
-      }
-    }
-  }
+        enabled: boolean;
+        url: string;
+        reconnectMs: number;
+      };
+    };
+  };
   debug: {
-    enabled: boolean
-    showColliders: boolean
-    showStats: boolean
+    enabled: boolean;
+    showColliders: boolean;
+    showStats: boolean;
     streaming: {
-      enabled: boolean
-      showRadii: boolean
-      showChunkBounds: boolean
-      showAllChunkBounds: boolean
-    }
+      enabled: boolean;
+      showRadii: boolean;
+      showChunkBounds: boolean;
+      showAllChunkBounds: boolean;
+    };
     benchmark: {
-      enabled: boolean
-      gridX: number
-      gridZ: number
-      layers: number
-      spacing: number
-      heightStep: number
-      origin: Vec3
-      usePhysics: boolean
-      fixedColliderEvery: number
-    }
-  }
+      enabled: boolean;
+      gridX: number;
+      gridZ: number;
+      layers: number;
+      spacing: number;
+      heightStep: number;
+      origin: Vec3;
+      usePhysics: boolean;
+      fixedColliderEvery: number;
+    };
+  };
   streaming: {
-    enabled: boolean
-    cellSize: number
-    updateIntervalMs: number
-    preloadRadius: number
-    renderLoadRadius: number
-    renderUnloadRadius: number
-    physicsLoadRadius: number
-    physicsUnloadRadius: number
+    enabled: boolean;
+    cellSize: number;
+    updateIntervalMs: number;
+    preloadRadius: number;
+    renderLoadRadius: number;
+    renderUnloadRadius: number;
+    physicsLoadRadius: number;
+    physicsUnloadRadius: number;
     center: {
-      source: StreamingCenterSource
-      targetId: string
-    }
-  }
+      source: StreamingCenterSource;
+      targetId: string;
+    };
+  };
   colors: {
-    shadow: string
-    outline: string
-  }
+    shadow: string;
+    outline: string;
+  };
   palette: {
-    active: PaletteVariantName
-    variants: Record<PaletteVariantName, PaletteVariant>
-    autoMid: PaletteAutoMidSettings
-  }
+    active: PaletteVariantName;
+    variants: Record<PaletteVariantName, PaletteVariant>;
+    autoMid: PaletteAutoMidSettings;
+  };
   lines: {
-    enabled: boolean
-    thickness: number
-    creaseAngle: number
-    threshold: number
-    composerMultisampling: number
-    smaaEnabled: boolean
-    smaaPreset: SMAAPresetName
-  }
+    enabled: boolean;
+    thickness: number;
+    creaseAngle: number;
+    threshold: number;
+    composerMultisampling: number;
+    smaaEnabled: boolean;
+    smaaPreset: SMAAPresetName;
+  };
   pixelation: {
-    enabled: boolean
-    granularity: number
-  }
+    enabled: boolean;
+    granularity: number;
+  };
   retroPixelPass: {
-    pixelSize: number
-    normalEdgeStrength: number
-    depthEdgeStrength: number
-    depthEdgeThresholdMin: number
-    depthEdgeThresholdMax: number
-  }
+    pixelSize: number;
+    normalEdgeStrength: number;
+    depthEdgeStrength: number;
+    depthEdgeThresholdMin: number;
+    depthEdgeThresholdMax: number;
+  };
   camera: {
-    mode: CameraMode
+    mode: CameraMode;
     base: {
-      zoom: number
-      near: number
-      far: number
-    }
+      zoom: number;
+      near: number;
+      far: number;
+    };
     static: {
-      position: Vec3
-      lookAt: Vec3
-    }
+      position: Vec3;
+      lookAt: Vec3;
+    };
     follow: {
-      targetId: string
-      offset: Vec3
-      lookAtOffset: Vec3
-      followLerp: number
-      lookAtLerp: number
-      lockRotation: boolean
-      followAxes: AxisMask
-      lookAtAxes: AxisMask
-      moveLightWithTarget: boolean
-    }
-  }
+      targetId: string;
+      offset: Vec3;
+      lookAtOffset: Vec3;
+      followLerp: number;
+      lookAtLerp: number;
+      lockRotation: boolean;
+      followAxes: AxisMask;
+      lookAtAxes: AxisMask;
+      moveLightWithTarget: boolean;
+    };
+  };
   light: {
-    position: Vec3
-    intensity: number
-    shadowMapSize: number
-    shadowBias: number
-    shadowNormalBias: number
-    shadowArea: number
-  }
+    position: Vec3;
+    intensity: number;
+    shadowMapSize: number;
+    shadowBias: number;
+    shadowNormalBias: number;
+    shadowArea: number;
+  };
   material: {
-    highlightStep: number
-    midtoneStep: number
-    castMidtoneStep: number
-    castShadowStep: number
-  }
+    highlightStep: number;
+    midtoneStep: number;
+    castMidtoneStep: number;
+    castShadowStep: number;
+  };
   player: {
-    impulseStrength: number
-    jumpStrength: number
-    linearDamping: number
-    angularDamping: number
-    mass: number
-    friction: number
-  }
-}
+    impulseStrength: number;
+    jumpStrength: number;
+    linearDamping: number;
+    angularDamping: number;
+    mass: number;
+    friction: number;
+  };
+};
 
 export const SETTINGS: Settings = {
   // --- RENDER STYLE ---
   render: {
-    style: 'toon', // 'toon' | 'pixel' | 'retroPixelPass'
+    style: "toon", // 'toon' | 'pixel' | 'retroPixelPass'
   },
 
   // --- INPUT PIPELINE ---
   controls: {
-    inputSource: 'keyboard', // 'keyboard' | 'external' | 'hybrid'
+    inputSource: "keyboard", // 'keyboard' | 'external' | 'hybrid'
     external: {
-      mode: 'absolute', // 'digital' = piltangent-triggers, 'absolute' = målposition (x,z)
+      mode: "absolute", // 'digital' = piltangent-triggers, 'absolute' = målposition (x,z)
       staleTimeoutMs: 160, // Om paket uteblir längre än detta släpps extern input
       absolute: {
-        followLerp: .5,     // Kort smoothing för att dämpa jitter i måldata
+        followLerp: 0.5, // Kort smoothing för att dämpa jitter i måldata
         maxUnitsPerSecond: 8, // Hastighets-clamp mot målpunkten
-        maxTargetStep: 0.75,  // Max tillåtet hopp i målpunkt per update (anti-glitch)
+        maxTargetStep: 0.75, // Max tillåtet hopp i målpunkt per update (anti-glitch)
       },
       websocket: {
         enabled: true, // Sätt true för inbyggd WS-klient i spelet
-        url: 'ws://127.0.0.1:8080',
+        url: "ws://127.0.0.1:8080",
         reconnectMs: 1000,
       },
     },
@@ -195,24 +195,24 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: false,        // Master-toggle för allt debug
-    showColliders: true,  // Visa fysik-kollisions-proxys (wireframe)
-    showStats: true,      // Visa FPS / MS / MB
+    enabled: true, // Master-toggle för allt debug
+    showColliders: true, // Visa fysik-kollisions-proxys (wireframe)
+    showStats: true, // Visa FPS / MS / MB
     streaming: {
-      enabled: true,      // Visa streaming-debug i scenen
-      showRadii: true,     // Visar preload/render/physics-radier runt spelaren
+      enabled: false, // Visa streaming-debug i scenen
+      showRadii: true, // Visar preload/render/physics-radier runt spelaren
       showChunkBounds: true, // Visar chunk-gridfärger för aktiva zoner
       showAllChunkBounds: true, // Om true: visar alla chunk-rutor (mycket brus)
     },
     benchmark: {
-      enabled: false,      // Aktivera tung benchmark-scen (många auto-genererade objekt)
-      gridX: 20,           // Antal objekt i X-led
-      gridZ: 20,           // Antal objekt i Z-led
-      layers: 2,           // Antal vertikala lager
-      spacing: 1.25,       // Avstånd mellan benchmark-objekt
-      heightStep: 0.45,    // Höjdskillnad mellan lager
+      enabled: false, // Aktivera tung benchmark-scen (många auto-genererade objekt)
+      gridX: 20, // Antal objekt i X-led
+      gridZ: 20, // Antal objekt i Z-led
+      layers: 2, // Antal vertikala lager
+      spacing: 1.25, // Avstånd mellan benchmark-objekt
+      heightStep: 0.45, // Höjdskillnad mellan lager
       origin: [-12, 0, -12], // Startposition för benchmark-grid
-      usePhysics: false,   // Om true: vissa benchmark-objekt får fixed physics
+      usePhysics: false, // Om true: vissa benchmark-objekt får fixed physics
       fixedColliderEvery: 4, // Var N:te objekt får fixed physics när usePhysics=true
     },
   },
@@ -228,20 +228,20 @@ export const SETTINGS: Settings = {
     physicsLoadRadius: 1.4, // Physics aktiveras inom denna radie
     physicsUnloadRadius: 1.8, // Physics stängs av först utanför denna radie
     center: {
-      source: 'target', // 'target' = följ targetId, 'cameraFocus' = följ kamerans focus/lookAt
-      targetId: 'player',
+      source: "target", // 'target' = följ targetId, 'cameraFocus' = följ kamerans focus/lookAt
+      targetId: "player",
     },
   },
 
   // --- FÄRGER ---
   colors: {
-    shadow: '#141414',     // Färgen på skuggan (används av golvet och C4DMaterial)
-    outline: '#141414',    // Färgen på outlines (oftast samma som skugga)
+    shadow: "#141414", // Färgen på skuggan (används av golvet och C4DMaterial)
+    outline: "#141414", // Färgen på outlines (oftast samma som skugga)
   },
 
   // --- FÄRGPALETT (Toon Material) ---
   palette: {
-    active: 'greyscale',
+    active: "greyscale",
     variants: {
       classic: {
         background: '#3D2C23',
@@ -290,10 +290,10 @@ export const SETTINGS: Settings = {
       },
     },
     autoMid: {
-      enabled: true,        // Auto-generera mid från base om mid saknas i paletten
+      enabled: true, // Auto-generera mid från base om mid saknas i paletten
       lightnessDelta: -0.06, // Negativt = mörkare midtone
-      chromaDelta: -0.005,   // Negativt = lite mindre mättnad, positivt = mer punch
-      hueShift: 5,          // Negativt = vrider mot kallare toner i denna setup
+      chromaDelta: -0.005, // Negativt = lite mindre mättnad, positivt = mer punch
+      hueShift: 5, // Negativt = vrider mot kallare toner i denna setup
     },
   },
 
@@ -310,15 +310,15 @@ export const SETTINGS: Settings = {
 
   // --- PIXELATION (Pixelart-test via postprocess-pass) ---
   pixelation: {
-    enabled: true,   // Används när render.style = 'pixel'
-    granularity: 8,  // 1 = subtilt, högre = mer pixligt
+    enabled: false, // Används när render.style = 'pixel'
+    granularity: 8, // 1 = subtilt, högre = mer pixligt
   },
 
   // --- RETRO PIXEL PASS (three/examples RenderPixelatedPass) ---
   retroPixelPass: {
-    pixelSize: 8,           // Storlek på "pixlarna"
+    pixelSize: 8, // Storlek på "pixlarna"
     normalEdgeStrength: 0.5, // Kantstyrka baserad på normaler
-    depthEdgeStrength: 0.45,  // Kantstyrka baserad på depth
+    depthEdgeStrength: 0.45, // Kantstyrka baserad på depth
     depthEdgeThresholdMin: 0.0005, // Lägre värden gör depth-kanter känsligare (bra för ortografisk kamera)
     depthEdgeThresholdMax: 0.003, // Bör vara större än min-värdet
   },
@@ -333,14 +333,14 @@ export const SETTINGS: Settings = {
     },
     static: {
       position: [5, 5, 5], // Fast kameraposition i static-mode
-      lookAt: [0, 0, 0],   // Punkt kameran tittar mot i static-mode
+      lookAt: [0, 0, 0], // Punkt kameran tittar mot i static-mode
     },
     follow: {
-      targetId: 'player', // ID på target i scenen som kameran följer
-      offset: [5, 5, 5],  // Isometrisk offset från target
+      targetId: "player", // ID på target i scenen som kameran följer
+      offset: [5, 5, 5], // Isometrisk offset från target
       lookAtOffset: [0, 0, 0], // Extra offset på kamerans lookAt
-      followLerp: 0.025,  // Kamera-drag position (0.01=trögt, 0.1=snappigt)
-      lookAtLerp: 0.04,   // Kamera-drag för lookAt-target
+      followLerp: 0.025, // Kamera-drag position (0.01=trögt, 0.1=snappigt)
+      lookAtLerp: 0.04, // Kamera-drag för lookAt-target
       lockRotation: true, // Låser kamerans rotation för stabil ortografisk/isometrisk känsla
       followAxes: { x: true, y: false, z: true }, // Följ bara sidled + djup, lås höjd
       lookAtAxes: { x: true, y: true, z: true }, // Lås valda axlar för lookAt
@@ -353,34 +353,34 @@ export const SETTINGS: Settings = {
     position: [0, 2.0, 5],
     intensity: 1,
     shadowMapSize: 4096, // 4096 = Skarpast skuggor
-    shadowBias: 0,      // Mycket liten bias (så skuggan sitter fast i objektet)
-    shadowNormalBias: -0.001,   // Denna fixar ränderna på bollen! (Prova 0.02 - 0.1)
-    shadowArea: 4,       // Tight frustum runt spelaren (följer med)
+    shadowBias: 0, // Mycket liten bias (så skuggan sitter fast i objektet)
+    shadowNormalBias: -0.001, // Denna fixar ränderna på bollen! (Prova 0.02 - 0.1)
+    shadowArea: 4, // Tight frustum runt spelaren (följer med)
   },
 
   // --- MATERIAL (Toon Shading) ---
   material: {
     highlightStep: 0.6, // Gräns för ljusaste zonen
-    midtoneStep: .1,   // Gräns för mellantonen
+    midtoneStep: 0.1, // Gräns för mellantonen
     castMidtoneStep: 0.2, // Start för cast-shadow midtone (0 = ingen skugga, 1 = full skugga)
-    castShadowStep: 0.6,  // Start för cast-shadow mörkaste zon
+    castShadowStep: 0.6, // Start för cast-shadow mörkaste zon
   },
 
   // --- SPELARFYSIK ---
   player: {
     impulseStrength: 0.02, // Hur hårt bollen knuffas
-    jumpStrength: 0.08,       // Hur högt bollen hoppar
-    linearDamping: 1.5,      // Luftmotstånd (bromsar farten framåt)
-    angularDamping: 2.0,     // Rotationsmotstånd (bromsar rullandet)
-    mass: 0.1,               // Bollens tyngd
-    friction: 1.5,           // Grepp mot underlaget
+    jumpStrength: 0.08, // Hur högt bollen hoppar
+    linearDamping: 1.5, // Luftmotstånd (bromsar farten framåt)
+    angularDamping: 2.0, // Rotationsmotstånd (bromsar rullandet)
+    mass: 0.1, // Bollens tyngd
+    friction: 1.5, // Grepp mot underlaget
   },
-}
+};
 
 // Hjälpfunktion för att få ljusets position som en Vector3
 export const getLightDir = () => {
-  return new THREE.Vector3(...SETTINGS.light.position).normalize()
-}
+  return new THREE.Vector3(...SETTINGS.light.position).normalize();
+};
 
 const FALLBACK_PALETTE_ENTRY: PaletteEntry = { base: '#ffffff' }
 

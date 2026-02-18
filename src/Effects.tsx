@@ -2,6 +2,7 @@ import { EffectComposer, Pixelation, SMAA } from '@react-three/postprocessing'
 import { SMAAPreset } from 'postprocessing'
 import { SurfaceIdEffect } from './SurfaceIdEffect'
 import { SETTINGS, type SMAAPresetName } from './GameSettings'
+import { useSettingsVersion } from './settingsStore'
 import { RetroPixelatedEffects } from './RetroPixelatedEffects'
 
 const SMAA_PRESET_MAP: Record<SMAAPresetName, SMAAPreset> = {
@@ -12,6 +13,8 @@ const SMAA_PRESET_MAP: Record<SMAAPresetName, SMAAPreset> = {
 }
 
 export function GameEffects() {
+  useSettingsVersion()
+
   if (SETTINGS.render.style === 'retroPixelPass') {
     return (
       <RetroPixelatedEffects

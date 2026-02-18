@@ -1,0 +1,165 @@
+{
+  "render": {
+    "style": "toon"
+  },
+  "controls": {
+    "inputSource": "keyboard",
+    "external": {
+      "mode": "absolute",
+      "staleTimeoutMs": 160,
+      "absolute": {
+        "followLerp": 0.5,
+        "maxUnitsPerSecond": 8,
+        "maxTargetStep": 0.75
+      },
+      "websocket": {
+        "enabled": true,
+        "url": "ws://127.0.0.1:8080",
+        "reconnectMs": 1000
+      }
+    }
+  },
+  "debug": {
+    "enabled": true,
+    "showColliders": true,
+    "showStats": true,
+    "streaming": {
+      "enabled": false,
+      "showRadii": true,
+      "showChunkBounds": true,
+      "showAllChunkBounds": true
+    },
+    "benchmark": {
+      "enabled": false,
+      "gridX": 20,
+      "gridZ": 20,
+      "layers": 2,
+      "spacing": 1.25,
+      "heightStep": 0.45,
+      "origin": [-12, 0, -12],
+      "usePhysics": false,
+      "fixedColliderEvery": 4
+    }
+  },
+  "streaming": {
+    "enabled": true,
+    "cellSize": 8,
+    "updateIntervalMs": 120,
+    "preloadRadius": 26,
+    "renderLoadRadius": 20,
+    "renderUnloadRadius": 24,
+    "physicsLoadRadius": 14,
+    "physicsUnloadRadius": 18,
+    "center": {
+      "source": "target",
+      "targetId": "player"
+    }
+  },
+  "colors": {
+    "shadow": "#141414",
+    "outline": "#141414"
+  },
+  "palette": {
+    "active": "greyscale",
+    "variants": {
+      "classic": {
+        "background": "#3D2C23",
+        "one": { "base": "#45253A" },
+        "two": { "base": "#558DCE" },
+        "three": { "base": "#D9B5A3" },
+        "four": { "base": "#665747" },
+        "five": { "base": "#FF2D19" },
+        "default": { "base": "#45253A" }
+      },
+      "greyscale": {
+        "background": "#1b1b1b",
+        "one": { "base": "#717171" },
+        "two": { "base": "#424242" },
+        "three": { "base": "#007FB5" },
+        "four": { "base": "#C96C05" },
+        "five": { "base": "#ffffff" },
+        "default": { "base": "#717171" }
+      },
+      "green": {
+        "background": "#0E3420",
+        "one": { "base": "#669E10" },
+        "two": { "base": "#006B18" },
+        "three": { "base": "#007FB5" },
+        "four": { "base": "#C96C05" },
+        "five": { "base": "#e1d4bd" },
+        "default": { "base": "#006B18" }
+      }
+    },
+    "autoMid": {
+      "enabled": true,
+      "lightnessDelta": -0.06,
+      "chromaDelta": -0.005,
+      "hueShift": 5
+    }
+  },
+  "lines": {
+    "enabled": true,
+    "thickness": 1,
+    "creaseAngle": 30,
+    "threshold": 0.005,
+    "composerMultisampling": 0,
+    "smaaEnabled": true,
+    "smaaPreset": "ultra"
+  },
+  "pixelation": {
+    "enabled": false,
+    "granularity": 8
+  },
+  "retroPixelPass": {
+    "pixelSize": 8,
+    "normalEdgeStrength": 0.5,
+    "depthEdgeStrength": 0.45,
+    "depthEdgeThresholdMin": 0.0005,
+    "depthEdgeThresholdMax": 0.003
+  },
+  "camera": {
+    "mode": "static",
+    "base": {
+      "zoom": 300,
+      "near": 0.1,
+      "far": 2000
+    },
+    "static": {
+      "position": [5, 5, 5],
+      "lookAt": [0, 0, 0]
+    },
+    "follow": {
+      "targetId": "player",
+      "offset": [5, 5, 5],
+      "lookAtOffset": [0, 0, 0],
+      "followLerp": 0.025,
+      "lookAtLerp": 0.04,
+      "lockRotation": true,
+      "followAxes": { "x": true, "y": false, "z": true },
+      "lookAtAxes": { "x": true, "y": true, "z": true },
+      "moveLightWithTarget": true
+    }
+  },
+  "light": {
+    "position": [0, 2.0, 5],
+    "intensity": 1,
+    "shadowMapSize": 4096,
+    "shadowBias": 0,
+    "shadowNormalBias": -0.001,
+    "shadowArea": 4
+  },
+  "material": {
+    "highlightStep": 0.6,
+    "midtoneStep": 0.1,
+    "castMidtoneStep": 0.2,
+    "castShadowStep": 0.6
+  },
+  "player": {
+    "impulseStrength": 0.02,
+    "jumpStrength": 0.08,
+    "linearDamping": 1.5,
+    "angularDamping": 2.0,
+    "mass": 0.1,
+    "friction": 1.5
+  }
+}

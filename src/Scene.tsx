@@ -8,6 +8,7 @@ import { CameraSystemProvider } from './CameraSystem'
 import { BenchmarkDebugContent } from './debug/BenchmarkDebugContent'
 import { GameKeyboardControls } from './GameKeyboardControls'
 import { SETTINGS } from './GameSettings'
+import { useSettingsVersion } from './settingsStore'
 import { Laddertest } from './assets/models/Laddertest'
 import { VaultStairs } from './assets/models/VaultStairs'
 import { Stair } from './assets/models/Stair'
@@ -15,10 +16,10 @@ import { ExternalControlBridge } from './control/ExternalControlBridge'
 import { BrickBalloon } from './assets/models/BrickBalloon'
 import { BallBalloon } from './assets/models/BallBalloon'
 
-const isDebug = SETTINGS.debug.enabled
-
 export function Scene() {
+  useSettingsVersion()
   const playerRef = useRef<PlayerHandle | null>(null)
+  const isDebug = SETTINGS.debug.enabled
 
   return (
     <GameKeyboardControls>
