@@ -12,27 +12,49 @@ import { C4DMesh, C4DMaterial } from '../../SceneComponents'
 import type { PaletteName } from '../../GameSettings'
 import modelUrl from './stair.glb?url'
 
-type StairProps = ThreeElements['group'] & {
-  animation?: string | null
-  fadeDuration?: number
+type GeneratedRigidBodySettings = {
+  type: 'dynamic' | 'fixed' | 'kinematicPosition'
+  mass?: number
+  friction?: number
+  lockRotations?: boolean
+  sensor?: boolean
 }
 
-export function Stair(props: StairProps) {
+type StairProps = ThreeElements['group'] & {
+  colorOne?: PaletteName
+  rigidBodyOne?: Partial<GeneratedRigidBodySettings>
+}
+
+export function Stair({ colorOne = 'three', rigidBodyOne, ...props }: StairProps) {
   const { nodes } = useGLTF(modelUrl) as unknown as { nodes: Record<string, THREE.Mesh> }
-  const colors: Record<string, PaletteName> = {
-    default: 'default',
-    three: 'three',
+  const colors: Record<'colorOne', PaletteName> = {
+    colorOne,
+  }
+
+  const rigidBodies: Record<'rigidBodyOne', GeneratedRigidBodySettings> = {
+    rigidBodyOne: { type: 'dynamic', ...(rigidBodyOne ?? {}) },
+  }
+
+  const getRigidBodyProps = (slot: 'rigidBodyOne'): GeneratedRigidBodySettings => {
+    const body = rigidBodies[slot]
+    return {
+      type: body.type,
+      ...(body.mass !== undefined ? { mass: body.mass } : {}),
+      ...(body.friction !== undefined ? { friction: body.friction } : {}),
+      ...(body.lockRotations ? { lockRotations: true } : {}),
+      ...(body.sensor ? { sensor: true } : {}),
+    }
   }
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody type="dynamic" colliders={false}>
+      <RigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false}>
         <ConvexHullCollider args={[nodes['STAIRS_collider'].geometry.attributes.position.array]} />
         <C4DMesh name={nodes['STAIRS'].name} geometry={nodes['STAIRS'].geometry} castShadow receiveShadow>
-          <C4DMaterial color={colors.three} />
+          <C4DMaterial color={colors.colorOne} />
         </C4DMesh>
         <C4DMesh name={nodes['STAIRS_top'].name} geometry={nodes['STAIRS_top'].geometry} castShadow receiveShadow>
-          <C4DMaterial color={colors.three} />
+          <C4DMaterial color={colors.colorOne} />
         </C4DMesh>
       </RigidBody>
     </group>

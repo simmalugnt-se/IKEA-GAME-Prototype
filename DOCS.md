@@ -373,7 +373,7 @@ Tokens sätts i **objektnamnet** i Cinema 4D:
 
 | Token | Funktion | Exempel |
 |-------|----------|---------|
-| `_colorX` | Sätter färg från paletten | `Cube_colorTwo` → `colors.two` |
+| `_colorX` | Sätter färg från paletten | `Cube_colorTwo` → `colorOne="two"` (slot-baserad prop) |
 | `_singletone` | Tvingar enhetlig ton (ingen mid) | `Box_colorFive_singletone` |
 | `_dynamic` | Dynamisk fysikkropp | `Group_dynamic` |
 | `_fixed` / `_static` | Fast fysikkropp | `Floor_fixed` |
@@ -396,6 +396,26 @@ Tokens sätts i **objektnamnet** i Cinema 4D:
 
 ### Färg-arv
 Färg-tokens ärvs nedåt i hierarkin. Om en grupp har `_colorTwo`, får alla barn den färgen om de inte har en egen token.
+
+### Genererade override-props
+Konverteraren genererar nu slot-baserade props för återanvändning:
+
+- Färger: `colorOne`, `colorTwo`, `colorThree` ...
+- Fysikprofiler: `rigidBodyOne`, `rigidBodyTwo`, `rigidBodyThree` ...
+
+Slot-namnen är stabila per exporterad modell och separerade från själva palette-värdet.
+Exempel: om modellen bara använder token `_colorThree` blir default `colorOne="three"`.
+
+Fysikprofiler dedupliceras: objekt med identisk physics-config delar samma rigidBody-slot.
+Det gör att en override på t.ex. `rigidBodyOne` slår på alla objekt som använder den profilen.
+
+Exempel:
+```tsx
+<Stair
+  colorOne="five"
+  rigidBodyOne={{ type: 'fixed', friction: 1.5 }}
+/>
+```
 
 ### Splines (FBX)
 - NurbsCurve/Spline-objekt detekteras automatiskt som `THREE.Line`
@@ -501,4 +521,4 @@ src/
 
 ---
 
-*Senast uppdaterad: 2026-02-17*
+*Senast uppdaterad: 2026-02-18*

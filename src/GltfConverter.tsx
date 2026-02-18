@@ -590,6 +590,78 @@ function hasPhysicsToken(name: string): boolean {
     return getPhysicsTypeFromName(name) !== null
 }
 
+type ParsedPhysicsConfig = {
+    type: 'dynamic' | 'fixed' | 'kinematicPosition'
+    mass?: number
+    friction?: number
+    lockRotations?: boolean
+    sensor?: boolean
+}
+
+const SLOT_WORDS = [
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+    'Eleven',
+    'Twelve',
+]
+
+function toSlotName(prefix: string, index: number): string {
+    const suffix = SLOT_WORDS[index] ?? `${index + 1}`
+    return `${prefix}${suffix}`
+}
+
+function parsePhysicsConfigFromName(name: string): ParsedPhysicsConfig | null {
+    const type = getPhysicsTypeFromName(name)
+    if (!type) return null
+
+    const config: ParsedPhysicsConfig = { type }
+    const lower = name.toLowerCase()
+
+    const massMatch = name.match(/_mass([\d.]+)/i)
+    if (massMatch) {
+        const massValue = parseFloat(massMatch[1])
+        if (Number.isFinite(massValue)) config.mass = massValue
+    }
+
+    const fricMatch = name.match(/_fric([\d.]+)/i)
+    if (fricMatch) {
+        const frictionValue = parseFloat(fricMatch[1])
+        if (Number.isFinite(frictionValue)) config.friction = frictionValue
+    }
+
+    if (lower.includes('_lockrot')) config.lockRotations = true
+    if (lower.includes('_sensor')) config.sensor = true
+
+    return config
+}
+
+function getPhysicsConfigSignature(config: ParsedPhysicsConfig): string {
+    return [
+        `type:${config.type}`,
+        `mass:${config.mass ?? ''}`,
+        `friction:${config.friction ?? ''}`,
+        `lockRotations:${config.lockRotations ? '1' : '0'}`,
+        `sensor:${config.sensor ? '1' : '0'}`,
+    ].join('|')
+}
+
+function formatPhysicsConfigLiteral(config: ParsedPhysicsConfig): string {
+    const parts: string[] = [`type: '${config.type}'`]
+    if (config.mass !== undefined) parts.push(`mass: ${config.mass}`)
+    if (config.friction !== undefined) parts.push(`friction: ${config.friction}`)
+    if (config.lockRotations) parts.push('lockRotations: true')
+    if (config.sensor) parts.push('sensor: true')
+    return `{ ${parts.join(', ')} }`
+}
+
 function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, settings: GenerateSettings): string {
     const { useSourceImport, modelPath, componentPath, animations = [], splines = [] } = settings
     const baseName = originalFileName.replace(/\.(glb|gltf)$/, '')
@@ -611,18 +683,6 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     const hasAnimations = selectableAnims.length > 0
     const hasSplines = splines.length > 0
 
-    // --- Steg 1: Samla unika _color-tokens från hela scenen ---
-    const colorSet = new Set<string>()
-
-    function collectColors(obj: any): void {
-        const colorMatch = obj.name.match(/_color([A-Za-z0-9]+)/)
-        if (colorMatch) colorSet.add(colorMatch[1].toLowerCase())
-        obj.children.forEach((child: any) => collectColors(child))
-    }
-    scene.children.forEach((child) => collectColors(child))
-
-    if (colorSet.size === 0) colorSet.add('default')
-
     function getColorFromName(name: string): string | null {
         const match = name.match(/_color([A-Za-z0-9]+)/)
         return match ? match[1].toLowerCase() : null
@@ -632,7 +692,91 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         return name.toLowerCase().includes('_singletone')
     }
 
-    let usesRigidBody = false
+    const isColliderName = (name: string): boolean => name.toLowerCase().includes('_collider')
+
+    const colorTokensInUse: string[] = []
+    const colorTokenSet = new Set<string>()
+
+    type RigidBodySlotConfig = {
+        slot: string
+        signature: string
+        profile: ParsedPhysicsConfig
+    }
+
+    const rigidBodySlots: RigidBodySlotConfig[] = []
+    const rigidBodySlotBySignature = new Map<string, string>()
+
+    function registerColorToken(token: string): void {
+        if (colorTokenSet.has(token)) return
+        colorTokenSet.add(token)
+        colorTokensInUse.push(token)
+    }
+
+    function registerRigidBodyProfile(profile: ParsedPhysicsConfig): string {
+        const signature = getPhysicsConfigSignature(profile)
+        const existing = rigidBodySlotBySignature.get(signature)
+        if (existing) return existing
+
+        const slot = toSlotName('rigidBody', rigidBodySlots.length)
+        rigidBodySlots.push({ slot, signature, profile })
+        rigidBodySlotBySignature.set(signature, slot)
+        return slot
+    }
+
+    function collectMetadata(obj: any, inheritedColor: string | null = null): void {
+        if (obj.userData?.ignore) return
+
+        const rawName = obj.name
+        const ownColor = getColorFromName(rawName)
+        const currentColor = ownColor || inheritedColor || 'default'
+        const physicsConfig = parsePhysicsConfigFromName(rawName)
+
+        if (physicsConfig) {
+            registerRigidBodyProfile(physicsConfig)
+        }
+
+        const selfIsCollider = isColliderName(rawName)
+        const colliderChildren = obj.children.filter((c: any) => isColliderName(c.name) && !hasPhysicsToken(c.name))
+        const explicitColliderMeshes = colliderChildren.filter((c: any) => Boolean(c.geometry))
+        const visualChildren = obj.children.filter((c: any) => !isColliderName(c.name) || hasPhysicsToken(c.name))
+
+        if (physicsConfig) {
+            const useSelfMeshCollider = selfIsCollider
+                && obj.isMesh
+                && Boolean(obj.geometry)
+                && explicitColliderMeshes.length === 0
+
+            const shouldRenderOwnColliderMesh = useSelfMeshCollider
+            if (obj.isMesh && (!selfIsCollider || shouldRenderOwnColliderMesh)) {
+                registerColorToken(currentColor)
+            }
+
+            visualChildren.forEach((child: any) => collectMetadata(child, currentColor))
+            return
+        }
+
+        if (obj.isMesh && !selfIsCollider) {
+            registerColorToken(currentColor)
+            visualChildren.forEach((child: any) => collectMetadata(child, currentColor))
+            return
+        }
+
+        if (!selfIsCollider) {
+            visualChildren.forEach((child: any) => collectMetadata(child, currentColor))
+        }
+    }
+
+    scene.children.forEach((child) => collectMetadata(child))
+    if (colorTokensInUse.length === 0) registerColorToken('default')
+
+    const colorSlots = colorTokensInUse.map((token, index) => ({
+        slot: toSlotName('color', index),
+        token,
+    }))
+    const colorSlotByToken = new Map<string, string>(colorSlots.map((entry) => [entry.token, entry.slot]))
+    const firstColorSlot = colorSlots[0]?.slot
+    const firstRigidBodySlot = rigidBodySlots[0]?.slot
+
     let usesConvexHullCollider = false
     let usesCuboidCollider = false
 
@@ -648,17 +792,50 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     if (importStr) output += `${importStr}\n`
     output += `\n`
 
+    if (colorSlots.length > 0) {
+        output += `type ColorSlot = ${colorSlots.map(({ slot }) => `'${slot}'`).join(' | ')}\n`
+    }
+
+    if (rigidBodySlots.length > 0) {
+        output += `type GeneratedRigidBodySettings = {\n`
+        output += `  type: 'dynamic' | 'fixed' | 'kinematicPosition'\n`
+        output += `  mass?: number\n`
+        output += `  friction?: number\n`
+        output += `  lockRotations?: boolean\n`
+        output += `  sensor?: boolean\n`
+        output += `}\n`
+        output += `type RigidBodySlot = ${rigidBodySlots.map(({ slot }) => `'${slot}'`).join(' | ')}\n`
+    }
+
+    if (colorSlots.length > 0 || rigidBodySlots.length > 0) output += `\n`
+
     output += `type ${componentName}Props = ThreeElements['group'] & {\n`
-    output += `  animation?: string | null\n`
-    output += `  fadeDuration?: number\n`
+    if (hasAnimations) {
+        output += `  animation?: string | null\n`
+        output += `  fadeDuration?: number\n`
+    }
+    colorSlots.forEach(({ slot }) => {
+        output += `  ${slot}?: PaletteName\n`
+    })
+    rigidBodySlots.forEach(({ slot }) => {
+        output += `  ${slot}?: Partial<GeneratedRigidBodySettings>\n`
+    })
     output += `}\n\n`
 
-    // Komponent-signatur med animation-props
+    const componentParams: string[] = []
     if (hasAnimations) {
-        output += `export function ${componentName}({ animation = null, fadeDuration = 0.3, ...props }: ${componentName}Props) {\n`
-    } else {
-        output += `export function ${componentName}(props: ${componentName}Props) {\n`
+        componentParams.push('animation = null')
+        componentParams.push('fadeDuration = 0.3')
     }
+    colorSlots.forEach(({ slot, token }) => {
+        componentParams.push(`${slot} = '${token}'`)
+    })
+    rigidBodySlots.forEach(({ slot }) => {
+        componentParams.push(slot)
+    })
+    componentParams.push('...props')
+
+    output += `export function ${componentName}({ ${componentParams.join(', ')} }: ${componentName}Props) {\n`
 
     // Refs och hooks
     if (hasAnimations) {
@@ -682,13 +859,33 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         output += `  const { nodes } = useGLTF(${loadPathStr}) as unknown as { nodes: Record<string, THREE.Mesh> }\n`
     }
 
-    // Colors-objekt
-    output += `  const colors: Record<string, PaletteName> = {\n`
-    output += `    default: 'default',\n`
-    colorSet.forEach((colorName) => {
-        output += `    ${colorName}: '${colorName}',\n`
-    })
-    output += `  }\n\n`
+    if (colorSlots.length > 0) {
+        output += `\n  const colors: Record<ColorSlot, PaletteName> = {\n`
+        colorSlots.forEach(({ slot }) => {
+            output += `    ${slot},\n`
+        })
+        output += `  }\n`
+    }
+
+    if (rigidBodySlots.length > 0) {
+        output += `\n  const rigidBodies: Record<RigidBodySlot, GeneratedRigidBodySettings> = {\n`
+        rigidBodySlots.forEach(({ slot, profile }) => {
+            output += `    ${slot}: { ...${formatPhysicsConfigLiteral(profile)}, ...(${slot} ?? {}) },\n`
+        })
+        output += `  }\n\n`
+        output += `  const getRigidBodyProps = (slot: RigidBodySlot): GeneratedRigidBodySettings => {\n`
+        output += `    const body = rigidBodies[slot]\n`
+        output += `    return {\n`
+        output += `      type: body.type,\n`
+        output += `      ...(body.mass !== undefined ? { mass: body.mass } : {}),\n`
+        output += `      ...(body.friction !== undefined ? { friction: body.friction } : {}),\n`
+        output += `      ...(body.lockRotations ? { lockRotations: true } : {}),\n`
+        output += `      ...(body.sensor ? { sensor: true } : {}),\n`
+        output += `    }\n`
+        output += `  }\n`
+    }
+
+    output += `\n`
 
     output += `  return (\n`
     if (hasAnimations) {
@@ -709,20 +906,16 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
         const ownColor = getColorFromName(rawName)
         const currentColor = ownColor || inheritedColor || 'default'
+        const currentColorSlot = colorSlotByToken.get(currentColor) ?? firstColorSlot
+        const colorExpression = currentColorSlot ? `colors.${currentColorSlot}` : `'default'`
         const singleTone = hasSingleTone(rawName)
 
-        if (!colorSet.has(currentColor)) colorSet.add(currentColor)
+        const physicsConfig = parsePhysicsConfigFromName(rawName)
+        const physicsSignature = physicsConfig ? getPhysicsConfigSignature(physicsConfig) : null
+        const physicsSlot = physicsSignature
+            ? (rigidBodySlotBySignature.get(physicsSignature) ?? firstRigidBodySlot)
+            : null
 
-        const physicsType = getPhysicsTypeFromName(rawName)
-        let physicsProps = ''
-        const massMatch = rawName.match(/_mass([\d.]+)/i)
-        if (massMatch) physicsProps += ` mass={${massMatch[1]}}`
-        const fricMatch = rawName.match(/_fric([\d.]+)/i)
-        if (fricMatch) physicsProps += ` friction={${fricMatch[1]}}`
-        if (lowerName.includes('_lockrot')) physicsProps += ` lockRotations`
-        if (lowerName.includes('_sensor')) physicsProps += ` sensor`
-
-        const isColliderName = (name: string): boolean => name.toLowerCase().includes('_collider')
         const isSelfCollider = isColliderName(rawName)
         const colliderChildren = obj.children.filter((c: any) => isColliderName(c.name) && !hasPhysicsToken(c.name))
         const explicitColliderMeshes = colliderChildren.filter((c: any) => Boolean(c.geometry))
@@ -730,9 +923,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
         const singleToneProp = singleTone ? ' singleTone' : ''
 
-        if (physicsType) {
-            usesRigidBody = true
-
+        if (physicsConfig && physicsSlot) {
             const useSelfMeshCollider = isSelfCollider
                 && obj.isMesh
                 && Boolean(obj.geometry)
@@ -749,7 +940,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             const disableAutoColliders = hasExplicitColliders || useSelfMeshCollider || hasFallbackCollider
             const collidersAttr = disableAutoColliders ? ' colliders={false}' : ''
 
-            str += `${spaces}<RigidBody type="${physicsType}"${collidersAttr}${physicsProps}${transformProps}>\n`
+            str += `${spaces}<RigidBody {...getRigidBodyProps('${physicsSlot}')}${collidersAttr}${transformProps}>\n`
 
             if (hasExplicitColliders) {
                 explicitColliderMeshes.forEach((c: any) => {
@@ -780,7 +971,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
             if (obj.isMesh && (!isSelfCollider || shouldRenderOwnColliderMesh)) {
                 str += `${spaces}  <C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow>\n`
-                str += `${spaces}    <C4DMaterial color={colors.${currentColor}}${singleToneProp} />\n`
+                str += `${spaces}    <C4DMaterial color={${colorExpression}}${singleToneProp} />\n`
                 visualChildren.forEach((child: any) => str += traverse(child, indent + 4, currentColor))
                 str += `${spaces}  </C4DMesh>\n`
             } else {
@@ -789,7 +980,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             str += `${spaces}</RigidBody>\n`
         } else if (obj.isMesh && !isSelfCollider) {
             str += `${spaces}<C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${transformProps}>\n`
-            str += `${spaces}  <C4DMaterial color={colors.${currentColor}}${singleToneProp} />\n`
+            str += `${spaces}  <C4DMaterial color={${colorExpression}}${singleToneProp} />\n`
             visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
             str += `${spaces}</C4DMesh>\n`
         } else if (!isSelfCollider) {
@@ -808,7 +999,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     scene.children.forEach((child) => output += traverse(child))
 
     const rapierImports: string[] = []
-    if (usesRigidBody) {
+    if (rigidBodySlots.length > 0) {
         rapierImports.push('RigidBody')
         if (usesConvexHullCollider) rapierImports.push('ConvexHullCollider')
         if (usesCuboidCollider) rapierImports.push('CuboidCollider')

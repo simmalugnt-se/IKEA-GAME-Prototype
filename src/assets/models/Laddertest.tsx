@@ -12,24 +12,46 @@ import { C4DMesh, C4DMaterial } from '../../SceneComponents'
 import type { PaletteName } from '../../GameSettings'
 import modelUrl from './laddertest.glb?url'
 
-type LaddertestProps = ThreeElements['group'] & {
-  animation?: string | null
-  fadeDuration?: number
+type GeneratedRigidBodySettings = {
+  type: 'dynamic' | 'fixed' | 'kinematicPosition'
+  mass?: number
+  friction?: number
+  lockRotations?: boolean
+  sensor?: boolean
 }
 
-export function Laddertest(props: LaddertestProps) {
+type LaddertestProps = ThreeElements['group'] & {
+  colorOne?: PaletteName
+  rigidBodyOne?: Partial<GeneratedRigidBodySettings>
+}
+
+export function Laddertest({ colorOne = 'one', rigidBodyOne, ...props }: LaddertestProps) {
   const { nodes } = useGLTF(modelUrl) as unknown as { nodes: Record<string, THREE.Mesh> }
-  const colors: Record<string, PaletteName> = {
-    default: 'default',
-    one: 'one',
+  const colors: Record<'colorOne', PaletteName> = {
+    colorOne,
+  }
+
+  const rigidBodies: Record<'rigidBodyOne', GeneratedRigidBodySettings> = {
+    rigidBodyOne: { type: 'dynamic', ...(rigidBodyOne ?? {}) },
+  }
+
+  const getRigidBodyProps = (slot: 'rigidBodyOne'): GeneratedRigidBodySettings => {
+    const body = rigidBodies[slot]
+    return {
+      type: body.type,
+      ...(body.mass !== undefined ? { mass: body.mass } : {}),
+      ...(body.friction !== undefined ? { friction: body.friction } : {}),
+      ...(body.lockRotations ? { lockRotations: true } : {}),
+      ...(body.sensor ? { sensor: true } : {}),
+    }
   }
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody type="dynamic" colliders={false}>
+      <RigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false}>
         <CuboidCollider args={[0.075, 0.345, 0.015]} position={[0, 0.345, 0]} />
         <C4DMesh name={nodes['HORIZONTALS'].name} geometry={nodes['HORIZONTALS'].geometry} castShadow receiveShadow>
-          <C4DMaterial color={colors.one} />
+          <C4DMaterial color={colors.colorOne} />
         </C4DMesh>
       </RigidBody>
     </group>

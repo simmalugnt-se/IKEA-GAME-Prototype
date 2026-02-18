@@ -177,15 +177,15 @@ export const SETTINGS: Settings = {
   controls: {
     inputSource: 'keyboard', // 'keyboard' | 'external' | 'hybrid'
     external: {
-      mode: 'digital', // 'digital' = piltangent-triggers, 'absolute' = målposition (x,z)
+      mode: 'absolute', // 'digital' = piltangent-triggers, 'absolute' = målposition (x,z)
       staleTimeoutMs: 160, // Om paket uteblir längre än detta släpps extern input
       absolute: {
-        followLerp: 0.35,     // Kort smoothing för att dämpa jitter i måldata
+        followLerp: .5,     // Kort smoothing för att dämpa jitter i måldata
         maxUnitsPerSecond: 8, // Hastighets-clamp mot målpunkten
         maxTargetStep: 0.75,  // Max tillåtet hopp i målpunkt per update (anti-glitch)
       },
       websocket: {
-        enabled: false, // Sätt true för inbyggd WS-klient i spelet
+        enabled: true, // Sätt true för inbyggd WS-klient i spelet
         url: 'ws://127.0.0.1:8080',
         reconnectMs: 1000,
       },
@@ -283,7 +283,7 @@ export const SETTINGS: Settings = {
     enabled: true,
     thickness: 1,     // Tjocklek i pixlar
     creaseAngle: 30,    // Vinkel i grader för inre linjer (30 = teknisk look)
-    threshold: 0.01,    // Känslighet för surface-ID edge-detektion
+    threshold: 0.005,    // Känslighet för surface-ID edge-detektion
     composerMultisampling: 4, // MSAA i postprocess-composer (0 stanger av)
     smaaEnabled: true,  // SMAA efter outline-pass (bra mot trappsteg)
     smaaPreset: 'high', // low | medium | high | ultra
@@ -297,8 +297,8 @@ export const SETTINGS: Settings = {
 
   // --- RETRO PIXEL PASS (three/examples RenderPixelatedPass) ---
   retroPixelPass: {
-    pixelSize: 6,           // Storlek på "pixlarna"
-    normalEdgeStrength: 0.5, // Kantstyrka baserad på normaler
+    pixelSize: 12,           // Storlek på "pixlarna"
+    normalEdgeStrength: 0.35, // Kantstyrka baserad på normaler
     depthEdgeStrength: 0.45,  // Kantstyrka baserad på depth
     depthEdgeThresholdMin: 0.0005, // Lägre värden gör depth-kanter känsligare (bra för ortografisk kamera)
     depthEdgeThresholdMax: 0.003, // Bör vara större än min-värdet

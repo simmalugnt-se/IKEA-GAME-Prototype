@@ -12,24 +12,46 @@ import { C4DMesh, C4DMaterial } from '../../SceneComponents'
 import type { PaletteName } from '../../GameSettings'
 import modelUrl from './VaultStairs.glb?url'
 
-type VaultStairsProps = ThreeElements['group'] & {
-  animation?: string | null
-  fadeDuration?: number
+type GeneratedRigidBodySettings = {
+  type: 'dynamic' | 'fixed' | 'kinematicPosition'
+  mass?: number
+  friction?: number
+  lockRotations?: boolean
+  sensor?: boolean
 }
 
-export function VaultStairs(props: VaultStairsProps) {
+type VaultStairsProps = ThreeElements['group'] & {
+  colorOne?: PaletteName
+  rigidBodyOne?: Partial<GeneratedRigidBodySettings>
+}
+
+export function VaultStairs({ colorOne = 'two', rigidBodyOne, ...props }: VaultStairsProps) {
   const { nodes } = useGLTF(modelUrl) as unknown as { nodes: Record<string, THREE.Mesh> }
-  const colors: Record<string, PaletteName> = {
-    default: 'default',
-    two: 'two',
+  const colors: Record<'colorOne', PaletteName> = {
+    colorOne,
+  }
+
+  const rigidBodies: Record<'rigidBodyOne', GeneratedRigidBodySettings> = {
+    rigidBodyOne: { type: 'dynamic', ...(rigidBodyOne ?? {}) },
+  }
+
+  const getRigidBodyProps = (slot: 'rigidBodyOne'): GeneratedRigidBodySettings => {
+    const body = rigidBodies[slot]
+    return {
+      type: body.type,
+      ...(body.mass !== undefined ? { mass: body.mass } : {}),
+      ...(body.friction !== undefined ? { friction: body.friction } : {}),
+      ...(body.lockRotations ? { lockRotations: true } : {}),
+      ...(body.sensor ? { sensor: true } : {}),
+    }
   }
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody type="dynamic" colliders={false} position={[0, 0, 0.2636]}>
+      <RigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false} position={[0, 0, 0.2636]}>
         <ConvexHullCollider args={[nodes['VAULT_STAIRS_colorTwo_dynamic_collider'].geometry.attributes.position.array]} />
         <C4DMesh name={nodes['VAULT_STAIRS_colorTwo_dynamic_collider'].name} geometry={nodes['VAULT_STAIRS_colorTwo_dynamic_collider'].geometry} castShadow receiveShadow>
-          <C4DMaterial color={colors.two} />
+          <C4DMaterial color={colors.colorOne} />
         </C4DMesh>
       </RigidBody>
     </group>

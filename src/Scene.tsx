@@ -3,7 +3,6 @@ import { Physics } from '@react-three/rapier'
 import { Stats } from '@react-three/drei'
 import { CubeElement, CylinderElement, InvisibleFloor } from './SceneComponents'
 import { Player, type PlayerHandle } from './Player'
-import { SplineAndAnimTest } from './assets/models/SplineAndAnimTest'
 import { GameEffects } from './Effects'
 import { CameraSystemProvider } from './CameraSystem'
 import { BenchmarkDebugContent } from './debug/BenchmarkDebugContent'
@@ -26,7 +25,7 @@ export function Scene() {
         <GameEffects />
         <CameraSystemProvider playerRef={playerRef}>
           {/* SPELAREN */}
-          <Player ref={playerRef} position={[0.1, 0.27, 1.3]} />
+          <Player ref={playerRef} position={[0, 0.1, 0]} />
 
           {/* --- NIVÅN --- */}
 
@@ -66,13 +65,6 @@ export function Scene() {
             position={[2, 0.5, 0]}
             rotation={[90, 0, 0]}
             colliderSegments={16}
-          />
-
-          {/* FBX PIPELINE TEST */}
-          <SplineAndAnimTest
-            animation="Anim1"
-            position={[-1.5, 0.5, 0]}
-            scale={0.01}
           />
 
           {/* LADDTEST */}
