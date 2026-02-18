@@ -64,30 +64,48 @@
     "variants": {
       "classic": {
         "background": "#3D2C23",
-        "one": { "base": "#45253A" },
-        "two": { "base": "#558DCE" },
-        "three": { "base": "#D9B5A3" },
-        "four": { "base": "#665747" },
-        "five": { "base": "#FF2D19" },
-        "default": { "base": "#45253A" }
+        "colors": [
+          { "base": "#45253A" },
+          { "base": "#558DCE" },
+          { "base": "#D9B5A3" },
+          { "base": "#665747" },
+          { "base": "#FF2D19" },
+          { "base": "#78C850" },
+          { "base": "#E0C24A" },
+          { "base": "#8A6BEA" },
+          { "base": "#2FB9A6" },
+          { "base": "#F2E5C4" }
+        ]
       },
       "greyscale": {
         "background": "#1b1b1b",
-        "one": { "base": "#717171" },
-        "two": { "base": "#424242" },
-        "three": { "base": "#007FB5" },
-        "four": { "base": "#C96C05" },
-        "five": { "base": "#ffffff" },
-        "default": { "base": "#717171" }
+        "colors": [
+          { "base": "#717171" },
+          { "base": "#424242" },
+          { "base": "#7AB51D" },
+          { "base": "#008533" },
+          { "base": "#0096D2" },
+          { "base": "#0058A3" },
+          { "base": "#FFDB00" },
+          { "base": "#EE7F00" },
+          { "base": "#E52F7E" },
+          { "base": "#CC0008" }
+        ]
       },
       "green": {
         "background": "#0E3420",
-        "one": { "base": "#669E10" },
-        "two": { "base": "#006B18" },
-        "three": { "base": "#007FB5" },
-        "four": { "base": "#C96C05" },
-        "five": { "base": "#e1d4bd" },
-        "default": { "base": "#006B18" }
+        "colors": [
+          { "base": "#669E10" },
+          { "base": "#006B18" },
+          { "base": "#007FB5" },
+          { "base": "#C96C05" },
+          { "base": "#E1D4BD" },
+          { "base": "#8BC34A" },
+          { "base": "#2E8B57" },
+          { "base": "#A7C957" },
+          { "base": "#3FA34D" },
+          { "base": "#F0E6CC" }
+        ]
       }
     },
     "autoMid": {

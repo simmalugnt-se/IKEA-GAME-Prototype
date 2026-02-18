@@ -28,6 +28,50 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function normalizeLegacyPaletteVariants(preset: Record<string, unknown>) {
+  const palette = preset.palette
+  if (!isRecord(palette)) return
+
+  const variants = palette.variants
+  if (!isRecord(variants)) return
+
+  const legacySlots = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'default']
+
+  Object.values(variants).forEach((variantValue) => {
+    if (!isRecord(variantValue)) return
+    if (Array.isArray(variantValue.colors)) return
+
+    const colors = legacySlots
+      .map((slot) => {
+        const entry = variantValue[slot]
+        if (!isRecord(entry)) return null
+
+        const base = typeof entry.base === 'string' ? entry.base : null
+        if (!base) return null
+
+        const mid = typeof entry.mid === 'string' ? entry.mid : undefined
+        return mid ? { base, mid } : { base }
+      })
+      .filter((entry): entry is { base: string; mid?: string } => entry !== null)
+
+    if (colors.length === 0) return
+
+    variantValue.colors = colors
+    legacySlots.forEach((slot) => {
+      delete variantValue[slot]
+    })
+  })
+}
+
+function normalizePreset(preset: Record<string, unknown>): Record<string, unknown> {
+  normalizeLegacyPaletteVariants(preset)
+  return preset
+}
+
 // ---------------------------------------------------------------------------
 // Save preset (browser download)
 // ---------------------------------------------------------------------------
@@ -50,7 +94,8 @@ export function savePreset(name: string) {
 // ---------------------------------------------------------------------------
 
 export function applyPreset(preset: Record<string, unknown>) {
-  deepMerge(SETTINGS as unknown as Record<string, unknown>, preset)
+  const normalizedPreset = normalizePreset(preset)
+  deepMerge(SETTINGS as unknown as Record<string, unknown>, normalizedPreset)
   bump()
 }
 

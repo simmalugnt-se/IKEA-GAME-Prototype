@@ -195,7 +195,7 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: true, // Master-toggle för allt debug
+    enabled: false, // Master-toggle för allt debug
     showColliders: true, // Visa fysik-kollisions-proxys (wireframe)
     showStats: true, // Visa FPS / MS / MB
     streaming: {
@@ -263,14 +263,14 @@ export const SETTINGS: Settings = {
         colors: [
           { base: '#717171' },
           { base: '#424242' },
-          { base: '#007FB5' },
-          { base: '#C96C05' },
-          { base: '#ffffff' },
-          { base: '#2A2A2A' },
-          { base: '#5B5B5B' },
-          { base: '#8D8D8D' },
-          { base: '#BFBFBF' },
-          { base: '#E8E8E8' },
+          { base: '#7AB51D' },
+          { base: '#008533' },
+          { base: '#0096D2' },
+          { base: '#0058A3' },
+          { base: '#FFDB00' },
+          { base: '#EE7F00' },
+          { base: '#E52F7E' },
+          { base: '#CC0008' },
         ],
       },
       green: {

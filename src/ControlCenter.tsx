@@ -326,23 +326,23 @@ function useStreamingControls() {
       onChange: (v: number) => { SETTINGS.streaming.updateIntervalMs = v; bump() },
     },
     preloadRadius: {
-      value: SETTINGS.streaming.preloadRadius, min: 1, max: 100, step: 1,
+      value: SETTINGS.streaming.preloadRadius, min: 0, max: 100, step: 0.1,
       onChange: (v: number) => { SETTINGS.streaming.preloadRadius = v; bump() },
     },
     renderLoadRadius: {
-      value: SETTINGS.streaming.renderLoadRadius, min: 1, max: 100, step: 1,
+      value: SETTINGS.streaming.renderLoadRadius, min: 0, max: 100, step: 0.1,
       onChange: (v: number) => { SETTINGS.streaming.renderLoadRadius = v; bump() },
     },
     renderUnloadRadius: {
-      value: SETTINGS.streaming.renderUnloadRadius, min: 1, max: 100, step: 1,
+      value: SETTINGS.streaming.renderUnloadRadius, min: 0, max: 100, step: 0.1,
       onChange: (v: number) => { SETTINGS.streaming.renderUnloadRadius = v; bump() },
     },
     physicsLoadRadius: {
-      value: SETTINGS.streaming.physicsLoadRadius, min: 1, max: 100, step: 1,
+      value: SETTINGS.streaming.physicsLoadRadius, min: 0, max: 100, step: 0.1,
       onChange: (v: number) => { SETTINGS.streaming.physicsLoadRadius = v; bump() },
     },
     physicsUnloadRadius: {
-      value: SETTINGS.streaming.physicsUnloadRadius, min: 1, max: 100, step: 1,
+      value: SETTINGS.streaming.physicsUnloadRadius, min: 0, max: 100, step: 0.1,
       onChange: (v: number) => { SETTINGS.streaming.physicsUnloadRadius = v; bump() },
     },
     center: folder({
