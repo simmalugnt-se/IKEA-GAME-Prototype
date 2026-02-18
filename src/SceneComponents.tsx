@@ -390,7 +390,7 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
       worldUnits: false,
       resolution: new THREE.Vector2(size.width, size.height),
     })
-    material.alphaToCoverage = true
+    material.alphaToCoverage = false
 
     const line = new Line2(geometry, material)
     line.computeLineDistances()
