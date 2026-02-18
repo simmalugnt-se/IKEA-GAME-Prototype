@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "objects": [
+    {
+      "type": "CubeElement",
+      "position": [
+        -1.586,
+        0.775,
+        0.383
+      ],
+      "rotation": [
+        50,
+        0,
+        0
+      ],
+      "props": {
+        "size": [
+          1,
+          1,
+          1
+        ],
+        "color": 3,
+        "singleTone": false,
+        "physics": "dynamic",
+        "mass": 1,
+        "friction": 1,
+        "lockRotations": false
+      },
+      "id": "f2a7ed83-19b9-4250-9fd0-b161b78ecb9f"
+    },
+    {
+      "type": "SphereElement",
+      "position": [
+        0,
+        1.243,
+        -2.231
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "props": {
+        "radius": 1.1,
+        "segments": 24,
+        "color": 0,
+        "singleTone": true,
+        "flatShading": false,
+        "physics": "dynamic",
+        "mass": 1,
+        "friction": 1,
+        "lockRotations": false
+      },
+      "id": "759dedcd-19a6-401f-8c41-f1d360223af8"
+    },
+    {
+      "type": "Stair",
+      "position": [
+        2.014,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "props": {
+        "materialColor0": 2
+      },
+      "id": "82a32593-99a6-49d3-aef3-967ddce4705e"
+    },
+    {
+      "type": "Stair",
+      "position": [
+        0,
+        0,
+        1.853
+      ],
+      "rotation": [
+        -151,
+        0,
+        0
+      ],
+      "props": {
+        "materialColor0": 3
+      },
+      "id": "8bf12f1c-3da7-44ae-bec3-c61bd8bbf094"
+    },
+    {
+      "type": "VaultStairs",
+      "position": [
+        0,
+        0,
+        0.731
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "props": {
+        "materialColor0": 2
+      },
+      "id": "eebbea6c-9676-4743-8c9b-1ee548dc43d6"
+    },
+    {
+      "type": "SphereElement",
+      "position": [
+        -2.375,
+        0.5,
+        -6.238
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "props": {
+        "radius": 0.5,
+        "segments": 24,
+        "color": 0,
+        "singleTone": true,
+        "flatShading": false,
+        "physics": "dynamic",
+        "mass": 1,
+        "friction": 1,
+        "lockRotations": false
+      },
+      "id": "4f56267e-77b7-44ba-83d4-3fbcd0b4fffb"
+    }
+  ]
+}

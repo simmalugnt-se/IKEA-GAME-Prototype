@@ -166,6 +166,9 @@ type Settings = {
     mass: number;
     friction: number;
   };
+  level: {
+    defaultFile: string;
+  };
 };
 
 export const SETTINGS: Settings = {
@@ -374,6 +377,11 @@ export const SETTINGS: Settings = {
     angularDamping: 2.0, // Rotationsmotstånd (bromsar rullandet)
     mass: 0.1, // Bollens tyngd
     friction: 1.5, // Grepp mot underlaget
+  },
+
+  // --- LEVEL LOADING ---
+  level: {
+    defaultFile: "level.json", // filename inside public/levels/
   },
 };
 
