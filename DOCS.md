@@ -421,6 +421,8 @@ Exempel:
 - NurbsCurve/Spline-objekt detekteras automatiskt som `THREE.Line`
 - Extraheras till `SplineElement` med punktdata
 - `closed`-attributet sätts automatiskt
+- Spline placeras i samma parent-hierarki som i C4D (inte längre globalt i slutet av komponenten)
+- Lokala spline-rotationer konverteras till grader i output (matchar `SplineElement`-API)
 
 ### Animationer (FBX)
 Genererar `useAnimations` hook med crossfade-logik:

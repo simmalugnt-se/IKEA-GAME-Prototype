@@ -12,6 +12,8 @@ import { Laddertest } from './assets/models/Laddertest'
 import { VaultStairs } from './assets/models/VaultStairs'
 import { Stair } from './assets/models/Stair'
 import { ExternalControlBridge } from './control/ExternalControlBridge'
+import { BrickBalloon } from './assets/models/BrickBalloon'
+import { BallBalloon } from './assets/models/BallBalloon'
 
 const isDebug = SETTINGS.debug.enabled
 
@@ -28,6 +30,10 @@ export function Scene() {
           <Player ref={playerRef} position={[0, 0.1, 0]} />
 
           {/* --- NIVÅN --- */}
+
+          <BallBalloon position={[-1, .5, 0]} animation="moving" colorTwo="one" />
+          <BrickBalloon position={[1.3, .5, 2]} animation="moving" />
+          <BrickBalloon position={[1.5, .5, -1]} animation="moving" colorTwo="four" />
 
           {/* BLÅ RAMP */}
           <CubeElement
@@ -69,16 +75,19 @@ export function Scene() {
 
           {/* LADDTEST */}
           <Laddertest
-            position={[-2, 0, 2]}
+            position={[-1, 0, 2]}
             rotation={[0, Math.PI / -1.25, 0]}
           />
 
-          <Laddertest position={[1.5, 0, 2.5]} />
+          <Laddertest position={[1.5, 0, 1.5]} />
 
           {/* VÄLTEST */}
-          <VaultStairs position={[0, 0, 3]} />
+          <VaultStairs position={[0, 0, 2.5]} />
+          <VaultStairs position={[-.5, 0, -2.5]} rotation={[0, Math.PI / -1, 0]} colorOne="one" />
 
-          <Stair position={[1, 0, 2]} />
+          <Stair position={[1, 0, 2]} colorOne="two" />
+
+          <Stair position={[-2, 0, 0]} colorOne="one" />
 
           {/* DEBUG BENCHMARK + STREAMING */}
           <BenchmarkDebugContent />

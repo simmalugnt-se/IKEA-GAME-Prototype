@@ -7,6 +7,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 
 type ParsedSpline = {
   name: string
+  parentPath: string[]
   points: number[][]
   closed: boolean
   tension: number
@@ -128,7 +129,11 @@ export function GltfConverter() {
                                 parseFloat(posAttr.getZ(i).toFixed(4)),
                             ])
                         }
-                        const originalName = child.userData?.originalName || child.name || 'Spline'
+                        const originalNameRaw = typeof child.userData?.originalName === 'string'
+                            ? child.userData.originalName as string
+                            : (child.name || 'Spline')
+                        const originalName = normalizeNodeName(originalNameRaw) || 'Spline'
+                        const parentPath = getParentPathNames(child, fbxScene)
                         // Kolla om spline är closed (sista punkt ≈ första punkt)
                         const first = points[0]
                         const last = points[points.length - 1]
@@ -143,6 +148,7 @@ export function GltfConverter() {
 
                         splines.push({
                             name: originalName,
+                            parentPath,
                             points,
                             closed,
                             tension: isLinear ? 0 : 0.5,
@@ -526,6 +532,38 @@ function toPascalCase(str: string): string {
     return result.charAt(0).toUpperCase() + result.slice(1)
 }
 
+function normalizeNodeName(name: string): string {
+    return name.split('\u0000')[0].trim()
+}
+
+function toCanonicalNodeName(name: string): string {
+    const normalized = normalizeNodeName(name)
+    const withoutNamespace = normalized.includes('::')
+        ? (normalized.split('::').pop() ?? normalized)
+        : normalized
+    return sanitizeName(withoutNamespace).toLowerCase()
+}
+
+function buildPathKey(path: string[]): string {
+    return path.join('>')
+}
+
+function getParentPathNames(obj: THREE.Object3D, root: THREE.Object3D): string[] {
+    const names: string[] = []
+    let current: THREE.Object3D | null = obj.parent
+
+    while (current && current !== root) {
+        const rawName = typeof current.userData?.originalName === 'string'
+            ? current.userData.originalName as string
+            : (current.name || '')
+        const cleaned = normalizeNodeName(rawName)
+        if (cleaned) names.push(cleaned)
+        current = current.parent
+    }
+
+    return names.reverse()
+}
+
 function getTransformProps(obj: any): string {
     const p = obj.position
     const r = obj.rotation
@@ -690,6 +728,92 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
     function hasSingleTone(name: string): boolean {
         return name.toLowerCase().includes('_singletone')
+    }
+
+    type IndexedSpline = {
+        id: number
+        spline: ParsedSpline
+        canonicalParentPath: string[]
+    }
+
+    const indexedSplines: IndexedSpline[] = splines.map((spline, id) => ({
+        id,
+        spline,
+        canonicalParentPath: spline.parentPath.map(toCanonicalNodeName).filter(Boolean),
+    }))
+
+    const splinesByParentKey = new Map<string, IndexedSpline[]>()
+    indexedSplines.forEach((entry) => {
+        const key = buildPathKey(entry.canonicalParentPath)
+        const list = splinesByParentKey.get(key)
+        if (list) list.push(entry)
+        else splinesByParentKey.set(key, [entry])
+    })
+    const renderedSplineIds = new Set<number>()
+
+    function toRounded(value: number): number {
+        return parseFloat(value.toFixed(4))
+    }
+
+    function renderSplineEntries(entries: IndexedSpline[], indent: number): string {
+        if (entries.length === 0) return ''
+
+        const spaces = ' '.repeat(indent)
+        let splineOutput = ''
+
+        entries.forEach((entry) => {
+            renderedSplineIds.add(entry.id)
+            const spline = entry.spline
+            const cleanName = normalizeNodeName(spline.name) || 'Spline'
+            const tp = spline.transform
+            const rotationDeg = {
+                x: THREE.MathUtils.radToDeg(tp.rotation.x),
+                y: THREE.MathUtils.radToDeg(tp.rotation.y),
+                z: THREE.MathUtils.radToDeg(tp.rotation.z),
+            }
+
+            let splineProps = ''
+            if (Math.abs(tp.position.x) > 0.0001 || Math.abs(tp.position.y) > 0.0001 || Math.abs(tp.position.z) > 0.0001) {
+                splineProps += `\n${spaces}  position={[${toRounded(tp.position.x)}, ${toRounded(tp.position.y)}, ${toRounded(tp.position.z)}]}`
+            }
+            if (Math.abs(rotationDeg.x) > 0.0001 || Math.abs(rotationDeg.y) > 0.0001 || Math.abs(rotationDeg.z) > 0.0001) {
+                splineProps += `\n${spaces}  rotation={[${toRounded(rotationDeg.x)}, ${toRounded(rotationDeg.y)}, ${toRounded(rotationDeg.z)}]}`
+            }
+
+            splineOutput += `${spaces}{/* ${cleanName} */}\n`
+            splineOutput += `${spaces}<SplineElement\n`
+            splineOutput += `${spaces}  points={${JSON.stringify(spline.points)}}\n`
+            splineOutput += `${spaces}  closed={${spline.closed}}\n`
+            splineOutput += `${spaces}  tension={${spline.tension}}\n`
+            splineOutput += `${spaces}  curveType="catmullrom"${splineProps}\n`
+            splineOutput += `${spaces}/>\n`
+        })
+
+        return splineOutput
+    }
+
+    function renderSplineElementsForPath(path: string[], indent: number): string {
+        const canonicalPath = path.map(toCanonicalNodeName).filter(Boolean)
+        const key = buildPathKey(canonicalPath)
+        const exactEntries = splinesByParentKey.get(key) ?? []
+        const pendingExact = exactEntries.filter((entry) => !renderedSplineIds.has(entry.id))
+        if (pendingExact.length > 0) return renderSplineEntries(pendingExact, indent)
+
+        // Fallback: om FBX-hierarkin har extra toppnivå(er), matcha på suffix.
+        if (canonicalPath.length === 0) return ''
+
+        const suffixMatches = indexedSplines.filter((entry) => {
+            if (renderedSplineIds.has(entry.id)) return false
+            if (entry.canonicalParentPath.length < canonicalPath.length) return false
+
+            const offset = entry.canonicalParentPath.length - canonicalPath.length
+            for (let i = 0; i < canonicalPath.length; i += 1) {
+                if (entry.canonicalParentPath[offset + i] !== canonicalPath[i]) return false
+            }
+            return true
+        })
+
+        return renderSplineEntries(suffixMatches, indent)
     }
 
     const isColliderName = (name: string): boolean => name.toLowerCase().includes('_collider')
@@ -894,13 +1018,21 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         output += `    <group {...props} dispose={null}>\n`
     }
 
-    function traverse(obj: any, indent = 6, inheritedColor: string | null = null): string {
+    const rootSplines = renderSplineElementsForPath([], 6)
+    if (rootSplines) {
+        output += `      {/* Splines */}\n`
+        output += rootSplines
+    }
+
+    function traverse(obj: any, indent = 6, inheritedColor: string | null = null, path: string[] = []): string {
         let str = ''
         const spaces = ' '.repeat(indent)
         if (obj.userData?.ignore) return ''
 
         const rawName = obj.name
         const lowerName = rawName.toLowerCase()
+        const cleanedName = normalizeNodeName(rawName)
+        const currentPath = cleanedName ? [...path, cleanedName] : path
         const safeName = sanitizeName(rawName)
         const transformProps = getTransformProps(obj)
 
@@ -972,24 +1104,29 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             if (obj.isMesh && (!isSelfCollider || shouldRenderOwnColliderMesh)) {
                 str += `${spaces}  <C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow>\n`
                 str += `${spaces}    <C4DMaterial color={${colorExpression}}${singleToneProp} />\n`
-                visualChildren.forEach((child: any) => str += traverse(child, indent + 4, currentColor))
+                str += renderSplineElementsForPath(currentPath, indent + 4)
+                visualChildren.forEach((child: any) => str += traverse(child, indent + 4, currentColor, currentPath))
                 str += `${spaces}  </C4DMesh>\n`
             } else {
-                visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
+                str += renderSplineElementsForPath(currentPath, indent + 2)
+                visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor, currentPath))
             }
             str += `${spaces}</RigidBody>\n`
         } else if (obj.isMesh && !isSelfCollider) {
             str += `${spaces}<C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${transformProps}>\n`
             str += `${spaces}  <C4DMaterial color={${colorExpression}}${singleToneProp} />\n`
-            visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
+            str += renderSplineElementsForPath(currentPath, indent + 2)
+            visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor, currentPath))
             str += `${spaces}</C4DMesh>\n`
         } else if (!isSelfCollider) {
             if (transformProps) {
                 str += `${spaces}<group name={${JSON.stringify(rawName)}}${transformProps}>\n`
-                visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor))
+                str += renderSplineElementsForPath(currentPath, indent + 2)
+                visualChildren.forEach((child: any) => str += traverse(child, indent + 2, currentColor, currentPath))
                 str += `${spaces}</group>\n`
             } else {
-                visualChildren.forEach((child: any) => str += traverse(child, indent, currentColor))
+                str += renderSplineElementsForPath(currentPath, indent)
+                visualChildren.forEach((child: any) => str += traverse(child, indent, currentColor, currentPath))
             }
         }
 
@@ -997,6 +1134,12 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     }
 
     scene.children.forEach((child) => output += traverse(child))
+
+    const unmatchedSplines = indexedSplines.filter((entry) => !renderedSplineIds.has(entry.id))
+    if (unmatchedSplines.length > 0) {
+        output += `      {/* Splines (fallback for unmatched parent path) */}\n`
+        output += renderSplineEntries(unmatchedSplines, 6)
+    }
 
     const rapierImports: string[] = []
     if (rigidBodySlots.length > 0) {
@@ -1008,34 +1151,6 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         ? `import { ${rapierImports.join(', ')} } from '@react-three/rapier'`
         : ''
     output = output.replace('__RAPIER_IMPORT__', rapierImportLine)
-
-    // --- Lägg till splines ---
-    if (hasSplines) {
-        output += `\n      {/* Splines */}\n`
-        splines.forEach((spline) => {
-            const cleanName = spline.name.split('\u0000')[0].trim() // Ta bort FBX null-suffix
-            const tp = spline.transform
-            let splineProps = ''
-
-            // Position
-            if (tp && (Math.abs(tp.position.x) > 0.0001 || Math.abs(tp.position.y) > 0.0001 || Math.abs(tp.position.z) > 0.0001)) {
-                splineProps += `\n        position={[${parseFloat(tp.position.x.toFixed(4))}, ${parseFloat(tp.position.y.toFixed(4))}, ${parseFloat(tp.position.z.toFixed(4))}]}`
-            }
-
-            // Rotation
-            if (tp && (Math.abs(tp.rotation.x) > 0.0001 || Math.abs(tp.rotation.y) > 0.0001 || Math.abs(tp.rotation.z) > 0.0001)) {
-                splineProps += `\n        rotation={[${parseFloat(tp.rotation.x.toFixed(4))}, ${parseFloat(tp.rotation.y.toFixed(4))}, ${parseFloat(tp.rotation.z.toFixed(4))}]}`
-            }
-
-            output += `      {/* ${cleanName} */}\n`
-            output += `      <SplineElement\n`
-            output += `        points={${JSON.stringify(spline.points)}}\n`
-            output += `        closed={${spline.closed}}\n`
-            output += `        tension={${spline.tension}}\n`
-            output += `        curveType="catmullrom"${splineProps}\n`
-            output += `      />\n`
-        })
-    }
 
     output += `    </group>\n`
     output += `  )\n`

@@ -20,7 +20,7 @@ export type PaletteAutoMidSettings = {
   hueShift: number
 }
 
-export type PaletteVariantName = 'classic' | 'pine' | 'green'
+export type PaletteVariantName = 'classic' | 'greyscale' | 'green'
 export type SMAAPresetName = 'low' | 'medium' | 'high' | 'ultra'
 export type CameraMode = 'static' | 'follow'
 export type StreamingCenterSource = 'target' | 'cameraFocus'
@@ -240,7 +240,7 @@ export const SETTINGS: Settings = {
 
   // --- FÄRGPALETT (Toon Material) ---
   palette: {
-    active: 'green',
+    active: 'greyscale',
     variants: {
       classic: {
         background: '#3D2C23',
@@ -251,14 +251,14 @@ export const SETTINGS: Settings = {
         five: { base: '#FF2D19' },
         default: { base: '#45253A' },
       },
-      pine: {
-        background: '#2F3B2A',
-        one: { base: '#44553A' },
-        two: { base: '#5A8C7A' },
-        three: { base: '#D8C29A' },
-        four: { base: '#6D5A45' },
-        five: { base: '#C35C3B' },
-        default: { base: '#44553A' },
+      greyscale: {
+        background: '#1b1b1b',
+        one: { base: '#717171' },
+        two: { base: '#424242' },
+        three: { base: '#007FB5' },
+        four: { base: '#C96C05' },
+        five: { base: '#ffffff' },
+        default: { base: '#717171' },
       },
       green: {
         background: '#0E3420',
@@ -297,8 +297,8 @@ export const SETTINGS: Settings = {
 
   // --- RETRO PIXEL PASS (three/examples RenderPixelatedPass) ---
   retroPixelPass: {
-    pixelSize: 12,           // Storlek på "pixlarna"
-    normalEdgeStrength: 0.35, // Kantstyrka baserad på normaler
+    pixelSize: 8,           // Storlek på "pixlarna"
+    normalEdgeStrength: 0.5, // Kantstyrka baserad på normaler
     depthEdgeStrength: 0.45,  // Kantstyrka baserad på depth
     depthEdgeThresholdMin: 0.0005, // Lägre värden gör depth-kanter känsligare (bra för ortografisk kamera)
     depthEdgeThresholdMax: 0.003, // Bör vara större än min-värdet
