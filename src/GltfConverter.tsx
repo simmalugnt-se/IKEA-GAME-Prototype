@@ -1315,13 +1315,12 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
             str += `${spaces}</C4DMesh>\n`
         } else if (!isSelfCollider) {
-            if (transformProps) {
-                str += `${spaces}<group name={${JSON.stringify(rawName)}}${transformProps}>\n`
-                str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
-                str += `${spaces}</group>\n`
-            } else {
-                str += renderChildrenWithSplines(currentPath, visualChildren, indent, currentColor, currentHidden)
-            }
+            // Bevara grupphierarkin 1:1 från GLB/FBX.
+            // Även identitetsgrupper (utan transform) måste finnas kvar för korrekt animation-binding.
+            const groupName = normalizeNodeName(rawName) || rawName
+            str += `${spaces}<group name={${JSON.stringify(groupName)}}${transformProps}>\n`
+            str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
+            str += `${spaces}</group>\n`
         }
 
         return str

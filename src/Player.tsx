@@ -5,11 +5,10 @@ import { useRef, forwardRef, useImperativeHandle } from 'react'
 import { SphereElement } from './primitives/SphereElement'
 import type { GameControlName } from './GameKeyboardControls'
 import { SETTINGS, type ControlInputSource, type Vec3 } from './GameSettings'
+import type { PositionTargetHandle } from './PositionTargetHandle'
 import { getExternalAbsoluteTarget, getExternalDigitalState, type DigitalControlState } from './control/ExternalControlStore'
 
-export type PlayerHandle = {
-  getPosition: () => { x: number; y: number; z: number } | undefined
-}
+export type PlayerHandle = PositionTargetHandle
 
 type PlayerProps = {
   position: Vec3

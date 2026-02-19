@@ -25,6 +25,7 @@ type PhysicsWrapperProps = Omit<RigidBodyProps, 'type' | 'position' | 'rotation'
   physics?: PhysicsBodyType
   colliderType?: ColliderType
   colliderArgs: [number] | [number, number] | [number, number, number]
+  colliderPosition?: Vec3
   position?: Vec3
   rotation?: Vec3
   mass?: number
@@ -37,6 +38,7 @@ export function PhysicsWrapper({
   physics,
   colliderType = 'cuboid',
   colliderArgs,
+  colliderPosition,
   position,
   rotation,
   mass,
@@ -56,12 +58,12 @@ export function PhysicsWrapper({
 
   const collider = (() => {
     if (colliderType === 'cylinder') {
-      return <CylinderCollider args={colliderArgs as [number, number]} />
+      return <CylinderCollider args={colliderArgs as [number, number]} position={colliderPosition} />
     }
     if (colliderType === 'ball') {
-      return <BallCollider args={colliderArgs as [number]} />
+      return <BallCollider args={colliderArgs as [number]} position={colliderPosition} />
     }
-    return <CuboidCollider args={colliderArgs as [number, number, number]} />
+    return <CuboidCollider args={colliderArgs as [number, number, number]} position={colliderPosition} />
   })()
 
   return (
@@ -71,4 +73,3 @@ export function PhysicsWrapper({
     </RigidBody>
   )
 }
-

@@ -18,7 +18,7 @@ import { ExternalControlBridge } from './control/ExternalControlBridge'
 import { BrickBalloon } from './assets/models/BrickBalloon'
 import { BallBalloon } from './assets/models/BallBalloon'
 import { MotionSystemProvider, TransformMotion } from './TransformMotion'
-
+import { BlockElement } from './primitives/BlockElement'
 
 export function Scene() {
   useSettingsVersion()
@@ -34,42 +34,45 @@ export function Scene() {
         <CameraSystemProvider playerRef={playerRef}>
           <MotionSystemProvider>
             {/* SPELAREN */}
-            <Player ref={playerRef} position={[0, 0.1, 0]} />
+            <Player position={[-.75, 1, .5]} />
 
             {/* --- NIVÅN --- */}
 
-            <CubeElement
-              size={[.1, .1, .1]}
+            <TransformMotion positionVelocity={{ z: -0.2 }} positionRange={{ z: [0, -4] }}>
+              <BlockElement ref={playerRef} hidden />
+            </TransformMotion>
+
+            <BlockElement
               color={1}
-              position={[0, 1.2, 0]}
-              mass={0.2}
-              friction={0.5}
-              lockRotations
-              visible={true}
+              position={[3, 0, 0]}
+              sizePreset="lg"
+              heightPreset="lg"
+              plane="y"
+              physics="dynamic"
             />
 
-            <TransformMotion positionVelocity={{ z: 0.12 }}>
-              <BrickBalloon position={[-2, .5, -3]} animation="moving" materialColor1={8} materialColor0={8} />
+            <TransformMotion positionVelocity={{ z: 0.22 }} positionRange={{ z: [0, 4] }}>
+              <BrickBalloon position={[-2, 1, -3]} animation="moving" materialColor1={8} materialColor0={8} />
             </TransformMotion>
 
-            <TransformMotion positionVelocity={{ z: 0.1 }}>
-              <BallBalloon position={[.75, .5, -5]} animation="moving" materialColor1={6} materialColor0={6} />
+            <TransformMotion positionVelocity={{ z: 0.2 }} positionRange={{ z: [0, 4] }}>
+              <BallBalloon position={[.75, 1, -5]} animation="moving" materialColor1={6} materialColor0={6} />
             </TransformMotion>
 
-            <TransformMotion positionVelocity={{ z: 0.1 }}>
-              <BallBalloon position={[0, .5, -4]} animation="moving" materialColor1={7} materialColor0={7} />
+            <TransformMotion positionVelocity={{ z: 0.2 }} positionRange={{ z: [0, 4] }}>
+              <BallBalloon position={[0, 1, -4]} animation="moving" materialColor1={7} materialColor0={7} />
             </TransformMotion>
 
-            <TransformMotion positionVelocity={{ z: 0.12 }}>
-              <BallBalloon position={[-1, .5, 0]} animation="moving2" materialColor1={5} materialColor0={5} />
+            <TransformMotion positionVelocity={{ z: 0.22 }} positionRange={{ z: [0, 4] }}>
+              <BallBalloon position={[-1, 1, 0]} animation="moving2" materialColor1={5} materialColor0={5} />
             </TransformMotion>
 
-            <TransformMotion positionVelocity={{ z: 0.15 }}>
-              <BrickBalloon position={[1.3, .5, 2]} animation="moving3" materialColor1={8} materialColor0={8} />
+            <TransformMotion positionVelocity={{ z: 0.25 }} positionRange={{ z: [0, 4] }}>
+              <BrickBalloon position={[1.3, 1, 2]} animation="moving3" materialColor1={8} materialColor0={8} />
             </TransformMotion>
 
-            <TransformMotion positionVelocity={{ z: 0.08 }}>
-              <BrickBalloon position={[1.5, .5, -1]} animation="moving" materialColor1={4} materialColor0={4} />
+            <TransformMotion positionVelocity={{ z: 0.18 }} positionRange={{ z: [0, 4] }} >
+              <BrickBalloon position={[1.5, 1, -1]} animation="moving" materialColor1={4} materialColor0={4} />
             </TransformMotion>
 
             {/* BLÅ RAMP */}

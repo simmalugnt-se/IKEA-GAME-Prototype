@@ -107,6 +107,10 @@ type XYZLike = {
   z: number
 }
 
+function hasAxisRange(range: AxisRangeMap | undefined): boolean {
+  return Boolean(range?.x || range?.y || range?.z)
+}
+
 function updateVector(
   vector: XYZLike,
   velocity: Vec3,
@@ -198,7 +202,7 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
 
 export function TransformMotion({
   children,
-  loopMode = 'none',
+  loopMode,
   positionVelocity,
   rotationVelocity,
   scaleVelocity,
@@ -211,9 +215,10 @@ export function TransformMotion({
     throw new Error('TransformMotion must be used inside MotionSystemProvider')
   }
 
+  const effectiveLoopMode: LoopMode = loopMode ?? (hasAxisRange(positionRange) ? 'loop' : 'none')
   const ref = useRef<THREE.Group | null>(null)
   const computedConfig = useMemo<MotionTrackConfig>(() => ({
-    loopMode,
+    loopMode: effectiveLoopMode,
     positionVelocity: normalizeVec3Like(positionVelocity),
     rotationVelocity: normalizeVec3Like(rotationVelocity),
     scaleVelocity: normalizeVec3Like(scaleVelocity),
@@ -221,7 +226,7 @@ export function TransformMotion({
     rotationRange,
     scaleRange,
   }), [
-    loopMode,
+    effectiveLoopMode,
     positionVelocity,
     rotationVelocity,
     scaleVelocity,

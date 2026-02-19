@@ -1,11 +1,13 @@
 import * as THREE from 'three'
-import { forwardRef, useMemo } from 'react'
+import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react'
 import type { ThreeElements } from '@react-three/fiber'
 import { RigidBody, ConvexHullCollider, type RigidBodyProps } from '@react-three/rapier'
 import { C4DMaterial } from '../Materials'
 import type { MaterialColorIndex, Vec3 } from '../GameSettings'
+import type { PositionTargetHandle } from '../PositionTargetHandle'
 import { toRadians, useSurfaceId } from '../SceneHelpers'
 import type { PhysicsProps } from './PhysicsWrapper'
+import { getAlignOffset, type Align3 } from './anchor'
 
 type MeshElementProps = Omit<ThreeElements['mesh'], 'position' | 'rotation'>
 
@@ -17,9 +19,10 @@ type CylinderElementProps = MeshElementProps & PhysicsProps & {
   color?: MaterialColorIndex
   singleTone?: boolean
   hidden?: boolean
+  align?: Align3
 }
 
-export const CylinderElement = forwardRef<THREE.Mesh, CylinderElementProps>(function CylinderElement({
+export const CylinderElement = forwardRef<PositionTargetHandle, CylinderElementProps>(function CylinderElement({
   radius = 0.5,
   height = 1,
   segments = 32,
@@ -28,6 +31,8 @@ export const CylinderElement = forwardRef<THREE.Mesh, CylinderElementProps>(func
   singleTone = true,
   hidden = false,
   visible = true,
+  align,
+  scale,
   physics,
   mass,
   friction,
@@ -36,8 +41,14 @@ export const CylinderElement = forwardRef<THREE.Mesh, CylinderElementProps>(func
   rotation = [0, 0, 0],
   ...props
 }, ref) {
+  const meshRef = useRef<THREE.Mesh | null>(null)
+  const worldPos = useMemo(() => new THREE.Vector3(), [])
   const surfaceId = useSurfaceId()
   const rotationRadians = useMemo(() => toRadians(rotation), [rotation])
+  const anchorOffset = useMemo<Vec3>(
+    () => getAlignOffset([radius * 2, height, radius * 2], align),
+    [radius, height, align?.x, align?.y, align?.z],
+  )
 
   // Generera cylinderformad konvex hull: topp- och bottenring med N sidor
   const hullVertices = useMemo(() => {
@@ -53,11 +64,21 @@ export const CylinderElement = forwardRef<THREE.Mesh, CylinderElementProps>(func
     return new Float32Array(verts)
   }, [radius, height, colliderSegments])
 
+  useImperativeHandle(ref, () => ({
+    getPosition: () => {
+      if (!meshRef.current) return undefined
+      const source = meshRef.current.parent ?? meshRef.current
+      source.getWorldPosition(worldPos)
+      return { x: worldPos.x, y: worldPos.y, z: worldPos.z }
+    },
+  }), [worldPos])
+
   const mesh = (
     <mesh
       {...props}
-      ref={ref}
-      {...(!physics ? { position, rotation: rotationRadians } : {})}
+      ref={meshRef}
+      position={anchorOffset}
+      {...(physics && scale !== undefined ? { scale } : {})}
       visible={visible && !hidden}
       castShadow
       receiveShadow
@@ -68,7 +89,13 @@ export const CylinderElement = forwardRef<THREE.Mesh, CylinderElementProps>(func
     </mesh>
   )
 
-  if (!physics) return mesh
+  if (!physics) {
+    return (
+      <group position={position} rotation={rotationRadians} {...(scale !== undefined ? { scale } : {})}>
+        {mesh}
+      </group>
+    )
+  }
 
   const rbProps: RigidBodyProps = { type: physics }
   if (position !== undefined) rbProps.position = position
@@ -79,7 +106,7 @@ export const CylinderElement = forwardRef<THREE.Mesh, CylinderElementProps>(func
 
   return (
     <RigidBody {...rbProps} colliders={false}>
-      <ConvexHullCollider args={[hullVertices]} />
+      <ConvexHullCollider args={[hullVertices]} position={anchorOffset} />
       {mesh}
     </RigidBody>
   )
