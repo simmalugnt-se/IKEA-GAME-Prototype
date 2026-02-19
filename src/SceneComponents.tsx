@@ -335,6 +335,7 @@ type SplineElementProps = PhysicsProps & {
   segments?: number
   lineWidth?: number
   color?: string
+  visible?: boolean
   closed?: boolean
   curveType?: CurveType
   tension?: number
@@ -352,6 +353,7 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
   segments = 50,
   lineWidth,
   color,
+  visible = true,
   closed = false,
   curveType = 'catmullrom',
   tension = 0.5,
@@ -438,6 +440,7 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
     <group
       ref={ref}
       {...(!physics ? { position, rotation: rotationRadians } : {})}
+      visible={visible}
     >
       <primitive object={line2} />
     </group>
@@ -462,7 +465,7 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
           rotation={col.rotation}
         />
       ))}
-      <primitive object={line2} />
+      <primitive object={line2} visible={visible} />
     </RigidBody>
   )
 })

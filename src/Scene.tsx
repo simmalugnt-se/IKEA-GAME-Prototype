@@ -12,6 +12,7 @@ import { useSettingsVersion } from './settingsStore'
 import { ExternalControlBridge } from './control/ExternalControlBridge'
 import { LevelRenderer } from './LevelRenderer'
 import { useLevelStore } from './levelStore'
+import { MotionSystemProvider } from './TransformMotion'
 
 export function Scene() {
   useSettingsVersion()
@@ -30,16 +31,18 @@ export function Scene() {
       <Physics gravity={[0, -9.81, 0]} debug={isDebug && SETTINGS.debug.showColliders}>
         <GameEffects />
         <CameraSystemProvider playerRef={playerRef}>
-          {/* SPELAREN */}
-          <Player ref={playerRef} position={[0, 0.1, 0]} />
+          <MotionSystemProvider>
+            {/* SPELAREN */}
+            <Player ref={playerRef} position={[0, 0.1, 0]} />
 
-          {/* --- NIVÅN --- */}
-          <LevelRenderer />
+            {/* --- NIVÅN --- */}
+            <LevelRenderer />
 
-          {/* DEBUG BENCHMARK + STREAMING */}
-          <BenchmarkDebugContent />
+            {/* DEBUG BENCHMARK + STREAMING */}
+            <BenchmarkDebugContent />
 
-          <InvisibleFloor />
+            <InvisibleFloor />
+          </MotionSystemProvider>
         </CameraSystemProvider>
       </Physics>
 

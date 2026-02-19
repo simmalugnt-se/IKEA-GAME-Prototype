@@ -701,6 +701,13 @@ function parsePhysicsConfigFromName(name: string): ParsedPhysicsConfig | null {
     return config
 }
 
+function getHiddenFromName(name: string): boolean | null {
+    const lower = name.toLowerCase()
+    if (lower.includes('_hidden') || lower.includes('_invisible')) return true
+
+    return null
+}
+
 function getPhysicsConfigSignature(config: ParsedPhysicsConfig): string {
     return [
         `type:${config.type}`,
@@ -860,11 +867,12 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         return parseFloat(value.toFixed(4))
     }
 
-    function renderSplineEntries(entries: IndexedSpline[], indent: number): string {
+    function renderSplineEntries(entries: IndexedSpline[], indent: number, hiddenExpression = 'false'): string {
         if (entries.length === 0) return ''
 
         const spaces = ' '.repeat(indent)
         let splineOutput = ''
+        const hasHiddenControl = hiddenExpression !== 'false'
 
         entries.forEach((entry) => {
             renderedSplineIds.add(entry.id)
@@ -890,6 +898,9 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             splineOutput += `${spaces}  points={${JSON.stringify(spline.points)}}\n`
             splineOutput += `${spaces}  closed={${spline.closed}}\n`
             splineOutput += `${spaces}  tension={${spline.tension}}\n`
+            if (hasHiddenControl) {
+                splineOutput += `${spaces}  visible={!${hiddenExpression}}\n`
+            }
             splineOutput += `${spaces}  curveType="catmullrom"${splineProps}\n`
             splineOutput += `${spaces}/>\n`
         })
@@ -899,6 +910,8 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
     const colorIndicesInUse: number[] = []
     const colorIndexSet = new Set<number>()
+    const hiddenValuesInUse: boolean[] = []
+    const hiddenValueSet = new Set<boolean>()
 
     type RigidBodySlotConfig = {
         slot: string
@@ -917,6 +930,13 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         colorIndicesInUse.push(normalized)
     }
 
+    function registerHiddenValue(hidden: boolean): void {
+        const normalized = Boolean(hidden)
+        if (hiddenValueSet.has(normalized)) return
+        hiddenValueSet.add(normalized)
+        hiddenValuesInUse.push(normalized)
+    }
+
     function registerRigidBodyProfile(profile: ParsedPhysicsConfig): string {
         const signature = getPhysicsConfigSignature(profile)
         const existing = rigidBodySlotBySignature.get(signature)
@@ -928,12 +948,19 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         return slot
     }
 
-    function collectMetadata(obj: any, inheritedColor: number | null = null): void {
+    function collectMetadata(
+        obj: any,
+        inheritedColor: number | null = null,
+        inheritedHidden: boolean | null = null,
+    ): void {
         if (obj.userData?.ignore) return
 
         const rawName = obj.name
         const ownColor = getColorFromName(rawName)
         const currentColor = ownColor ?? inheritedColor ?? 0
+        const ownHidden = getHiddenFromName(rawName)
+        const currentHidden = ownHidden ?? inheritedHidden ?? false
+        const hasHiddenContext = ownHidden !== null || inheritedHidden !== null
         const physicsConfig = parsePhysicsConfigFromName(rawName)
 
         if (physicsConfig) {
@@ -954,20 +981,22 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             const shouldRenderOwnColliderMesh = useSelfMeshCollider
             if (obj.isMesh && (!selfIsCollider || shouldRenderOwnColliderMesh)) {
                 registerColorIndex(currentColor)
+                if (hasHiddenContext) registerHiddenValue(currentHidden)
             }
 
-            visualChildren.forEach((child: any) => collectMetadata(child, currentColor))
+            visualChildren.forEach((child: any) => collectMetadata(child, currentColor, currentHidden))
             return
         }
 
         if (obj.isMesh && !selfIsCollider) {
             registerColorIndex(currentColor)
-            visualChildren.forEach((child: any) => collectMetadata(child, currentColor))
+            if (hasHiddenContext) registerHiddenValue(currentHidden)
+            visualChildren.forEach((child: any) => collectMetadata(child, currentColor, currentHidden))
             return
         }
 
         if (!selfIsCollider) {
-            visualChildren.forEach((child: any) => collectMetadata(child, currentColor))
+            visualChildren.forEach((child: any) => collectMetadata(child, currentColor, currentHidden))
         }
     }
 
@@ -979,7 +1008,13 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         colorIndex,
     }))
     const colorSlotByIndex = new Map<number, string>(colorSlots.map((entry) => [entry.colorIndex, entry.slot]))
+    const hiddenSlots = hiddenValuesInUse.map((hiddenValue, slotIndex) => ({
+        slot: `materialHidden${slotIndex}`,
+        hiddenValue,
+    }))
+    const hiddenSlotByValue = new Map<boolean, string>(hiddenSlots.map((entry) => [entry.hiddenValue, entry.slot]))
     const firstColorSlot = colorSlots[0]?.slot
+    const firstHiddenSlot = hiddenSlots[0]?.slot
     const firstRigidBodySlot = rigidBodySlots[0]?.slot
 
     let usesConvexHullCollider = false
@@ -1000,6 +1035,9 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     if (colorSlots.length > 0) {
         output += `type MaterialColorSlot = ${colorSlots.map(({ slot }) => `'${slot}'`).join(' | ')}\n`
     }
+    if (hiddenSlots.length > 0) {
+        output += `type MaterialHiddenSlot = ${hiddenSlots.map(({ slot }) => `'${slot}'`).join(' | ')}\n`
+    }
 
     if (rigidBodySlots.length > 0) {
         output += `type GeneratedRigidBodySettings = {\n`
@@ -1012,7 +1050,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         output += `type RigidBodySlot = ${rigidBodySlots.map(({ slot }) => `'${slot}'`).join(' | ')}\n`
     }
 
-    if (colorSlots.length > 0 || rigidBodySlots.length > 0) output += `\n`
+    if (colorSlots.length > 0 || hiddenSlots.length > 0 || rigidBodySlots.length > 0) output += `\n`
 
     output += `type ${componentName}Props = ThreeElements['group'] & {\n`
     if (hasAnimations) {
@@ -1021,6 +1059,9 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     }
     colorSlots.forEach(({ slot }) => {
         output += `  ${slot}?: MaterialColorIndex\n`
+    })
+    hiddenSlots.forEach(({ slot }) => {
+        output += `  ${slot}?: boolean\n`
     })
     rigidBodySlots.forEach(({ slot }) => {
         output += `  ${slot}?: Partial<GeneratedRigidBodySettings>\n`
@@ -1034,6 +1075,9 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     }
     colorSlots.forEach(({ slot, colorIndex }) => {
         componentParams.push(`${slot} = ${colorIndex}`)
+    })
+    hiddenSlots.forEach(({ slot, hiddenValue }) => {
+        componentParams.push(`${slot} = ${hiddenValue}`)
     })
     rigidBodySlots.forEach(({ slot }) => {
         componentParams.push(slot)
@@ -1072,6 +1116,14 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         output += `  }\n`
     }
 
+    if (hiddenSlots.length > 0) {
+        output += `\n  const materialHiddens: Record<MaterialHiddenSlot, boolean> = {\n`
+        hiddenSlots.forEach(({ slot }) => {
+            output += `    ${slot},\n`
+        })
+        output += `  }\n`
+    }
+
     if (rigidBodySlots.length > 0) {
         output += `\n  const rigidBodies: Record<RigidBodySlot, GeneratedRigidBodySettings> = {\n`
         rigidBodySlots.forEach(({ slot, profile }) => {
@@ -1104,16 +1156,24 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         visualChildren: any[],
         childIndent: number,
         inheritedColor: number | null,
+        inheritedHidden: boolean | null,
     ): string {
         const canonicalPath = parentPath.map(toCanonicalNodeName).filter(Boolean)
         const parentKey = buildPathKey(canonicalPath)
         const pendingSplines = (splinesByParentKey.get(parentKey) ?? [])
             .filter((entry) => !renderedSplineIds.has(entry.id))
 
+        const inheritedHiddenSlot = inheritedHidden !== null
+            ? (hiddenSlotByValue.get(Boolean(inheritedHidden)) ?? firstHiddenSlot)
+            : null
+        const inheritedHiddenExpression = inheritedHidden !== null
+            ? (inheritedHiddenSlot ? `materialHiddens.${inheritedHiddenSlot}` : `${Boolean(inheritedHidden)}`)
+            : 'false'
+
         if (pendingSplines.length === 0) {
             let childrenOnly = ''
             visualChildren.forEach((child) => {
-                childrenOnly += traverse(child, childIndent, inheritedColor, parentPath)
+                childrenOnly += traverse(child, childIndent, inheritedColor, parentPath, inheritedHidden)
             })
             return childrenOnly
         }
@@ -1130,16 +1190,22 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         for (let i = 0; i <= visualChildren.length; i += 1) {
             const splineEntries = splinesByAnchor.get(i)
             if (splineEntries && splineEntries.length > 0) {
-                combined += renderSplineEntries(splineEntries, childIndent)
+                combined += renderSplineEntries(splineEntries, childIndent, inheritedHiddenExpression)
             }
             if (i < visualChildren.length) {
-                combined += traverse(visualChildren[i], childIndent, inheritedColor, parentPath)
+                combined += traverse(visualChildren[i], childIndent, inheritedColor, parentPath, inheritedHidden)
             }
         }
         return combined
     }
 
-    function traverse(obj: any, indent = 6, inheritedColor: number | null = null, path: string[] = []): string {
+    function traverse(
+        obj: any,
+        indent = 6,
+        inheritedColor: number | null = null,
+        path: string[] = [],
+        inheritedHidden: boolean | null = null,
+    ): string {
         let str = ''
         const spaces = ' '.repeat(indent)
         if (obj.userData?.ignore) return ''
@@ -1154,6 +1220,14 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         const currentColor = ownColor ?? inheritedColor ?? 0
         const currentColorSlot = colorSlotByIndex.get(currentColor) ?? firstColorSlot
         const colorExpression = currentColorSlot ? `materialColors.${currentColorSlot}` : '0'
+        const ownHidden = getHiddenFromName(rawName)
+        const currentHidden = ownHidden ?? inheritedHidden ?? false
+        const hasHiddenContext = ownHidden !== null || inheritedHidden !== null
+        const currentHiddenSlot = hiddenSlotByValue.get(Boolean(currentHidden)) ?? firstHiddenSlot
+        const hiddenExpression = hasHiddenContext
+            ? (currentHiddenSlot ? `materialHiddens.${currentHiddenSlot}` : `${Boolean(currentHidden)}`)
+            : 'false'
+        const visibilityProp = hasHiddenContext ? ` visible={!${hiddenExpression}}` : ''
         const singleTone = hasSingleTone(rawName)
 
         const physicsConfig = parsePhysicsConfigFromName(rawName)
@@ -1216,38 +1290,38 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             const shouldRenderOwnColliderMesh = useSelfMeshCollider
 
             if (obj.isMesh && (!isSelfCollider || shouldRenderOwnColliderMesh)) {
-                str += `${spaces}  <C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow>\n`
+                str += `${spaces}  <C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${visibilityProp}>\n`
                 str += `${spaces}    <C4DMaterial color={${colorExpression}}${singleToneProp} />\n`
-                str += renderChildrenWithSplines(currentPath, visualChildren, indent + 4, currentColor)
+                str += renderChildrenWithSplines(currentPath, visualChildren, indent + 4, currentColor, currentHidden)
                 str += `${spaces}  </C4DMesh>\n`
             } else {
-                str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor)
+                str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
             }
             str += `${spaces}</RigidBody>\n`
         } else if (obj.isMesh && !isSelfCollider) {
-            str += `${spaces}<C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${transformProps}>\n`
+            str += `${spaces}<C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${transformProps}${visibilityProp}>\n`
             str += `${spaces}  <C4DMaterial color={${colorExpression}}${singleToneProp} />\n`
-            str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor)
+            str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
             str += `${spaces}</C4DMesh>\n`
         } else if (!isSelfCollider) {
             if (transformProps) {
                 str += `${spaces}<group name={${JSON.stringify(rawName)}}${transformProps}>\n`
-                str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor)
+                str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
                 str += `${spaces}</group>\n`
             } else {
-                str += renderChildrenWithSplines(currentPath, visualChildren, indent, currentColor)
+                str += renderChildrenWithSplines(currentPath, visualChildren, indent, currentColor, currentHidden)
             }
         }
 
         return str
     }
 
-    output += renderChildrenWithSplines([], scene.children, 6, null)
+    output += renderChildrenWithSplines([], scene.children, 6, null, null)
 
     const unmatchedSplines = indexedSplines.filter((entry) => !renderedSplineIds.has(entry.id))
     if (unmatchedSplines.length > 0) {
         output += `      {/* Splines (fallback for unmatched parent path) */}\n`
-        output += renderSplineEntries(unmatchedSplines, 6)
+        output += renderSplineEntries(unmatchedSplines, 6, 'false')
     }
 
     const rapierImports: string[] = []

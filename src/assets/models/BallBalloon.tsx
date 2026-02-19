@@ -21,7 +21,7 @@ type BallBalloonProps = ThreeElements['group'] & {
   materialColor1?: MaterialColorIndex
 }
 
-export function BallBalloon({ animation = null, fadeDuration = 0.3, materialColor0 = 4, materialColor1 = 2, ...props }: BallBalloonProps) {
+export function BallBalloon({ animation = null, fadeDuration = 0.3, materialColor0 = 10, materialColor1 = 3, ...props }: BallBalloonProps) {
   const group = useRef<THREE.Group | null>(null)
   const { nodes, animations } = useGLTF(modelUrl) as unknown as { nodes: Record<string, THREE.Mesh>; animations: THREE.AnimationClip[] }
   const { actions } = useAnimations(animations, group)
@@ -35,7 +35,7 @@ export function BallBalloon({ animation = null, fadeDuration = 0.3, materialColo
     }
   }, [animation, fadeDuration, actions])
 
-  // Tillgängliga animationer: "moving"
+  // Tillgängliga animationer: "moving", "moving2", "moving3"
 
 
   const materialColors: Record<MaterialColorSlot, MaterialColorIndex> = {
@@ -45,7 +45,7 @@ export function BallBalloon({ animation = null, fadeDuration = 0.3, materialColo
 
   return (
     <group ref={group} {...props} dispose={null}>
-      <group name={"BALLBALLOON"} position={[0, 0.6, 0]}>
+      <group name={"BALLBALLOON"} position={[0, 0.8, 0]}>
         <group name={"BALL"} position={[0, -0.3, 0]}>
           {/* Circle_1 */}
           <SplineElement
@@ -61,14 +61,14 @@ export function BallBalloon({ animation = null, fadeDuration = 0.3, materialColo
             tension={0.5}
             curveType="catmullrom"
           />
-          <C4DMesh name={nodes['Sphere_color4_singleTone'].name} geometry={nodes['Sphere_color4_singleTone'].geometry} castShadow receiveShadow>
+          <C4DMesh name={nodes['Sphere_color10_singleTone'].name} geometry={nodes['Sphere_color10_singleTone'].geometry} castShadow receiveShadow>
             <C4DMaterial color={materialColors.materialColor0} singleTone />
           </C4DMesh>
         </group>
-        <C4DMesh name={nodes['Sphere_color2_singleTone'].name} geometry={nodes['Sphere_color2_singleTone'].geometry} castShadow receiveShadow>
+        <C4DMesh name={nodes['Sphere_color3_singleTone'].name} geometry={nodes['Sphere_color3_singleTone'].geometry} castShadow receiveShadow>
           <C4DMaterial color={materialColors.materialColor1} singleTone />
         </C4DMesh>
-        <C4DMesh name={nodes['Cone_color2_singleTone'].name} geometry={nodes['Cone_color2_singleTone'].geometry} castShadow receiveShadow>
+        <C4DMesh name={nodes['Cone_color3_singleTone'].name} geometry={nodes['Cone_color3_singleTone'].geometry} castShadow receiveShadow>
           <C4DMaterial color={materialColors.materialColor1} singleTone />
         </C4DMesh>
         {/* Line */}
