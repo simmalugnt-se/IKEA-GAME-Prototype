@@ -407,6 +407,7 @@ Tokens sätts i **objektnamnet** i Cinema 4D:
 |-------|----------|---------|
 | `_colorX` | Sätter färgindex från paletten (`X` är heltal, börjar på `0`) | `Cube_color3` → `materialColor0={3}` (slot-baserad prop) |
 | `_singletone` | Tvingar enhetlig ton (ingen mid) | `Box_color4_singletone` |
+| `_hidden` / `_invisible` | Markerar objekt som visuellt dolt (renderas ej) men med bibehållen fysik/collider | `Proxy_hidden_dynamic` |
 | `_dynamic` | Dynamisk fysikkropp | `Group_dynamic` |
 | `_fixed` / `_static` | Fast fysikkropp | `Floor_fixed` |
 | `_kinematic` | Kinematisk kropp | `Platform_kinematic` |
@@ -433,6 +434,7 @@ Färg-tokens ärvs nedåt i hierarkin. Om en grupp har `_color3`, får alla barn
 Konverteraren genererar nu slot-baserade props för återanvändning:
 
 - Färger: `materialColor0`, `materialColor1`, `materialColor2` ...
+- Synlighet: `materialHidden0`, `materialHidden1` ... (skapas bara när hidden-token används)
 - Fysikprofiler: `rigidBodyOne`, `rigidBodyTwo`, `rigidBodyThree` ...
 
 Färgslot-namnen är stabila per exporterad modell och separerade från själva färgindexet.
