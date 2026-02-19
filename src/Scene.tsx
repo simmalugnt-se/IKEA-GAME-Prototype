@@ -1,7 +1,9 @@
 import { useRef } from 'react'
 import { Physics } from '@react-three/rapier'
 import { Stats } from '@react-three/drei'
-import { CubeElement, CylinderElement, InvisibleFloor } from './SceneComponents'
+import { CubeElement } from './primitives/CubeElement'
+import { CylinderElement } from './primitives/CylinderElement'
+import { InvisibleFloor } from './primitives/InvisibleFloor'
 import { Player, type PlayerHandle } from './Player'
 import { GameEffects } from './Effects'
 import { CameraSystemProvider } from './CameraSystem'
@@ -36,6 +38,15 @@ export function Scene() {
 
             {/* --- NIVÅN --- */}
 
+            <CubeElement
+              size={[.1, .1, .1]}
+              color={1}
+              position={[0, 1.2, 0]}
+              mass={0.2}
+              friction={0.5}
+              lockRotations
+              visible={true}
+            />
 
             <TransformMotion positionVelocity={{ z: 0.12 }}>
               <BrickBalloon position={[-2, .5, -3]} animation="moving" materialColor1={8} materialColor0={8} />

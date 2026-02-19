@@ -13,6 +13,7 @@ type ParsedSpline = {
   points: number[][]
   closed: boolean
   tension: number
+  castShadow: boolean
   transform: {
     position: THREE.Vector3
     rotation: THREE.Euler
@@ -153,6 +154,7 @@ export function GltfConverter() {
                         if (closed) points.pop()
 
                         const isLinear = originalName.toLowerCase().includes('_splinelinear')
+                        const castShadow = !hasSplineNoShadowToken(originalName)
 
                         splines.push({
                             name: originalName,
@@ -162,6 +164,7 @@ export function GltfConverter() {
                             points,
                             closed,
                             tension: isLinear ? 0 : 0.5,
+                            castShadow,
                             transform: {
                                 position: child.position.clone(),
                                 rotation: child.rotation.clone(),
@@ -648,6 +651,11 @@ function hasPhysicsToken(name: string): boolean {
     return getPhysicsTypeFromName(name) !== null
 }
 
+function hasSplineNoShadowToken(name: string): boolean {
+    const lower = name.toLowerCase()
+    return lower.includes('_noshadow') || lower.includes('_shadowoff')
+}
+
 type ParsedPhysicsConfig = {
     type: 'dynamic' | 'fixed' | 'kinematicPosition'
     mass?: number
@@ -898,6 +906,9 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             splineOutput += `${spaces}  points={${JSON.stringify(spline.points)}}\n`
             splineOutput += `${spaces}  closed={${spline.closed}}\n`
             splineOutput += `${spaces}  tension={${spline.tension}}\n`
+            if (spline.castShadow === false) {
+                splineOutput += `${spaces}  castShadow={false}\n`
+            }
             if (hasHiddenControl) {
                 splineOutput += `${spaces}  visible={!${hiddenExpression}}\n`
             }

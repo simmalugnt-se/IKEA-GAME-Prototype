@@ -17,7 +17,9 @@ graph TD
     C --> M[GameKeyboardControls.tsx]
     C --> E[Player.tsx]
     C --> ECB[control/ExternalControlBridge.tsx]
-    C --> F[SceneComponents]
+    C --> PR[primitives/*]
+    C --> AM[assets/models/*.tsx]
+    AM --> F[SceneComponents]
     C --> TM[TransformMotion.tsx]
     C --> CS[CameraSystem.tsx]
     C --> TA[TargetAnchor.tsx]
@@ -46,7 +48,8 @@ graph TD
 | `Player.tsx` | Spelarbol med physics/kinematik, input via keyboard/external pipeline, hopp (raycast i digitalt läge) |
 | `control/ExternalControlBridge.tsx` | Adapterlager för extern styrdata (window API, custom events, valfri WebSocket-klient) |
 | `control/ExternalControlStore.ts` | Transport-oberoende in-memory store för digital/absolute kontrollframes |
-| `SceneComponents.tsx` | Återanvändbara element: Cube, Sphere, Cylinder, Spline, InvisibleFloor, C4DMesh |
+| `primitives/*` | Primitive-komponenter (`CubeElement`, `SphereElement`, `CylinderElement`, `InvisibleFloor`) + gemensam physics-wrapper |
+| `SceneComponents.tsx` | Shared scene-byggstenar för konverterade modeller (`C4DMesh`, `C4DMaterial`, `SplineElement`) |
 | `CameraSystem.tsx` | Kapslar target-registry + kamera + streaming-center, kopplas in via provider i `Scene` |
 | `CameraSystemContext.ts` | Delad context/hook för target-registry och streaming-center |
 | `TargetAnchor.tsx` | Enkel wrapper för att ge valfritt scenelement ett `targetId` som kamera/streaming kan följa |
@@ -282,15 +285,22 @@ Wrapper runt `<mesh>` som auto-genererar ett unikt `surfaceId` för outline-dete
 
 ## Fysiksystem (Rapier)
 
-### SceneComponents
+### Primitives (`src/primitives/*`)
 
 | Komponent | Collider-typ | Noteringar |
 |-----------|-------------|------------|
 | `CubeElement` | `CuboidCollider` | Automatisk halvstorlek |
 | `SphereElement` | `BallCollider` | Radie-baserad |
 | `CylinderElement` | `ConvexHullCollider` | Genererar top/bottom rings med N sidor |
-| `SplineElement` | Flera `CuboidCollider` | Ett per segment, orienterat längs kurvan |
 | `InvisibleFloor` | `CuboidCollider` | Fast golv med skugg-plan |
+
+### SceneComponents (`src/SceneComponents.tsx`)
+
+| Komponent | Collider-typ | Noteringar |
+|-----------|-------------|------------|
+| `SplineElement` | Flera `CuboidCollider` | Ett per segment, orienterat längs kurvan |
+| `C4DMesh` | - | Genererar unikt `surfaceId` per mesh för outline-pass |
+| `C4DMaterial` | - | Re-export av material-komponenten från `Materials.tsx` |
 
 ### Physics-props (alla element)
 ```jsx
@@ -303,6 +313,10 @@ Wrapper runt `<mesh>` som auto-genererar ett unikt `surfaceId` för outline-dete
   rotation={[-61, 0, 0]}  // I GRADER (konverteras internt)
 />
 ```
+
+`CubeElement`, `SphereElement` och `CylinderElement` stödjer även `hidden={true}`:
+- Döljer den visuella meshen
+- Behåller collider/physics när `physics` är aktiv
 
 ### Spelaren (`Player.tsx`)
 - `RigidBody` med `BallCollider` (r=0.1)
@@ -354,6 +368,8 @@ Renderar kurviga linjer med konstant pixelbredd:
 - Använder `Line2` + `LineMaterial` (screen-space bredd)
 - `worldUnits: false` → konstant pixelbredd oavsett zoom
 - `excludeFromOutlines: true` → ignoreras av outline-effekten
+- Kastar skuggor via en intern shadow-proxy (`InstancedMesh` med osynliga box-segment per spline-segment)
+- `castShadow={false}` stänger av spline-shadow-proxy lokalt
 - Med `physics`: genererar `CuboidCollider` per segment, orienterade längs kurvan
 
 ---
@@ -416,6 +432,7 @@ Tokens sätts i **objektnamnet** i Cinema 4D:
 | `_lockRot` | Låser rotation | `Block_dynamic_lockRot` |
 | `_sensor` | Sensor (trigger, ej solid) | `Zone_dynamic_sensor` |
 | `_collider` | Markerar collider-geo (barn-proxy eller egen geo på samma objekt) | `Box_collider` |
+| `_noshadow` / `_shadowoff` | Endast spline: stänger av spline-shadow-proxy (linjen syns men kastar ingen skugga) | `Curve_noshadow` |
 
 ### Kollisions-hantering
 
@@ -528,7 +545,14 @@ src/
 ├── control/
 │   ├── ExternalControlBridge.tsx # Extern input-adapter (window API + optional WS)
 │   └── ExternalControlStore.ts   # Transport-oberoende kontrollstore (digital/absolute)
-├── SceneComponents.tsx     # Cube, Sphere, Cylinder, Spline, C4DMesh, InvisibleFloor
+├── primitives/
+│   ├── PhysicsWrapper.tsx  # Gemensam physics/collider-wrapper för primitives
+│   ├── CubeElement.tsx     # Cube primitive (hidden + optional physics)
+│   ├── SphereElement.tsx   # Sphere primitive (hidden + optional physics)
+│   ├── CylinderElement.tsx # Cylinder primitive (hidden + optional physics)
+│   └── InvisibleFloor.tsx  # Osynligt golv + shadow plane + fast collider
+├── SceneComponents.tsx     # Shared components för konverterade modeller (C4DMesh, C4DMaterial, SplineElement)
+├── SceneHelpers.ts         # Delade hjälpare (surfaceId-hash + grader→radianer)
 ├── CameraSystem.tsx        # Camera provider: target-registry + streaming-center
 ├── CameraSystemContext.ts  # Context/hook för camerasystemet
 ├── TargetAnchor.tsx        # Target-ID wrapper för scenelement

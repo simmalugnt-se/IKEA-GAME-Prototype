@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CubeElement } from '../SceneComponents'
+import { CubeElement } from '../primitives/CubeElement'
 import { SETTINGS, type MaterialColorIndex, type Vec3 } from '../GameSettings'
 import { useCameraSystem } from '../CameraSystemContext'
 import {
