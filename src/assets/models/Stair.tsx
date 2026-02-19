@@ -6,14 +6,15 @@ Model: stair.glb
 import * as THREE from 'three'
 import { useRef, useEffect } from 'react'
 import { useGLTF } from '@react-three/drei'
-import { RigidBody, ConvexHullCollider } from '@react-three/rapier'
+import { ConvexHullCollider } from '@react-three/rapier'
 import type { ThreeElements } from '@react-three/fiber'
-import { C4DMesh, C4DMaterial } from '../../SceneComponents'
+import { C4DMesh, C4DMaterial, GameRigidBody } from '../../SceneComponents'
+import type { GamePhysicsBodyType } from '../../SceneComponents'
 import type { MaterialColorIndex } from '../../GameSettings'
 import modelUrl from './stair.glb?url'
 
 type GeneratedRigidBodySettings = {
-  type: 'dynamic' | 'fixed' | 'kinematicPosition'
+  type: GamePhysicsBodyType
   mass?: number
   friction?: number
   lockRotations?: boolean
@@ -48,7 +49,7 @@ export function Stair({ materialColor0 = 2, rigidBodyOne, ...props }: StairProps
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false}>
+      <GameRigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false}>
         <ConvexHullCollider args={[nodes['STAIRS_collider'].geometry.attributes.position.array]} />
         <C4DMesh name={nodes['STAIRS'].name} geometry={nodes['STAIRS'].geometry} castShadow receiveShadow>
           <C4DMaterial color={materialColors.materialColor0} />
@@ -56,7 +57,7 @@ export function Stair({ materialColor0 = 2, rigidBodyOne, ...props }: StairProps
         <C4DMesh name={nodes['STAIRS_top'].name} geometry={nodes['STAIRS_top'].geometry} castShadow receiveShadow>
           <C4DMaterial color={materialColors.materialColor0} />
         </C4DMesh>
-      </RigidBody>
+      </GameRigidBody>
     </group>
   )
 }

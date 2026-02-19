@@ -1,27 +1,37 @@
-import { Children, cloneElement, isValidElement, useMemo, useState, type ReactElement, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useCallback, useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { RigidBody, type RigidBodyProps } from '@react-three/rapier'
+import type { RigidBodyProps } from '@react-three/rapier'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
 import { SETTINGS, type Vec3 } from './GameSettings'
+import { applyEasing, clamp01, type EasingName } from './easing'
+import { GameRigidBody } from './physics/GameRigidBody'
+import { isCollisionActivatedPhysicsType, type GamePhysicsBodyType } from './physics/physicsTypes'
 import { getAlignOffset, type Align3 } from './primitives/anchor'
 import { BlockElement, resolveBlockSize, type BlockHeightPreset, type BlockPlane, type BlockSizePreset } from './primitives/BlockElement'
 import { CubeElement } from './primitives/CubeElement'
 import { CylinderElement } from './primitives/CylinderElement'
 import { PhysicsWrapper } from './primitives/PhysicsWrapper'
 import { SphereElement } from './primitives/SphereElement'
+import { toRadians } from './SceneHelpers'
 
-type GridCount = [number, number, number]
-type AxisName = 'x' | 'y' | 'z'
-type EasingName = 'linear' | 'smooth' | 'easeIn' | 'easeOut' | 'easeInOut'
-type TransformMode = 'child' | 'cloner'
-type LoopMode = 'none' | 'loop' | 'pingpong'
-type PhysicsBodyType = Exclude<RigidBodyProps['type'], undefined>
-type GridUnitPreset = 'lg' | 'md' | 'sm' | 'xs'
-type GridUnit = GridUnitPreset | number
-type ContourMode = 'none' | 'quadratic' | 'step' | 'quantize' | 'curve'
+export const GRID_CLONER_AXES = ['x', 'y', 'z'] as const
+export const GRID_CLONER_TRANSFORM_MODES = ['child', 'cloner'] as const
+export const GRID_CLONER_LOOP_MODES = ['none', 'loop', 'pingpong'] as const
+export const GRID_CLONER_UNIT_PRESETS = ['lg', 'md', 'sm', 'xs'] as const
+export const GRID_CLONER_CONTOUR_BASE_MODES = ['none', 'quadratic', 'step', 'quantize', 'curve'] as const
+
+export type GridCount = [number, number, number]
+export type AxisName = (typeof GRID_CLONER_AXES)[number]
+export type TransformMode = (typeof GRID_CLONER_TRANSFORM_MODES)[number]
+export type LoopMode = (typeof GRID_CLONER_LOOP_MODES)[number]
+type PhysicsBodyType = GamePhysicsBodyType
+export type GridUnitPreset = (typeof GRID_CLONER_UNIT_PRESETS)[number]
+export type GridUnit = GridUnitPreset | number
+export type ContourBaseMode = (typeof GRID_CLONER_CONTOUR_BASE_MODES)[number]
+export type ContourMode = ContourBaseMode | EasingName
 type RemapCurvePoint = [number, number]
 
-type GridCollider =
+export type GridCollider =
   | {
       shape: 'cuboid'
       halfExtents: Vec3
@@ -39,7 +49,12 @@ type GridCollider =
       shape: 'auto'
     }
 
-type GridPhysicsConfig = {
+export type GridPhysicsConfig = {
+  /**
+   * Physics mode:
+   * 'fixed' | 'dynamic' | 'kinematicPosition' | 'kinematicVelocity'
+   * | 'noneToDynamicOnCollision' | 'solidNoneToDynamicOnCollision' | 'animNoneToDynamicOnCollision'
+   */
   type?: PhysicsBodyType
   mass?: number
   friction?: number
@@ -47,9 +62,9 @@ type GridPhysicsConfig = {
   collider?: GridCollider
   colliderOffset?: Vec3
 }
-type GridPhysics = PhysicsBodyType | GridPhysicsConfig
+export type GridPhysics = PhysicsBodyType | GridPhysicsConfig
 
-type LinearFieldEffectorConfig = {
+export type LinearFieldEffectorConfig = {
   type: 'linear'
   enabled?: boolean
   strength?: number
@@ -77,7 +92,7 @@ type LinearFieldEffectorConfig = {
   materialColors?: Record<string, number>
 }
 
-type RandomEffectorConfig = {
+export type RandomEffectorConfig = {
   type: 'random'
   enabled?: boolean
   seed?: number
@@ -91,7 +106,7 @@ type RandomEffectorConfig = {
   materialColors?: Record<string, number | number[]>
 }
 
-type NoiseEffectorConfig = {
+export type NoiseEffectorConfig = {
   type: 'noise'
   enabled?: boolean
   seed?: number
@@ -107,7 +122,7 @@ type NoiseEffectorConfig = {
   materialColors?: Record<string, number | number[]>
 }
 
-type TimeEffectorConfig = {
+export type TimeEffectorConfig = {
   type: 'time'
   enabled?: boolean
   strength?: number
@@ -126,7 +141,7 @@ type TimeEffectorConfig = {
   materialColors?: Record<string, number | number[]>
 }
 
-type GridEffector = LinearFieldEffectorConfig | RandomEffectorConfig | NoiseEffectorConfig | TimeEffectorConfig
+export type GridEffector = LinearFieldEffectorConfig | RandomEffectorConfig | NoiseEffectorConfig | TimeEffectorConfig
 export type LinearFieldEffectorProps = Omit<LinearFieldEffectorConfig, 'type'>
 export type RandomEffectorProps = Omit<RandomEffectorConfig, 'type'>
 export type NoiseEffectorProps = Omit<NoiseEffectorConfig, 'type'>
@@ -146,11 +161,19 @@ export type GridClonerProps = {
   rotation?: Vec3
   scale?: Vec3
   centered?: boolean
+  /** 'child' | 'cloner' */
   transformMode?: TransformMode
   enabled?: boolean
   stepOffset?: Vec3
+  /** Grid size preset ('lg' | 'md' | 'sm' | 'xs') or explicit multiplier. */
   gridUnit?: GridUnit
   effectors?: GridEffector[]
+  /**
+   * Either a physics mode string or a physics config object.
+   * String modes:
+   * 'fixed' | 'dynamic' | 'kinematicPosition' | 'kinematicVelocity'
+   * | 'noneToDynamicOnCollision' | 'solidNoneToDynamicOnCollision' | 'animNoneToDynamicOnCollision'
+   */
   physics?: GridPhysics
   mass?: number
   friction?: number
@@ -225,7 +248,13 @@ function isLinearEffector(effector: GridEffector): effector is LinearFieldEffect
 }
 
 function isPhysicsBodyType(value: unknown): value is PhysicsBodyType {
-  return value === 'fixed' || value === 'dynamic' || value === 'kinematicPosition'
+  return value === 'fixed'
+    || value === 'dynamic'
+    || value === 'kinematicPosition'
+    || value === 'kinematicVelocity'
+    || value === 'noneToDynamicOnCollision'
+    || value === 'solidNoneToDynamicOnCollision'
+    || value === 'animNoneToDynamicOnCollision'
 }
 
 function isGridPhysicsConfig(value: unknown): value is GridPhysicsConfig {
@@ -266,8 +295,9 @@ function addScaledVec3(base: Vec3, delta: Vec3, amount: number): Vec3 {
   ]
 }
 
-function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value))
+function hasNonZeroVec3(value: Vec3 | undefined, epsilon = 1e-6): boolean {
+  if (!value) return false
+  return Math.abs(value[0]) > epsilon || Math.abs(value[1]) > epsilon || Math.abs(value[2]) > epsilon
 }
 
 function wrap01(value: number): number {
@@ -293,19 +323,16 @@ function axisToIndex(axis: AxisName): 0 | 1 | 2 {
   return 1
 }
 
-function applyEasing(value: number, easing: EasingName): number {
-  const t = clamp01(value)
-  if (easing === 'easeIn') return t * t
-  if (easing === 'easeOut') return 1 - ((1 - t) * (1 - t))
-  if (easing === 'easeInOut') {
-    if (t < 0.5) return 4 * t * t * t
-    return 1 - (Math.pow(-2 * t + 2, 3) / 2)
+function applyContour(
+  value: number,
+  mode: ContourMode,
+  steps: number,
+  curve: RemapCurvePoint[] | undefined,
+): number {
+  if (mode === 'none') {
+    return value
   }
-  if (easing === 'smooth') return t * t * (3 - (2 * t))
-  return t
-}
 
-function applyContour(value: number, mode: ContourMode, steps: number, curve: RemapCurvePoint[] | undefined): number {
   if (mode === 'quadratic') {
     const sign = value < 0 ? -1 : 1
     const abs = Math.abs(value)
@@ -340,9 +367,12 @@ function applyContour(value: number, mode: ContourMode, steps: number, curve: Re
         return prev[1] + ((next[1] - prev[1]) * t)
       }
     }
+
+    return points[points.length - 1][1]
   }
 
-  return value
+  // If mode is not one of the contour base modes above, we treat it as an easing name.
+  return applyEasing(value, mode)
 }
 
 function remapLinearWeight(progress: number, effector: LinearFieldEffectorConfig): number {
@@ -610,6 +640,17 @@ function scaleEffectorByUnit(effector: GridEffector, unitMultiplier: number): Gr
   }
 }
 
+function cloneTransformState(transform: CloneTransform): CloneTransform {
+  return {
+    ...transform,
+    localPosition: [...transform.localPosition] as Vec3,
+    position: [...transform.position] as Vec3,
+    rotation: [...transform.rotation] as Vec3,
+    scale: [...transform.scale] as Vec3,
+    materialColors: transform.materialColors ? { ...transform.materialColors } : undefined,
+  }
+}
+
 /**
  * Linear field effector (C4D-like). Use with `GridCloner` as child.
  * Provides directional falloff with optional remap/contour shaping.
@@ -676,6 +717,7 @@ export function GridCloner({
     () => scaleOptionalVec3(colliderOffset, unitMultiplier),
     [colliderOffset, unitMultiplier],
   )
+  const baseRotation = useMemo<Vec3>(() => toRadians(rotation), [rotation])
 
   const normalizedCount = useMemo<GridCount>(() => [
     clampCount(count[0]),
@@ -745,9 +787,28 @@ export function GridCloner({
     () => activeEffectors.map((effector) => scaleEffectorByUnit(effector, unitMultiplier)),
     [activeEffectors, unitMultiplier],
   )
-  const hasTimeEffector = useMemo(
-    () => scaledEffectors.some((effector) => effector.type === 'time' && effector.enabled !== false),
+  const normalizedEffectors = useMemo(
+    () => scaledEffectors.map((effector) => {
+      if (!effector.rotation) return effector
+      return {
+        ...effector,
+        rotation: toRadians(effector.rotation),
+      } as GridEffector
+    }),
     [scaledEffectors],
+  )
+  const hasTimeEffector = useMemo(
+    () => normalizedEffectors.some((effector) => effector.type === 'time' && effector.enabled !== false),
+    [normalizedEffectors],
+  )
+  const hasTimeScaleEffector = useMemo(
+    () => normalizedEffectors.some((effector) => (
+      effector.type === 'time'
+      && effector.enabled !== false
+      && clamp01(effector.strength ?? 1) > 0
+      && hasNonZeroVec3(effector.scale)
+    )),
+    [normalizedEffectors],
   )
   const [frameTime, setFrameTime] = useState(0)
   useFrame(({ clock }) => {
@@ -808,8 +869,25 @@ export function GridCloner({
       }
     }
 
+    const forceInferredManualCollider = hasTimeScaleEffector
+      || type === 'noneToDynamicOnCollision'
+      || type === 'solidNoneToDynamicOnCollision'
+
     // Default: låt Rapier auto-skapa colliders från clone-meshen.
     if (!resolvedCollider) {
+      if (forceInferredManualCollider) {
+        const inferred = resolveAutoColliderFromChild(primaryChild, transformMode, primaryChildLocalPosition)
+        return {
+          mode: 'manual',
+          type,
+          mass: resolvedMass,
+          friction: resolvedFriction,
+          lockRotations: resolvedLockRotations,
+          collider: inferred.collider,
+          colliderOffset: resolvedColliderOffset ?? inferred.colliderOffset,
+        }
+      }
+
       return {
         mode: 'auto',
         type,
@@ -853,8 +931,30 @@ export function GridCloner({
     primaryChild,
     transformMode,
     primaryChildLocalPosition,
+    hasTimeScaleEffector,
   ])
   const shouldStripChildPhysics = Boolean(resolvedPhysics)
+  const collisionActivatedPhysics = useMemo(
+    () => resolvedPhysics ? isCollisionActivatedPhysicsType(resolvedPhysics.type) : false,
+    [resolvedPhysics],
+  )
+  const [collisionActivatedClones, setCollisionActivatedClones] = useState<Record<string, CloneTransform>>({})
+
+  useEffect(() => {
+    if (!collisionActivatedPhysics) {
+      setCollisionActivatedClones({})
+    }
+  }, [collisionActivatedPhysics])
+
+  const freezeCloneTransform = useCallback((transform: CloneTransform) => {
+    setCollisionActivatedClones((prev) => {
+      if (prev[transform.key]) return prev
+      return {
+        ...prev,
+        [transform.key]: cloneTransformState(transform),
+      }
+    })
+  }, [])
 
   const transforms = useMemo<CloneTransform[]>(() => {
     const [cx, cy, cz] = normalizedCount
@@ -878,13 +978,13 @@ export function GridCloner({
           ]
 
           let finalPosition = addVec3(localPosition, scaledPosition)
-          let finalRotation: Vec3 = [...rotation]
+          let finalRotation: Vec3 = [...baseRotation]
           let finalScale: Vec3 = [...scale]
           let hidden = false
           let color: number | undefined
           const materialColors: Record<string, number> = {}
 
-          scaledEffectors.forEach((effector, effectorIndex) => {
+          normalizedEffectors.forEach((effector, effectorIndex) => {
             if (effector.enabled === false) return
 
             if (isLinearEffector(effector)) {
@@ -1093,7 +1193,7 @@ export function GridCloner({
             }
           })
 
-          result.push({
+          const computedClone: CloneTransform = {
             key: `${x}-${y}-${z}`,
             index: flatIndex,
             localPosition,
@@ -1103,7 +1203,12 @@ export function GridCloner({
             hidden,
             color,
             materialColors: Object.keys(materialColors).length > 0 ? materialColors : undefined,
-          })
+          }
+          if (collisionActivatedPhysics && collisionActivatedClones[computedClone.key]) {
+            result.push(collisionActivatedClones[computedClone.key])
+          } else {
+            result.push(computedClone)
+          }
           flatIndex += 1
         }
       }
@@ -1116,11 +1221,13 @@ export function GridCloner({
     centered,
     scaledStepOffset,
     scaledPosition,
-    rotation,
+    baseRotation,
     scale,
-    scaledEffectors,
+    normalizedEffectors,
     noiseGenerator,
     frameTime,
+    collisionActivatedPhysics,
+    collisionActivatedClones,
   ])
 
   if (!enabled) return <>{children}</>
@@ -1187,11 +1294,12 @@ export function GridCloner({
 
         if (resolvedPhysics.mode === 'auto') {
           return (
-            <RigidBody
+            <GameRigidBody
               key={clone.key}
               type={resolvedPhysics.type}
               position={clone.position}
               rotation={clone.rotation}
+              onCollisionActivated={collisionActivatedPhysics ? () => freezeCloneTransform(clone) : undefined}
               {...(resolvedPhysics.mass !== undefined ? { mass: resolvedPhysics.mass } : {})}
               {...(resolvedPhysics.friction !== undefined ? { friction: resolvedPhysics.friction } : {})}
               {...(resolvedPhysics.lockRotations ? { lockRotations: true } : {})}
@@ -1199,11 +1307,16 @@ export function GridCloner({
               <group scale={clone.scale}>
                 {cloneChildren}
               </group>
-            </RigidBody>
+            </GameRigidBody>
           )
         }
 
         const colliderArgs = scaleColliderArgs(resolvedPhysics.collider, clone.scale)
+        const scaledColliderPosition: Vec3 = [
+          resolvedPhysics.colliderOffset[0] * clone.scale[0],
+          resolvedPhysics.colliderOffset[1] * clone.scale[1],
+          resolvedPhysics.colliderOffset[2] * clone.scale[2],
+        ]
 
         return (
           <PhysicsWrapper
@@ -1211,12 +1324,14 @@ export function GridCloner({
             physics={resolvedPhysics.type}
             colliderType={toColliderType(resolvedPhysics.collider)}
             colliderArgs={colliderArgs}
-            colliderPosition={resolvedPhysics.colliderOffset}
+            colliderPosition={scaledColliderPosition}
             position={clone.position}
             rotation={clone.rotation}
             mass={resolvedPhysics.mass}
             friction={resolvedPhysics.friction}
             lockRotations={resolvedPhysics.lockRotations}
+            syncColliderShape={hasTimeScaleEffector}
+            onCollisionActivated={collisionActivatedPhysics ? () => freezeCloneTransform(clone) : undefined}
           >
             <group scale={clone.scale}>
               {cloneChildren}

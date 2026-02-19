@@ -6,14 +6,15 @@ Model: laddertest.glb
 import * as THREE from 'three'
 import { useRef, useEffect } from 'react'
 import { useGLTF } from '@react-three/drei'
-import { RigidBody, CuboidCollider } from '@react-three/rapier'
+import { CuboidCollider } from '@react-three/rapier'
 import type { ThreeElements } from '@react-three/fiber'
-import { C4DMesh, C4DMaterial } from '../../SceneComponents'
+import { C4DMesh, C4DMaterial, GameRigidBody } from '../../SceneComponents'
+import type { GamePhysicsBodyType } from '../../SceneComponents'
 import type { MaterialColorIndex } from '../../GameSettings'
 import modelUrl from './laddertest.glb?url'
 
 type GeneratedRigidBodySettings = {
-  type: 'dynamic' | 'fixed' | 'kinematicPosition'
+  type: GamePhysicsBodyType
   mass?: number
   friction?: number
   lockRotations?: boolean
@@ -48,12 +49,12 @@ export function Laddertest({ materialColor0 = 0, rigidBodyOne, ...props }: Ladde
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false}>
+      <GameRigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false}>
         <CuboidCollider args={[0.075, 0.345, 0.015]} position={[0, 0.345, 0]} />
         <C4DMesh name={nodes['HORIZONTALS'].name} geometry={nodes['HORIZONTALS'].geometry} castShadow receiveShadow>
           <C4DMaterial color={materialColors.materialColor0} />
         </C4DMesh>
-      </RigidBody>
+      </GameRigidBody>
     </group>
   )
 }

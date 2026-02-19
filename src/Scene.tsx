@@ -41,11 +41,11 @@ export function Scene() {
         <CameraSystemProvider playerRef={playerRef}>
           <MotionSystemProvider>
             {/* SPELAREN */}
-            <Player position={[-.75, 1, .5]} />
+            <Player position={[0, 3, 0]} />
 
             {/* --- NIVÅN --- */}
 
-            <TransformMotion positionVelocity={{ z: -0.25 }} positionRange={{ z: [0, -4] }}>
+            <TransformMotion positionVelocity={{ z: 0 }} positionRange={{ z: [0, -4] }}>
               <BlockElement ref={playerRef} hidden />
             </TransformMotion>
 
@@ -74,7 +74,7 @@ export function Scene() {
             </TransformMotion>
 
             {/* GRIDCLONER DEMOS */}
-            <GridCloner
+            {/* <GridCloner
               position={[-3.4, 0, 3.2]}
               count={[7, 1, 2]}
               spacing={[1, 0, 1]}
@@ -118,29 +118,31 @@ export function Scene() {
                 position={[0, 0.45, 0]}
               />
               <BlockElement sizePreset="sm" heightPreset="sm" color={1} />
-            </GridCloner>
+            </GridCloner> */}
 
             <GridCloner
-              position={[3.8, 0, 3.2]}
-              count={[6, 1, 2]}
-              spacing={[1, 0, 1]}
+              position={[0, 1.5, 0]}
+              count={[10, 2, 5]}
+              spacing={[1.5, 2.1, 1.1]}
               gridUnit="md"
               centered
-              physics="fixed"
+              physics="solidNoneToDynamicOnCollision"
             >
-              <TimeEffector
+
+              {/* <TimeEffector
                 loopMode="pingpong"
-                duration={2.4}
-                cloneOffset={0.14}
-                easing="smooth"
-                position={[0, 1.4, 0]}
-                scale={[0, 0.35, 0]}
-              />
-              <BlockElement sizePreset="sm" heightPreset="sm" color={4} />
+                duration={1}
+                cloneOffset={0.1}
+                easing="easeInOutCubic"
+                position={[0, 3, 0]}
+                // scale={[0, 0, 1]}
+                rotation={[45, -45, 45]}
+              // color={[2, 5]}
+              /> */}
+              <BlockElement sizePreset="sm" heightPreset="sm" color={4} align={{ x: 50, y: 50, z: 50 }} />
             </GridCloner>
 
-            {/* BLÅ RAMP */}
-            <CubeElement
+            {/* <CubeElement
               size={[0.5, 2, 0.03]}
               color={2}
               physics="dynamic"
@@ -150,7 +152,6 @@ export function Scene() {
               friction={3}
             />
 
-            {/* VINRÖDA ELEMENT */}
             <CubeElement
               size={[1.1, 0.48, 0.03]}
               color={1}
@@ -169,7 +170,6 @@ export function Scene() {
               mass={0.3}
             />
 
-            {/* CYLINDER */}
             <CylinderElement
               radius={0.3}
               height={0.2}
@@ -180,7 +180,6 @@ export function Scene() {
               colliderSegments={16}
             />
 
-            {/* LADDTEST */}
             <Laddertest
               position={[-1, 0, 2]}
               materialColor0={1}
@@ -188,15 +187,10 @@ export function Scene() {
             />
 
             <Laddertest position={[1.5, 0, 1.5]} materialColor0={1} />
-
-            {/* VÄLTEST */}
             <VaultStairs position={[0, 0, 2.5]} materialColor0={1} />
             <VaultStairs position={[-.5, 0, -2.5]} rotation={[0, Math.PI / -1, 0]} materialColor0={1} />
-
-
             <Stair position={[1, 0, 2]} materialColor0={2} />
-
-            <Stair position={[-2, 0, 0]} materialColor0={1} />
+            <Stair position={[-2, 0, 0]} materialColor0={1} /> */}
 
             {/* DEBUG BENCHMARK + STREAMING */}
             <BenchmarkDebugContent />

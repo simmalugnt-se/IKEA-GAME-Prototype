@@ -1,17 +1,18 @@
 import * as THREE from 'three'
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react'
 import type { ThreeElements } from '@react-three/fiber'
-import { RigidBody, ConvexHullCollider, type RigidBodyProps } from '@react-three/rapier'
+import { ConvexHullCollider, type RigidBodyProps } from '@react-three/rapier'
 import { C4DMaterial } from '../Materials'
 import type { MaterialColorIndex, Vec3 } from '../GameSettings'
 import type { PositionTargetHandle } from '../PositionTargetHandle'
 import { toRadians, useSurfaceId } from '../SceneHelpers'
+import { GameRigidBody } from '../physics/GameRigidBody'
 import type { PhysicsProps } from './PhysicsWrapper'
 import { getAlignOffset, type Align3 } from './anchor'
 
 type MeshElementProps = Omit<ThreeElements['mesh'], 'position' | 'rotation'>
 
-type CylinderElementProps = MeshElementProps & PhysicsProps & {
+export type CylinderElementProps = MeshElementProps & PhysicsProps & {
   radius?: number
   height?: number
   segments?: number
@@ -97,7 +98,7 @@ export const CylinderElement = forwardRef<PositionTargetHandle, CylinderElementP
     )
   }
 
-  const rbProps: RigidBodyProps = { type: physics }
+  const rbProps: Omit<RigidBodyProps, 'type'> = {}
   if (position !== undefined) rbProps.position = position
   if (rotation !== undefined) rbProps.rotation = rotationRadians
   if (mass !== undefined) rbProps.mass = mass
@@ -105,9 +106,13 @@ export const CylinderElement = forwardRef<PositionTargetHandle, CylinderElementP
   if (lockRotations) rbProps.lockRotations = true
 
   return (
-    <RigidBody {...rbProps} colliders={false}>
+    <GameRigidBody
+      {...rbProps}
+      type={physics}
+      colliders={false}
+    >
       <ConvexHullCollider args={[hullVertices]} position={anchorOffset} />
       {mesh}
-    </RigidBody>
+    </GameRigidBody>
   )
 })

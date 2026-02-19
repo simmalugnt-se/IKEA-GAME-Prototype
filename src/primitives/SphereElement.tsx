@@ -10,7 +10,7 @@ import { getAlignOffset, type Align3 } from './anchor'
 
 type MeshElementProps = Omit<ThreeElements['mesh'], 'position' | 'rotation'>
 
-type SphereElementProps = MeshElementProps & PhysicsProps & {
+export type SphereElementProps = MeshElementProps & PhysicsProps & {
   radius?: number
   segments?: number
   color?: MaterialColorIndex

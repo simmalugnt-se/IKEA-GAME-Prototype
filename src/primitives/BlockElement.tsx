@@ -7,9 +7,13 @@ import type { Align3 } from './anchor'
 
 type CubeElementProps = ComponentPropsWithoutRef<typeof CubeElement>
 
-export type BlockSizePreset = 'lg' | 'md' | 'sm' | 'xs' | 'xxs'
-export type BlockHeightPreset = 'sm' | 'md' | 'lg'
-export type BlockPlane = 'x' | 'y' | 'z'
+export const BLOCK_SIZE_PRESETS = ['lg', 'md', 'sm', 'xs', 'xxs'] as const
+export const BLOCK_HEIGHT_PRESETS = ['sm', 'md', 'lg'] as const
+export const BLOCK_PLANES = ['x', 'y', 'z'] as const
+
+export type BlockSizePreset = (typeof BLOCK_SIZE_PRESETS)[number]
+export type BlockHeightPreset = (typeof BLOCK_HEIGHT_PRESETS)[number]
+export type BlockPlane = (typeof BLOCK_PLANES)[number]
 
 export type BlockElementProps = Omit<CubeElementProps, 'size' | 'align'> & {
   sizePreset?: BlockSizePreset

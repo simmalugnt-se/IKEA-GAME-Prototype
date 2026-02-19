@@ -14,9 +14,10 @@ import modelUrl from './brickBalloon.glb?url'
 
 type MaterialColorSlot = 'materialColor0' | 'materialColor1'
 type MaterialHiddenSlot = 'materialHidden0'
+export type BrickBalloonAnimation = 'moving' | 'moving2' | 'moving3'
 
 type BrickBalloonProps = ThreeElements['group'] & {
-  animation?: string | null
+  animation?: BrickBalloonAnimation | null
   fadeDuration?: number
   materialColor0?: MaterialColorIndex
   materialColor1?: MaterialColorIndex

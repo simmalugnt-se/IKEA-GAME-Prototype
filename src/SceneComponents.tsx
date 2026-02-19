@@ -1,15 +1,17 @@
 import * as THREE from 'three'
-import { forwardRef, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useThree, type ThreeElements } from '@react-three/fiber'
-import { RigidBody, CuboidCollider, type RigidBodyProps } from '@react-three/rapier'
+import { CuboidCollider, type RigidBodyProps } from '@react-three/rapier'
 import { Line2 } from 'three/examples/jsm/lines/Line2.js'
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 import { C4DMaterial } from './Materials'
 import { SETTINGS, type Vec3 } from './GameSettings'
+import { GameRigidBody } from './physics/GameRigidBody'
+import type { GamePhysicsBodyType } from './physics/physicsTypes'
 import { toRadians, useSurfaceId } from './SceneHelpers'
 
-type PhysicsBodyType = Exclude<RigidBodyProps['type'], undefined>
+type PhysicsBodyType = GamePhysicsBodyType
 
 type PhysicsProps = {
   physics?: PhysicsBodyType
@@ -36,9 +38,10 @@ export const C4DMesh = forwardRef<THREE.Mesh, C4DMeshProps>(function C4DMesh({ c
 
 export { C4DMaterial }
 
-type CurveType = 'centripetal' | 'chordal' | 'catmullrom'
+export const SPLINE_CURVE_TYPES = ['centripetal', 'chordal', 'catmullrom'] as const
+export type CurveType = (typeof SPLINE_CURVE_TYPES)[number]
 
-type SplineElementProps = PhysicsProps & {
+export type SplineElementProps = PhysicsProps & {
   points?: Vec3[]
   segments?: number
   lineWidth?: number
@@ -77,7 +80,6 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
   const { size, camera: rawCamera, gl } = useThree()
   const camera = rawCamera as THREE.OrthographicCamera
   const rotationRadians = useMemo(() => toRadians(rotation), [rotation])
-
   const finalColor = color || SETTINGS.colors.outline
   const finalLineWidth = lineWidth ?? (SETTINGS.lines.thickness * gl.getPixelRatio())
 
@@ -199,7 +201,7 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
 
   if (!physics) return visual
 
-  const rbProps: RigidBodyProps = { type: physics }
+  const rbProps: Omit<RigidBodyProps, 'type'> = {}
   if (position !== undefined) rbProps.position = position
   if (rotation !== undefined) rbProps.rotation = rotationRadians
   if (mass !== undefined) rbProps.mass = mass
@@ -207,7 +209,11 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
   if (lockRotations) rbProps.lockRotations = true
 
   return (
-    <RigidBody {...rbProps} colliders={false}>
+    <GameRigidBody
+      {...rbProps}
+      type={physics}
+      colliders={false}
+    >
       {colliders.map((col, i) => (
         <CuboidCollider
           key={i}
@@ -218,6 +224,9 @@ export const SplineElement = forwardRef<THREE.Group, SplineElementProps>(functio
       ))}
       <primitive object={line2} visible={visible} />
       {shadowProxy}
-    </RigidBody>
+    </GameRigidBody>
   )
 })
+
+export { GameRigidBody }
+export type { GamePhysicsBodyType }

@@ -14,9 +14,10 @@ import modelUrl from './ballBalloon.glb?url'
 
 type MaterialColorSlot = 'materialColor0' | 'materialColor1'
 type MaterialHiddenSlot = 'materialHidden0'
+export type BallBalloonAnimation = 'moving' | 'moving2' | 'moving3'
 
 type BallBalloonProps = ThreeElements['group'] & {
-  animation?: string | null
+  animation?: BallBalloonAnimation | null
   fadeDuration?: number
   materialColor0?: MaterialColorIndex
   materialColor1?: MaterialColorIndex

@@ -11,15 +11,19 @@ import {
 import { useFrame } from '@react-three/fiber'
 import type { Vec3 } from './GameSettings'
 
-type AxisName = 'x' | 'y' | 'z'
-type LoopMode = 'none' | 'loop' | 'pingpong'
+export const TRANSFORM_MOTION_AXES = ['x', 'y', 'z'] as const
+export const TRANSFORM_MOTION_LOOP_MODES = ['none', 'loop', 'pingpong'] as const
+
+export type AxisName = (typeof TRANSFORM_MOTION_AXES)[number]
+export type LoopMode = (typeof TRANSFORM_MOTION_LOOP_MODES)[number]
 type AxisRange = [number, number]
 type AxisValueMap = Partial<Record<AxisName, number>>
 type AxisRangeMap = Partial<Record<AxisName, AxisRange>>
 type Vec3Like = Vec3 | AxisValueMap
 
-type TransformMotionProps = {
+export type TransformMotionProps = {
   children: ReactNode
+  /** 'none' | 'loop' | 'pingpong' */
   loopMode?: LoopMode
   positionVelocity?: Vec3Like
   rotationVelocity?: Vec3Like
@@ -119,7 +123,7 @@ function updateVector(
   loopMode: LoopMode,
   delta: number,
 ) {
-  const axes: AxisName[] = ['x', 'y', 'z']
+  const axes = TRANSFORM_MOTION_AXES
 
   axes.forEach((axis, index) => {
     const speed = velocity[index] ?? 0

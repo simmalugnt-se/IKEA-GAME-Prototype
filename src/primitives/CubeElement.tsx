@@ -10,7 +10,7 @@ import { getAlignOffset, type Align3 } from './anchor'
 
 type MeshElementProps = Omit<ThreeElements['mesh'], 'position' | 'rotation'>
 
-type CubeElementProps = MeshElementProps & PhysicsProps & {
+export type CubeElementProps = MeshElementProps & PhysicsProps & {
   size?: Vec3
   color?: MaterialColorIndex
   singleTone?: boolean

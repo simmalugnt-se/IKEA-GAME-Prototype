@@ -43,6 +43,7 @@ graph TD
 |-----|--------|
 | `App.tsx` | Routing (`/` = spel, `/converter` = C4D-konverterare, `/docs` = dokumentation), Canvas-setup, kamera, ljus |
 | `GameSettings.ts` | **Centrala konfigurationen** — färger, material, kamera, fysik, debug |
+| `GameSettings.types.ts` | Delade typer för settings och core-konfig (`Settings`, `Vec3`, palette/control/camera-typer) |
 | `Scene.tsx` | Spelscenens komposition: physics-wrapper, nivåinnehåll och koppling av delsystem |
 | `TransformMotion.tsx` | Centralt motion-system + wrapper (`TransformMotion`) för linjär rörelse av position/rotation/scale (auto-loop när `positionRange` finns) |
 | `GridCloner.tsx` | Grid-baserad cloner för att duplicera valfria scenelement med valfri cloner-fysik |
@@ -117,6 +118,15 @@ palette: {
 | `light` | `position`, `shadowMapSize` (4096), `shadowBias` |
 | `material` | `highlightStep` (0.6), `midtoneStep` (0.1), `castMidtoneStep` (0.2), `castShadowStep` (0.6) |
 | `player` | `impulseStrength`, `jumpStrength`, `linearDamping`, `mass` |
+
+### IntelliSense för fasta val
+
+Fasta val i settings och komponentprops är nu centraliserade som union-typer/konstanter för bättre IntelliSense:
+
+- `src/GameSettings.types.ts` exporterar options-konstanter för t.ex. `render.style`, `camera.mode`, `lines.smaaPreset`, input-källor och externa kontrollägen.
+- `src/physics/physicsTypes.ts` exporterar explicita physics-mode-listor (`fixed`, `dynamic`, `kinematicPosition`, `kinematicVelocity`, `noneToDynamicOnCollision`, `solidNoneToDynamicOnCollision`, `animNoneToDynamicOnCollision`).
+- `src/GridCloner.tsx`, `src/TransformMotion.tsx`, `src/SceneComponents.tsx` och `src/primitives/BlockElement.tsx` använder explicita unions för props med fasta alternativ (t.ex. `loopMode`, `transformMode`, `curveType`, `plane`, presets).
+- Konverterade modellkomponenter använder typed `animation`-props (literal union per modell) istället för fri `string`.
 
 ### Renderlägen (`SETTINGS.render.style`)
 
@@ -309,7 +319,7 @@ Wrapper runt `<mesh>` som auto-genererar ett unikt `surfaceId` för outline-dete
 ### Physics-props (alla element)
 ```jsx
 <CubeElement
-  physics="dynamic"     // "dynamic" | "fixed" | "kinematicPosition"
+  physics="dynamic"     // "dynamic" | "fixed" | "kinematicPosition" | "kinematicVelocity" | "noneToDynamicOnCollision" | "solidNoneToDynamicOnCollision" | "animNoneToDynamicOnCollision"
   mass={0.3}
   friction={3}
   lockRotations={true}
@@ -461,20 +471,30 @@ Detta håller modellkomponenterna "dumma" (render-only), men ger enkel authoring
   - `<LinearFieldEffector />` (C4D-lik linear field)
     - Direction/falloff: `axis`, `center`, `size`, `invert`
     - Remap/contour: `enableRemap`, `innerOffset`, `remapMin`, `remapMax`, `clampMin`, `clampMax`, `contourMode`, `contourSteps`, `contourMultiplier`, `contourCurve`
+      - `contourMode` kan vara både klassiska lägen (`none`, `quadratic`, `step`, `quantize`, `curve`) och easing-namn (`easeInOutExpo`, `easeOutBounce`, osv)
     - Applicering: `position`, `rotation`, `scale`, `hidden`, `color`, `materialColors`
   - `<RandomEffector />` (deterministisk jitter via seed)
   - `<NoiseEffector />` (spatialt sammanhängande 3D-noise)
   - `<TimeEffector />` (tidsdriven modulation med `loopMode`, `duration`, `speed`, `timeOffset`, `cloneOffset`)
+    - `easing` använder gemensam easings.net-katalog (`linear`, `easeInSine`, `easeOutSine`, `easeInOutSine`, `easeInQuad` ... `easeInOutBounce`)
+    - Legacy-alias finns kvar: `smooth`, `easeIn`, `easeOut`, `easeInOut`
   - Körs i child-ordning och appliceras relativt (position/rotation/scale/hidden/färg)
   - Positionsrelaterade effector-värden (t.ex. `position`, plane `center/size`, noise `offset`) skalas också av `gridUnit`
 - Legacy: `effectors`-prop fungerar fortfarande.
 - Barnens egen `physics`-prop stripas automatiskt när clonern har fysik aktiv.
+- `GridCloner.rotation` och alla effector-`rotation` värden anges i **grader** (konverteras internt till radianer).
 - Valfri cloner-fysik per klon:
-  - enkel syntax som primitives: `physics="fixed|dynamic|kinematicPosition"` + `mass`, `friction`, `lockRotations`
+  - enkel syntax som primitives: `physics="fixed|dynamic|kinematicPosition|kinematicVelocity|noneToDynamicOnCollision|solidNoneToDynamicOnCollision|animNoneToDynamicOnCollision"` + `mass`, `friction`, `lockRotations`
   - default om du sätter `physics`: Rapier auto-collider från clone-meshen (ingen manuell collider krävs)
+  - undantag: `noneToDynamicOnCollision`, `solidNoneToDynamicOnCollision` och `TimeEffector` med `scale` använder infererad manuell collider
+  - `noneToDynamicOnCollision`: bodyless arming när explicit collider finns (ingen rigidbody före första trigger) och collidern ligger kvar i pre-collision-läge för bästa prestanda
+  - `solidNoneToDynamicOnCollision`: bodyless arming med solid pre-collision collider (ingen rigidbody före första trigger), sedan `dynamic` vid första kollision
+  - `animNoneToDynamicOnCollision`: pre-collision är solid (fixed) och följer animation visuellt; vid första kollision byter kroppen till `dynamic`
+  - om en aktiv `<TimeEffector />` animerar `scale` byter clonern automatiskt till infererad manuell collider (från första barnet) så collider-shape kan synkas korrekt över tid
   - för exakt kontroll kan du override:a med `collider` + `colliderOffset`
   - collider-former: `cuboid` (`halfExtents`), `ball` (`radius`), `cylinder` (`halfHeight`, `radius`), `auto`
   - `collider: { shape: 'auto' }` försöker inferera collider från första barnet (`CubeElement`, `SphereElement`, `CylinderElement`, `BlockElement`) inkl. align-offset
+- Känd begränsning: vid `TimeEffector` med animerad `scale` + alignade children kan collider-geo avvika från visuell align (särskilt vid icke-centrerad align). Använd explicit `collider`/`colliderOffset` om du behöver exakt match i dessa fall.
 - `showDebugEffectors` (default följer `SETTINGS.debug.enabled`) visar linear field med två plan + riktning (linje/pil) i scenen.
 
 Exempel:
@@ -551,6 +571,9 @@ Tokens sätts i **objektnamnet** i Cinema 4D:
 | `_dynamic` | Dynamisk fysikkropp | `Group_dynamic` |
 | `_fixed` / `_static` | Fast fysikkropp | `Floor_fixed` |
 | `_kinematic` | Kinematisk kropp | `Platform_kinematic` |
+| `_noneToDynamic` / `_none_to_dynamic` | Bodyless arming (när explicit collider finns), byter till `dynamic` vid första intersection | `Wall_noneToDynamic` |
+| `_solidNoneToDynamic` / `_solid_none_to_dynamic` | Bodyless arming med solid collider före aktivering, byter till `dynamic` vid första kollision | `Wall_solidNoneToDynamic` |
+| `_animNoneToDynamic` / `_anim_none_to_dynamic` | Som ovan men för animerad pre-collision (solid/fixed innan aktivering), sedan `dynamic` | `Wall_animNoneToDynamic` |
 | `_massX` | Sätter massa | `Cube_dynamic_mass0.5` |
 | `_fricX` | Sätter friktion | `Ramp_dynamic_fric3` |
 | `_lockRot` | Låser rotation | `Block_dynamic_lockRot` |
@@ -662,6 +685,7 @@ src/
 ├── App.tsx                 # Routing & Canvas
 ├── main.tsx                # React entry point
 ├── GameSettings.ts         # Central konfiguration
+├── GameSettings.types.ts   # Delade typer för settings/core config
 ├── GameKeyboardControls.tsx # Input-wrapper + keymap
 ├── Scene.tsx               # Spelscen
 ├── TransformMotion.tsx     # Centralt motionsystem + wrapper (linjär rörelse, loop/pingpong)
