@@ -10,6 +10,7 @@ import { GameKeyboardControls } from './GameKeyboardControls'
 import { SETTINGS } from './GameSettings'
 import { useSettingsVersion } from './settingsStore'
 import { ExternalControlBridge } from './control/ExternalControlBridge'
+import { LiveLevelSync } from './LiveLevelSync'
 import { LevelRenderer } from './LevelRenderer'
 import { useLevelStore } from './levelStore'
 import { MotionSystemProvider } from './TransformMotion'
@@ -28,6 +29,7 @@ export function Scene() {
   return (
     <GameKeyboardControls>
       <ExternalControlBridge />
+      <LiveLevelSync />
       <Physics gravity={[0, -9.81, 0]} debug={isDebug && SETTINGS.debug.showColliders}>
         <GameEffects />
         <CameraSystemProvider playerRef={playerRef}>

@@ -8,6 +8,7 @@ import {
   loadBundledPreset,
   fetchPresetManifest,
 } from './presets'
+import { useLevelStore } from './levelStore'
 
 // Stores leva set-functions so we can update the panel after loading a preset
 type SetterMap = Record<string, (value: Record<string, unknown>) => void>
@@ -161,6 +162,12 @@ function syncLevaFromSettings() {
     angularDamping: SETTINGS.player.angularDamping,
     mass: SETTINGS.player.mass,
     friction: SETTINGS.player.friction,
+  })
+
+  setters['Level']?.({
+    'liveSync.enabled': SETTINGS.level.liveSync.enabled,
+    'liveSync.url': SETTINGS.level.liveSync.url,
+    'liveSync.reconnectMs': SETTINGS.level.liveSync.reconnectMs,
   })
 }
 
@@ -689,6 +696,29 @@ function usePlayerControls() {
   useEffect(() => { registerSetter('Player', set) }, [set])
 }
 
+function useLevelControls() {
+  const [, set] = useControls('Level', () => ({
+    liveSync: folder({
+      enabled: {
+        value: SETTINGS.level.liveSync.enabled,
+        onChange: (v: boolean) => { SETTINGS.level.liveSync.enabled = v; bump() },
+      },
+      url: {
+        value: SETTINGS.level.liveSync.url,
+        onChange: (v: string) => { SETTINGS.level.liveSync.url = v; bump() },
+      },
+      reconnectMs: {
+        value: SETTINGS.level.liveSync.reconnectMs, min: 100, max: 10000, step: 100,
+        onChange: (v: number) => { SETTINGS.level.liveSync.reconnectMs = v; bump() },
+      },
+      'Reload level': button(() => {
+        useLevelStore.getState().reloadCurrentLevel()
+      }),
+    }),
+  }), { collapsed: true })
+  useEffect(() => { registerSetter('Level', set) }, [set])
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Preset controls
 // ═══════════════════════════════════════════════════════════════════════════
@@ -766,6 +796,7 @@ export function ControlCenter() {
   useLightControls()
   useMaterialControls()
   usePlayerControls()
+  useLevelControls()
   usePresetControls()
 
   return null

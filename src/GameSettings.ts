@@ -377,6 +377,11 @@ export const SETTINGS: Settings = {
   // --- LEVEL LOADING ---
   level: {
     defaultFile: "level.json", // filename inside public/levels/
+    liveSync: {
+      enabled: false,
+      url: "ws://localhost:5174/ws/level",
+      reconnectMs: 1000,
+    },
   },
 };
 

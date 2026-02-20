@@ -88,14 +88,15 @@ function renderLevelObject(obj: LevelObject) {
 
 export function LevelRenderer() {
   const levelData = useLevelStore((state) => state.levelData)
+  const levelReloadKey = useLevelStore((state) => state.levelReloadKey)
   
   if (!levelData) {
     return null
   }
   
   return (
-    <>
+    <group key={levelReloadKey}>
       {levelData.objects.map((obj) => renderLevelObject(obj))}
-    </>
+    </group>
   )
 }

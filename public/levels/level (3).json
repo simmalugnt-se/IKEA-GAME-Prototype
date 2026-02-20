@@ -3,10 +3,22 @@
   "objects": [
     {
       "type": "CubeElement",
-      "position": [0, 0.5, 0],
-      "rotation": [0, -0.09, -179.99],
+      "position": [
+        0,
+        0.5,
+        0
+      ],
+      "rotation": [
+        0,
+        -0.09,
+        -179.99
+      ],
       "props": {
-        "size": [1, 1, 1],
+        "size": [
+          1,
+          1,
+          1
+        ],
         "color": 3,
         "singleTone": false,
         "physics": "dynamic",
@@ -18,8 +30,16 @@
     },
     {
       "type": "CylinderElement",
-      "position": [-0.1, 1.5, 0],
-      "rotation": [179.99, 0.89, 0.01],
+      "position": [
+        -0.1,
+        1.5,
+        0
+      ],
+      "rotation": [
+        179.99,
+        0.89,
+        0.01
+      ],
       "props": {
         "radius": 0.5,
         "height": 1,
@@ -36,10 +56,22 @@
     },
     {
       "type": "CubeElement",
-      "position": [-0.1, 2.5, 0],
-      "rotation": [0, 0.22, -0.01],
+      "position": [
+        -0.1,
+        2.5,
+        0
+      ],
+      "rotation": [
+        0,
+        0.22,
+        -0.01
+      ],
       "props": {
-        "size": [1, 1, 1],
+        "size": [
+          1,
+          1,
+          1
+        ],
         "color": 2,
         "singleTone": false,
         "physics": "dynamic",
@@ -51,10 +83,22 @@
     },
     {
       "type": "CubeElement",
-      "position": [2, 0.5, 0],
-      "rotation": [0, 0, 179.98],
+      "position": [
+        2,
+        0.5,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        179.98
+      ],
       "props": {
-        "size": [1, 1, 1],
+        "size": [
+          1,
+          1,
+          1
+        ],
         "color": 2,
         "singleTone": false,
         "physics": "dynamic",
@@ -66,8 +110,16 @@
     },
     {
       "type": "CylinderElement",
-      "position": [1, 0.5, 0],
-      "rotation": [179.99, -4.71, -0.01],
+      "position": [
+        1,
+        0.5,
+        0
+      ],
+      "rotation": [
+        179.99,
+        -4.71,
+        -0.01
+      ],
       "props": {
         "radius": 0.5,
         "height": 1,
@@ -84,8 +136,16 @@
     },
     {
       "type": "CylinderElement",
-      "position": [2, 1.5, 0],
-      "rotation": [-179.96, -4.88, 0.04],
+      "position": [
+        2,
+        1.5,
+        0
+      ],
+      "rotation": [
+        -179.96,
+        -4.88,
+        0.04
+      ],
       "props": {
         "radius": 0.5,
         "height": 1,
@@ -102,10 +162,22 @@
     },
     {
       "type": "CubeElement",
-      "position": [1, 1.5, 0],
-      "rotation": [-0.01, 0.06, 0],
+      "position": [
+        1,
+        1.5,
+        0
+      ],
+      "rotation": [
+        -0.01,
+        0.06,
+        0
+      ],
       "props": {
-        "size": [1, 1, 1],
+        "size": [
+          1,
+          1,
+          1
+        ],
         "color": 3,
         "singleTone": false,
         "physics": "dynamic",
@@ -117,10 +189,22 @@
     },
     {
       "type": "CubeElement",
-      "position": [2.1, 2.5, 0],
-      "rotation": [90.02, -0.03, 0.06],
+      "position": [
+        2.1,
+        2.5,
+        0
+      ],
+      "rotation": [
+        90.02,
+        -0.03,
+        0.06
+      ],
       "props": {
-        "size": [1, 1, 1],
+        "size": [
+          1,
+          1,
+          1
+        ],
         "color": 9,
         "singleTone": false,
         "physics": "dynamic",
@@ -132,8 +216,16 @@
     },
     {
       "type": "CylinderElement",
-      "position": [2, 3.5, 0],
-      "rotation": [-179.98, -4.67, 0.03],
+      "position": [
+        2,
+        3.5,
+        0
+      ],
+      "rotation": [
+        -179.98,
+        -4.67,
+        0.03
+      ],
       "props": {
         "radius": 0.5,
         "height": 1,
