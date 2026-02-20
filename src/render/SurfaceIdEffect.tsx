@@ -145,10 +145,6 @@ export function SurfaceIdEffect({
   const normalThreshold = useMemo(() => Math.cos(creaseAngle * (Math.PI / 180)), [creaseAngle])
 
   const [idFbo, normalFbo] = useMemo(() => {
-    const dpr = viewport.dpr
-    const width = size.width * dpr
-    const height = size.height * dpr
-
     const settings: THREE.RenderTargetOptions = {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
@@ -156,20 +152,20 @@ export function SurfaceIdEffect({
     }
 
     return [
-      new THREE.WebGLRenderTarget(width, height, settings),
-      new THREE.WebGLRenderTarget(width, height, settings),
+      new THREE.WebGLRenderTarget(1, 1, settings),
+      new THREE.WebGLRenderTarget(1, 1, settings),
     ]
-  }, [size, viewport.dpr])
+  }, [])
 
   const effect = useMemo(() => new SurfaceIdEffectImpl({
     thickness,
     outlineColor: color,
-    width: size.width * viewport.dpr,
-    height: size.height * viewport.dpr,
+    width: 1,
+    height: 1,
     debug,
     normalThreshold,
     idThreshold,
-  }), [thickness, color, size, viewport.dpr, debug, normalThreshold, idThreshold])
+  }), [thickness, color, debug, normalThreshold, idThreshold])
 
   const idMaterialCache = useRef<Map<number, THREE.MeshBasicMaterial>>(new Map())
   const normalMaterial = useMemo(() => new THREE.MeshNormalMaterial(), [])
@@ -254,6 +250,20 @@ export function SurfaceIdEffect({
     if (surfaceBuffer) surfaceBuffer.value = idFbo.texture
     if (normalBuffer) normalBuffer.value = normalFbo.texture
   }, 1)
+
+  useEffect(() => {
+    const width = Math.max(1, Math.floor(size.width * viewport.dpr))
+    const height = Math.max(1, Math.floor(size.height * viewport.dpr))
+    idFbo.setSize(width, height)
+    normalFbo.setSize(width, height)
+  }, [idFbo, normalFbo, size.width, size.height, viewport.dpr])
+
+  useEffect(() => {
+    return () => {
+      idFbo.dispose()
+      normalFbo.dispose()
+    }
+  }, [idFbo, normalFbo])
 
   useEffect(() => {
     const scaledThickness = thickness * viewport.dpr

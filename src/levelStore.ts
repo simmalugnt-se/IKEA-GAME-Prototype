@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Vec3 } from './GameSettings'
+import type { Vec3 } from '@/settings/GameSettings'
 
 export type LevelObject = {
   id: string
@@ -39,12 +39,12 @@ export const useLevelStore = create<LevelStoreState>((set, get) => ({
         throw new Error(`Failed to load level: ${response.status} ${response.statusText}`)
       }
       const data: LevelData = await response.json()
-      
+
       // Validate basic structure
       if (!data.objects || !Array.isArray(data.objects)) {
         throw new Error('Invalid level format: missing or invalid objects array')
       }
-      
+
       set({ levelData: data, loading: false, error: null })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error loading level'

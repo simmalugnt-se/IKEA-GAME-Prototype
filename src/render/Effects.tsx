@@ -1,9 +1,9 @@
 import { EffectComposer, Pixelation, SMAA } from '@react-three/postprocessing'
 import { SMAAPreset } from 'postprocessing'
-import { SurfaceIdEffect } from './SurfaceIdEffect'
-import { SETTINGS, type SMAAPresetName } from './GameSettings'
-import { useSettingsVersion } from './settingsStore'
-import { RetroPixelatedEffects } from './RetroPixelatedEffects'
+import { SurfaceIdEffect } from '@/render/SurfaceIdEffect'
+import { SETTINGS, type SMAAPresetName } from '@/settings/GameSettings'
+import { useSettingsVersion } from '@/settings/settingsStore'
+import { RetroPixelatedEffects } from '@/render/RetroPixelatedEffects'
 
 const SMAA_PRESET_MAP: Record<SMAAPresetName, SMAAPreset> = {
   low: SMAAPreset.LOW,

@@ -2,14 +2,14 @@ import * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
 import { Leva } from 'leva'
-import { GameLights } from './Lights'
-// import { GameEffects } from './Effects' <--- BORTTAGEN HÄRIFRÅN
-import { SETTINGS, getActiveBackground } from './GameSettings'
-import { useSettingsVersion } from './settingsStore'
-import { Scene } from './Scene'
-import { GltfConverter } from './GltfConverter'
-import { DocsPage } from './DocsPage'
-import { ControlCenter } from './ControlCenter'
+import { GameLights } from '@/render/Lights'
+// import { GameEffects } from '@/render/Effects' <--- BORTTAGEN HÄRIFRÅN
+import { SETTINGS, getActiveBackground } from '@/settings/GameSettings'
+import { useSettingsVersion } from '@/settings/settingsStore'
+import { Scene } from '@/scene/Scene'
+import { GltfConverter } from '@/tools/GltfConverter'
+import { DocsPage } from '@/ui/docs/DocsPage'
+import { ControlCenter } from '@/ui/ControlCenter'
 
 export default function App() {
   const isConverter = window.location.pathname === '/converter'

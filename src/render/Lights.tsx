@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { useRef } from 'react'
-import { SETTINGS } from './GameSettings'
+import { SETTINGS } from '@/settings/GameSettings'
 
 export function GameLights() {
   const lightRef = useRef<THREE.DirectionalLight | null>(null)

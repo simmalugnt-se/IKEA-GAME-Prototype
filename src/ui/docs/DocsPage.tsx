@@ -4,13 +4,22 @@ import mermaid from 'mermaid'
 import './DocsPage.css'
 
 // Vite raw-import av DOCS.md
-import docsRaw from '../DOCS.md?raw'
+import docsRaw from '../../../DOCS.md?raw'
 
 type Heading = {
   level: number
   text: string
   slug: string
 }
+
+const TS_KEYWORDS = /\b(?:const|let|var|function|return|if|else|for|while|switch|case|break|continue|import|from|export|default|type|interface|extends|implements|new|class|try|catch|finally|throw|true|false|null|undefined|as|typeof|in|of|await|async)\b/g
+const NUMBER_LITERAL = /\b\d+(?:\.\d+)?\b/g
+const STRING_LITERAL = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g
+const LINE_COMMENT = /(\/\/[^\n]*)/g
+const SHELL_COMMENT = /(^|\s)(#[^\n]*)/g
+const JSON_PROPERTY = /"(?:[^"\\]|\\.)*"(?=\s*:)/g
+const SHELL_FLAG = /(^|\s)(-{1,2}[a-zA-Z][a-zA-Z0-9-]*)/g
+const SHELL_VAR = /(\$[a-zA-Z_][a-zA-Z0-9_]*)/g
 
 function slugify(text: string): string {
   return text
@@ -53,6 +62,33 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function highlightCode(text: string, lang?: string): string {
+  const language = (lang ?? '').toLowerCase()
+  let highlighted = escapeHtml(text)
+
+  if (language === 'bash' || language === 'sh' || language === 'zsh') {
+    highlighted = highlighted.replace(SHELL_COMMENT, '$1<span class="tok-comment">$2</span>')
+    highlighted = highlighted.replace(SHELL_FLAG, '$1<span class="tok-flag">$2</span>')
+    highlighted = highlighted.replace(SHELL_VAR, '<span class="tok-variable">$1</span>')
+    highlighted = highlighted.replace(NUMBER_LITERAL, '<span class="tok-number">$&</span>')
+    return highlighted
+  }
+
+  if (language === 'json') {
+    highlighted = highlighted.replace(JSON_PROPERTY, '<span class="tok-property">$&</span>')
+    highlighted = highlighted.replace(STRING_LITERAL, '<span class="tok-string">$1</span>')
+    highlighted = highlighted.replace(NUMBER_LITERAL, '<span class="tok-number">$&</span>')
+    highlighted = highlighted.replace(/\b(?:true|false|null)\b/g, '<span class="tok-keyword">$&</span>')
+    return highlighted
+  }
+
+  highlighted = highlighted.replace(STRING_LITERAL, '<span class="tok-string">$1</span>')
+  highlighted = highlighted.replace(LINE_COMMENT, '<span class="tok-comment">$1</span>')
+  highlighted = highlighted.replace(TS_KEYWORDS, '<span class="tok-keyword">$&</span>')
+  highlighted = highlighted.replace(NUMBER_LITERAL, '<span class="tok-number">$&</span>')
+  return highlighted
+}
+
 // Custom renderer som lägger till id på headings
 function configureMarked(): void {
   const renderer = new marked.Renderer()
@@ -68,7 +104,8 @@ function configureMarked(): void {
     if (lang === 'mermaid') {
       return `<pre class="mermaid">${text}</pre>`
     }
-    return `<pre class="docs-code"><code class="language-${lang || ''}">${escapeHtml(text)}</code></pre>`
+    const highlighted = highlightCode(text, lang)
+    return `<pre class="docs-code"><code class="language-${lang || 'plain'}">${highlighted}</code></pre>`
   }
 
   marked.setOptions({
@@ -88,30 +125,59 @@ export function DocsPage() {
   useMemo(() => configureMarked(), [])
   const htmlContent = useMemo(() => marked.parse(docsRaw) as string, [])
 
-  // Scroll spy: track vilken heading som är synlig
+  // Scroll spy: håll aktiv sidebar-länk synkad med scroll-position.
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveSlug(entry.target.id)
-          }
+    const root = contentRef.current
+    if (!root) return
+
+    const headingEls = Array.from(
+      root.querySelectorAll<HTMLElement>('h1, h2, h3'),
+    ).filter((el) => Boolean(el.id))
+
+    if (headingEls.length === 0) return
+
+    const updateActiveFromScroll = () => {
+      const anchorOffset = 120
+      let current = headingEls[0].id
+
+      for (const el of headingEls) {
+        const top = el.getBoundingClientRect().top
+        if (top <= anchorOffset) {
+          current = el.id
+        } else {
+          break
         }
-      },
-      { rootMargin: '-80px 0px -70% 0px', threshold: 0.1 },
-    )
+      }
 
-    const headingEls = document.querySelectorAll<HTMLElement>(
-      '.docs-content h1, .docs-content h2, .docs-content h3',
-    )
-    headingEls.forEach((el) => observer.observe(el))
+      setActiveSlug((prev) => (prev === current ? prev : current))
+    }
 
-    return () => observer.disconnect()
+    let ticking = false
+    const onScrollOrResize = () => {
+      if (ticking) return
+      ticking = true
+      window.requestAnimationFrame(() => {
+        ticking = false
+        updateActiveFromScroll()
+      })
+    }
+
+    window.addEventListener('scroll', onScrollOrResize, { passive: true })
+    window.addEventListener('resize', onScrollOrResize)
+    updateActiveFromScroll()
+
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize)
+      window.removeEventListener('resize', onScrollOrResize)
+    }
   }, [htmlContent])
 
   const handleNavClick = useCallback((e: MouseEvent<HTMLAnchorElement>, slug: string) => {
     e.preventDefault()
-    const el = document.getElementById(slug)
+    const root = contentRef.current
+    if (!root) return
+    const escapedSlug = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(slug) : slug
+    const el = root.querySelector<HTMLElement>(`#${escapedSlug}`)
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
       setActiveSlug(slug)
@@ -122,13 +188,21 @@ export function DocsPage() {
   // Scroll till hash vid laddning
   useEffect(() => {
     const hash = window.location.hash.slice(1)
-    if (hash) {
-      setTimeout(() => {
-        const el = document.getElementById(hash)
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 100)
-    }
-  }, [])
+    if (!hash) return
+
+    const timer = setTimeout(() => {
+      const root = contentRef.current
+      if (!root) return
+      const escapedHash = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(hash) : hash
+      const el = root.querySelector<HTMLElement>(`#${escapedHash}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        setActiveSlug(hash)
+      }
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [htmlContent])
 
   // Mermaid: initialisera och rendera diagram efter mount
   useEffect(() => {

@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { NoToneMapping } from 'three'
 import { EffectComposer as ThreeEffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { ConfigurableRenderPixelatedPass } from './postprocessing/ConfigurableRenderPixelatedPass'
+import { ConfigurableRenderPixelatedPass } from '@/render/postprocessing/ConfigurableRenderPixelatedPass'
 
 type RetroPixelatedEffectsProps = {
   pixelSize: number

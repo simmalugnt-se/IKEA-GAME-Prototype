@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
-import { CameraFollow } from './CameraFollow'
-import { SETTINGS } from './GameSettings'
-import type { PlayerHandle } from './Player'
-import type { TargetPositionGetter, WorldPosition } from './TargetAnchor'
-import { CameraSystemContext, type CameraSystemContextValue } from './CameraSystemContext'
+import { CameraFollow } from '@/camera/CameraFollow'
+import { SETTINGS } from '@/settings/GameSettings'
+import type { PlayerHandle } from '@/scene/Player'
+import type { TargetPositionGetter, WorldPosition } from '@/scene/TargetAnchor'
+import { CameraSystemContext, type CameraSystemContextValue } from '@/camera/CameraSystemContext'
 
 type CameraSystemProviderProps = {
   playerRef: RefObject<PlayerHandle | null>

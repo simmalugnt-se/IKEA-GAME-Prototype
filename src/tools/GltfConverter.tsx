@@ -13,6 +13,7 @@ type ParsedSpline = {
   points: number[][]
   closed: boolean
   tension: number
+  castShadow: boolean
   transform: {
     position: THREE.Vector3
     rotation: THREE.Euler
@@ -49,7 +50,7 @@ export function GltfConverter() {
     // Settings - Default to Source Import implies src/ folder usage
     const [useSourceImport, setUseSourceImport] = useState(true)
     const [modelPath, setModelPath] = useState('/models/')
-    const [componentPath, setComponentPath] = useState('../../SceneComponents')
+    const [componentPath, setComponentPath] = useState('@/scene/SceneComponents')
 
     // Modal State
     const [showModal, setShowModal] = useState(false)
@@ -153,6 +154,7 @@ export function GltfConverter() {
                         if (closed) points.pop()
 
                         const isLinear = originalName.toLowerCase().includes('_splinelinear')
+                        const castShadow = !hasSplineNoShadowToken(originalName)
 
                         splines.push({
                             name: originalName,
@@ -162,6 +164,7 @@ export function GltfConverter() {
                             points,
                             closed,
                             tension: isLinear ? 0 : 0.5,
+                            castShadow,
                             transform: {
                                 position: child.position.clone(),
                                 rotation: child.rotation.clone(),
@@ -423,7 +426,7 @@ export function GltfConverter() {
                             checked={useSourceImport}
                             onChange={(e) => {
                                 setUseSourceImport(e.target.checked)
-                                setComponentPath(e.target.checked ? '../../SceneComponents' : '../SceneComponents')
+                                setComponentPath(e.target.checked ? '@/scene/SceneComponents' : '@/scene/SceneComponents')
                             }}
                             style={{ width: 18, height: 18 }}
                         />
@@ -636,8 +639,11 @@ function getLocalBoundsForObject(obj: THREE.Object3D): { center: THREE.Vector3; 
     return { center, size }
 }
 
-function getPhysicsTypeFromName(name: string): 'dynamic' | 'fixed' | 'kinematicPosition' | null {
+function getPhysicsTypeFromName(name: string): 'dynamic' | 'fixed' | 'kinematicPosition' | 'noneToDynamicOnCollision' | 'solidNoneToDynamicOnCollision' | 'animNoneToDynamicOnCollision' | null {
     const lower = name.toLowerCase()
+    if (lower.includes('_solidnonetodynamic') || lower.includes('_solid_none_to_dynamic')) return 'solidNoneToDynamicOnCollision'
+    if (lower.includes('_animnonetodynamic') || lower.includes('_anim_none_to_dynamic')) return 'animNoneToDynamicOnCollision'
+    if (lower.includes('_nonetodynamic') || lower.includes('_none_to_dynamic')) return 'noneToDynamicOnCollision'
     if (lower.includes('_dynamic')) return 'dynamic'
     if (lower.includes('_static') || lower.includes('_fixed')) return 'fixed'
     if (lower.includes('_kinematic')) return 'kinematicPosition'
@@ -648,8 +654,13 @@ function hasPhysicsToken(name: string): boolean {
     return getPhysicsTypeFromName(name) !== null
 }
 
+function hasSplineNoShadowToken(name: string): boolean {
+    const lower = name.toLowerCase()
+    return lower.includes('_noshadow') || lower.includes('_shadowoff')
+}
+
 type ParsedPhysicsConfig = {
-    type: 'dynamic' | 'fixed' | 'kinematicPosition'
+    type: 'dynamic' | 'fixed' | 'kinematicPosition' | 'noneToDynamicOnCollision' | 'solidNoneToDynamicOnCollision' | 'animNoneToDynamicOnCollision'
     mass?: number
     friction?: number
     lockRotations?: boolean
@@ -696,7 +707,10 @@ function parsePhysicsConfigFromName(name: string): ParsedPhysicsConfig | null {
     }
 
     if (lower.includes('_lockrot')) config.lockRotations = true
-    if (lower.includes('_sensor')) config.sensor = true
+    const hasAnimNoneToDynamicToken = lower.includes('_animnonetodynamic') || lower.includes('_anim_none_to_dynamic')
+    const hasSolidNoneToDynamicToken = lower.includes('_solidnonetodynamic') || lower.includes('_solid_none_to_dynamic')
+    const hasNoneToDynamicToken = lower.includes('_nonetodynamic') || lower.includes('_none_to_dynamic')
+    if (lower.includes('_sensor') && !hasAnimNoneToDynamicToken && !hasSolidNoneToDynamicToken && !hasNoneToDynamicToken) config.sensor = true
 
     return config
 }
@@ -745,7 +759,12 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
     // Filtrera bort CINEMA_4D_Main-taken (rest position)
     const selectableAnims = animations.filter((a) => a.name !== 'CINEMA_4D_Main')
+    const animationNames = Array.from(new Set(selectableAnims.map((a) => a.name)))
     const hasAnimations = selectableAnims.length > 0
+    const animationTypeName = `${componentName}Animation`
+    const animationTypeLiteral = animationNames.length > 0
+        ? animationNames.map((name) => JSON.stringify(name)).join(' | ')
+        : 'never'
     const hasSplines = splines.length > 0
 
     function getColorFromName(name: string): number | null {
@@ -898,6 +917,9 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             splineOutput += `${spaces}  points={${JSON.stringify(spline.points)}}\n`
             splineOutput += `${spaces}  closed={${spline.closed}}\n`
             splineOutput += `${spaces}  tension={${spline.tension}}\n`
+            if (spline.castShadow === false) {
+                splineOutput += `${spaces}  castShadow={false}\n`
+            }
             if (hasHiddenControl) {
                 splineOutput += `${spaces}  visible={!${hiddenExpression}}\n`
             }
@@ -1027,8 +1049,14 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
     output += `import { useGLTF${hasAnimations ? ', useAnimations' : ''} } from '@react-three/drei'\n`
     output += `__RAPIER_IMPORT__\n`
     output += `import type { ThreeElements } from '@react-three/fiber'\n`
-    output += `import { C4DMesh, C4DMaterial${hasSplines ? ', SplineElement' : ''} } from '${componentPath}'\n`
-    output += `import type { MaterialColorIndex } from '../../GameSettings'\n`
+    const componentImports = ['C4DMesh', 'C4DMaterial']
+    if (hasSplines) componentImports.push('SplineElement')
+    if (rigidBodySlots.length > 0) componentImports.push('GameRigidBody')
+    output += `import { ${componentImports.join(', ')} } from '${componentPath}'\n`
+    if (rigidBodySlots.length > 0) {
+        output += `import type { GamePhysicsBodyType } from '${componentPath}'\n`
+    }
+    output += `import type { MaterialColorIndex } from '@/settings/GameSettings'\n`
     if (importStr) output += `${importStr}\n`
     output += `\n`
 
@@ -1041,7 +1069,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
     if (rigidBodySlots.length > 0) {
         output += `type GeneratedRigidBodySettings = {\n`
-        output += `  type: 'dynamic' | 'fixed' | 'kinematicPosition'\n`
+        output += `  type: GamePhysicsBodyType\n`
         output += `  mass?: number\n`
         output += `  friction?: number\n`
         output += `  lockRotations?: boolean\n`
@@ -1052,9 +1080,13 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
     if (colorSlots.length > 0 || hiddenSlots.length > 0 || rigidBodySlots.length > 0) output += `\n`
 
+    if (hasAnimations) {
+        output += `export type ${animationTypeName} = ${animationTypeLiteral}\n\n`
+    }
+
     output += `type ${componentName}Props = ThreeElements['group'] & {\n`
     if (hasAnimations) {
-        output += `  animation?: string | null\n`
+        output += `  animation?: ${animationTypeName} | null\n`
         output += `  fadeDuration?: number\n`
     }
     colorSlots.forEach(({ slot }) => {
@@ -1094,7 +1126,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
         // Crossfade-logik
         output += `  // Crossfade mellan animationer\n`
-        output += `  // animation={null} = rest position, animation="${selectableAnims[0]?.name || 'Anim1'}" = spela\n`
+        output += `  // animation={null} = rest position, animation="${animationNames[0] || 'Anim1'}" = spela\n`
         output += `  useEffect(() => {\n`
         output += `    Object.values(actions).forEach((a) => a?.fadeOut(fadeDuration))\n`
         output += `    if (animation && actions[animation]) {\n`
@@ -1103,7 +1135,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
         output += `  }, [animation, fadeDuration, actions])\n\n`
 
         // Kommentar med tillgängliga animationer
-        output += `  // Tillgängliga animationer: ${selectableAnims.map(a => `"${a.name}"`).join(', ')}\n\n`
+        output += `  // Tillgängliga animationer: ${animationNames.map((name) => `"${name}"`).join(', ')}\n\n`
     } else {
         output += `  const { nodes } = useGLTF(${loadPathStr}) as unknown as { nodes: Record<string, THREE.Mesh> }\n`
     }
@@ -1260,7 +1292,7 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             const disableAutoColliders = hasExplicitColliders || useSelfMeshCollider || hasFallbackCollider
             const collidersAttr = disableAutoColliders ? ' colliders={false}' : ''
 
-            str += `${spaces}<RigidBody {...getRigidBodyProps('${physicsSlot}')}${collidersAttr}${transformProps}>\n`
+            str += `${spaces}<GameRigidBody {...getRigidBodyProps('${physicsSlot}')}${collidersAttr}${transformProps}>\n`
 
             if (hasExplicitColliders) {
                 explicitColliderMeshes.forEach((c: any) => {
@@ -1297,20 +1329,19 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
             } else {
                 str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
             }
-            str += `${spaces}</RigidBody>\n`
+            str += `${spaces}</GameRigidBody>\n`
         } else if (obj.isMesh && !isSelfCollider) {
             str += `${spaces}<C4DMesh name={nodes['${safeName}'].name} geometry={nodes['${safeName}'].geometry} castShadow receiveShadow${transformProps}${visibilityProp}>\n`
             str += `${spaces}  <C4DMaterial color={${colorExpression}}${singleToneProp} />\n`
             str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
             str += `${spaces}</C4DMesh>\n`
         } else if (!isSelfCollider) {
-            if (transformProps) {
-                str += `${spaces}<group name={${JSON.stringify(rawName)}}${transformProps}>\n`
-                str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
-                str += `${spaces}</group>\n`
-            } else {
-                str += renderChildrenWithSplines(currentPath, visualChildren, indent, currentColor, currentHidden)
-            }
+            // Bevara grupphierarkin 1:1 från GLB/FBX.
+            // Även identitetsgrupper (utan transform) måste finnas kvar för korrekt animation-binding.
+            const groupName = normalizeNodeName(rawName) || rawName
+            str += `${spaces}<group name={${JSON.stringify(groupName)}}${transformProps}>\n`
+            str += renderChildrenWithSplines(currentPath, visualChildren, indent + 2, currentColor, currentHidden)
+            str += `${spaces}</group>\n`
         }
 
         return str
@@ -1326,7 +1357,6 @@ function generateJsxFromScene(scene: THREE.Object3D, originalFileName: string, s
 
     const rapierImports: string[] = []
     if (rigidBodySlots.length > 0) {
-        rapierImports.push('RigidBody')
         if (usesConvexHullCollider) rapierImports.push('ConvexHullCollider')
         if (usesCuboidCollider) rapierImports.push('CuboidCollider')
     }

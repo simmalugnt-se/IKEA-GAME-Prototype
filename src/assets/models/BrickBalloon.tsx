@@ -8,20 +8,23 @@ import { useRef, useEffect } from 'react'
 import { useGLTF, useAnimations } from '@react-three/drei'
 
 import type { ThreeElements } from '@react-three/fiber'
-import { C4DMesh, C4DMaterial, SplineElement } from '../../SceneComponents'
-import type { MaterialColorIndex } from '../../GameSettings'
+import { C4DMesh, C4DMaterial, SplineElement } from '@/scene/SceneComponents'
+import type { MaterialColorIndex } from '@/settings/GameSettings'
 import modelUrl from './brickBalloon.glb?url'
 
 type MaterialColorSlot = 'materialColor0' | 'materialColor1'
+type MaterialHiddenSlot = 'materialHidden0'
+export type BrickBalloonAnimation = 'moving' | 'moving2' | 'moving3'
 
 type BrickBalloonProps = ThreeElements['group'] & {
-  animation?: string | null
+  animation?: BrickBalloonAnimation | null
   fadeDuration?: number
   materialColor0?: MaterialColorIndex
   materialColor1?: MaterialColorIndex
+  materialHidden0?: boolean
 }
 
-export function BrickBalloon({ animation = null, fadeDuration = 0.3, materialColor0 = 10, materialColor1 = 3, ...props }: BrickBalloonProps) {
+export function BrickBalloon({ animation = null, fadeDuration = 0.3, materialColor0 = 10, materialColor1 = 3, materialHidden0 = false, ...props }: BrickBalloonProps) {
   const group = useRef<THREE.Group | null>(null)
   const { nodes, animations } = useGLTF(modelUrl) as unknown as { nodes: Record<string, THREE.Mesh>; animations: THREE.AnimationClip[] }
   const { actions } = useAnimations(animations, group)
@@ -43,32 +46,40 @@ export function BrickBalloon({ animation = null, fadeDuration = 0.3, materialCol
     materialColor1,
   }
 
+  const materialHiddens: Record<MaterialHiddenSlot, boolean> = {
+    materialHidden0,
+  }
+
   return (
     <group ref={group} {...props} dispose={null}>
-      <group name={"BRICKBALLOON"} position={[0, 0.8, 0]}>
-        <group name={"BRICK"} position={[0, -0.3, 0]}>
-          {/* Rectangle_1 */}
+      <group name={"BRICKBALLOON"}>
+        <group name={"BRICK"}>
+          {/* Rectangle_1_noshadow */}
           <SplineElement
             points={[[0,0.0262,-0.0262],[0,0.0262,-0.0227],[0,0.0262,-0.0192],[0,0.0262,-0.0158],[0,0.0262,-0.0122],[0,0.0262,-0.0088],[0,0.0262,-0.0052],[0,0.0262,-0.0018],[0,0.0262,0.0018],[0,0.0262,0.0052],[0,0.0262,0.0088],[0,0.0262,0.0122],[0,0.0262,0.0158],[0,0.0262,0.0192],[0,0.0262,0.0227],[0,0.0262,0.0262],[0,0.0227,0.0262],[0,0.0192,0.0262],[0,0.0158,0.0262],[0,0.0122,0.0262],[0,0.0088,0.0262],[0,0.0052,0.0262],[0,0.0018,0.0262],[0,-0.0018,0.0262],[0,-0.0052,0.0262],[0,-0.0088,0.0262],[0,-0.0122,0.0262],[0,-0.0158,0.0262],[0,-0.0192,0.0262],[0,-0.0227,0.0262],[0,-0.0262,0.0262],[0,-0.0262,0.0227],[0,-0.0262,0.0192],[0,-0.0262,0.0158],[0,-0.0262,0.0122],[0,-0.0262,0.0088],[0,-0.0262,0.0052],[0,-0.0262,0.0018],[0,-0.0262,-0.0018],[0,-0.0262,-0.0052],[0,-0.0262,-0.0088],[0,-0.0262,-0.0122],[0,-0.0262,-0.0158],[0,-0.0262,-0.0192],[0,-0.0262,-0.0227],[0,-0.0262,-0.0262],[0,-0.0227,-0.0262],[0,-0.0192,-0.0262],[0,-0.0158,-0.0262],[0,-0.0122,-0.0262],[0,-0.0088,-0.0262],[0,-0.0052,-0.0262],[0,-0.0018,-0.0262],[0,0.0018,-0.0262],[0,0.0052,-0.0262],[0,0.0088,-0.0262],[0,0.0122,-0.0262],[0,0.0158,-0.0262],[0,0.0192,-0.0262],[0,0.0227,-0.0262]]}
             closed={true}
             tension={0.5}
+            castShadow={false}
+            visible={!materialHiddens.materialHidden0}
             curveType="catmullrom"
           />
-          {/* Rectangle */}
+          {/* Rectangle_noshadow */}
           <SplineElement
             points={[[0.0512,0.0262,0],[0.0444,0.0262,0],[0.0376,0.0262,0],[0.0308,0.0262,0],[0.0239,0.0262,0],[0.0171,0.0262,0],[0.0103,0.0262,0],[0.0034,0.0262,0],[-0.0034,0.0262,0],[-0.0103,0.0262,0],[-0.0171,0.0262,0],[-0.0239,0.0262,0],[-0.0308,0.0262,0],[-0.0376,0.0262,0],[-0.0444,0.0262,0],[-0.0512,0.0262,0],[-0.0512,0.0227,0],[-0.0512,0.0192,0],[-0.0512,0.0158,0],[-0.0512,0.0122,0],[-0.0512,0.0088,0],[-0.0512,0.0052,0],[-0.0512,0.0018,0],[-0.0512,-0.0018,0],[-0.0512,-0.0052,0],[-0.0512,-0.0088,0],[-0.0512,-0.0122,0],[-0.0512,-0.0158,0],[-0.0512,-0.0192,0],[-0.0512,-0.0227,0],[-0.0512,-0.0262,0],[-0.0444,-0.0262,0],[-0.0376,-0.0262,0],[-0.0308,-0.0262,0],[-0.0239,-0.0262,0],[-0.0171,-0.0262,0],[-0.0103,-0.0262,0],[-0.0034,-0.0262,0],[0.0034,-0.0262,0],[0.0103,-0.0262,0],[0.0171,-0.0262,0],[0.0239,-0.0262,0],[0.0308,-0.0262,0],[0.0376,-0.0262,0],[0.0444,-0.0262,0],[0.0512,-0.0262,0],[0.0512,-0.0227,0],[0.0512,-0.0192,0],[0.0512,-0.0158,0],[0.0512,-0.0122,0],[0.0512,-0.0088,0],[0.0512,-0.0052,0],[0.0512,-0.0018,0],[0.0512,0.0018,0],[0.0512,0.0052,0],[0.0512,0.0088,0],[0.0512,0.0122,0],[0.0512,0.0158,0],[0.0512,0.0192,0],[0.0512,0.0227,0]]}
             closed={true}
             tension={0.5}
+            castShadow={false}
+            visible={!materialHiddens.materialHidden0}
             curveType="catmullrom"
           />
-          <C4DMesh name={nodes['Cube_color10'].name} geometry={nodes['Cube_color10'].geometry} castShadow receiveShadow>
+          <C4DMesh name={nodes['Cube_color10'].name} geometry={nodes['Cube_color10'].geometry} castShadow receiveShadow visible={!materialHiddens.materialHidden0}>
             <C4DMaterial color={materialColors.materialColor0} />
           </C4DMesh>
         </group>
-        <C4DMesh name={nodes['Sphere_color3_singleTone'].name} geometry={nodes['Sphere_color3_singleTone'].geometry} castShadow receiveShadow>
+        <C4DMesh name={nodes['Sphere_color3_singleTone'].name} geometry={nodes['Sphere_color3_singleTone'].geometry} castShadow receiveShadow position={[0, 0.3, 0]} visible={!materialHiddens.materialHidden0}>
           <C4DMaterial color={materialColors.materialColor1} singleTone />
         </C4DMesh>
-        <C4DMesh name={nodes['Cone_color3_singleTone'].name} geometry={nodes['Cone_color3_singleTone'].geometry} castShadow receiveShadow>
+        <C4DMesh name={nodes['Cone_color3_singleTone'].name} geometry={nodes['Cone_color3_singleTone'].geometry} castShadow receiveShadow position={[0, 0.3, 0]} visible={!materialHiddens.materialHidden0}>
           <C4DMaterial color={materialColors.materialColor1} singleTone />
         </C4DMesh>
         {/* Line */}
@@ -76,8 +87,8 @@ export function BrickBalloon({ animation = null, fadeDuration = 0.3, materialCol
           points={[[0,0,0],[0,0.0125,0],[0,0.025,0],[0,0.0375,0],[0,0.05,0],[0,0.0625,0],[0,0.075,0],[0,0.0875,0],[0,0.1,0],[0,0.1125,0],[0,0.125,0],[0,0.1375,0],[0,0.15,0],[0,0.1625,0],[0,0.175,0],[0,0.1875,0],[0,0.2,0],[0,0.2125,0],[0,0.225,0],[0,0.2375,0],[0,0.25,0],[0,0.2625,0],[0,0.275,0],[0,0.2875,0],[0,0.3,0]]}
           closed={false}
           tension={0.5}
+          visible={!materialHiddens.materialHidden0}
           curveType="catmullrom"
-          rotation={[180, 0, 0]}
         />
       </group>
     </group>

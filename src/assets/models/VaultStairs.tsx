@@ -6,14 +6,15 @@ Model: VaultStairs.glb
 import * as THREE from 'three'
 import { useRef, useEffect } from 'react'
 import { useGLTF } from '@react-three/drei'
-import { RigidBody, ConvexHullCollider } from '@react-three/rapier'
+import { ConvexHullCollider } from '@react-three/rapier'
 import type { ThreeElements } from '@react-three/fiber'
-import { C4DMesh, C4DMaterial } from '../../SceneComponents'
-import type { MaterialColorIndex } from '../../GameSettings'
+import { C4DMesh, C4DMaterial, GameRigidBody } from '@/scene/SceneComponents'
+import type { GamePhysicsBodyType } from '@/scene/SceneComponents'
+import type { MaterialColorIndex } from '@/settings/GameSettings'
 import modelUrl from './VaultStairs.glb?url'
 
 type GeneratedRigidBodySettings = {
-  type: 'dynamic' | 'fixed' | 'kinematicPosition'
+  type: GamePhysicsBodyType
   mass?: number
   friction?: number
   lockRotations?: boolean
@@ -48,12 +49,12 @@ export function VaultStairs({ materialColor0 = 1, rigidBodyOne, ...props }: Vaul
 
   return (
     <group {...props} dispose={null}>
-      <RigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false} position={[0, 0, 0.2636]}>
+      <GameRigidBody {...getRigidBodyProps('rigidBodyOne')} colliders={false} position={[0, 0, 0.2636]}>
         <ConvexHullCollider args={[nodes['VAULT_STAIRS_colorTwo_dynamic_collider'].geometry.attributes.position.array]} />
         <C4DMesh name={nodes['VAULT_STAIRS_colorTwo_dynamic_collider'].name} geometry={nodes['VAULT_STAIRS_colorTwo_dynamic_collider'].geometry} castShadow receiveShadow>
           <C4DMaterial color={materialColors.materialColor0} />
         </C4DMesh>
-      </RigidBody>
+      </GameRigidBody>
     </group>
   )
 }

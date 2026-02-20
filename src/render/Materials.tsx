@@ -7,7 +7,7 @@ import {
   getLightDir,
   type PaletteAutoMidSettings,
   type MaterialColorIndex,
-} from './GameSettings'
+} from '@/settings/GameSettings'
 
 const toOklch = converter('oklch')
 

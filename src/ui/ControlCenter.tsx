@@ -1,14 +1,14 @@
 import { useControls, folder, button } from 'leva'
 import { useEffect, useRef, useState } from 'react'
-import { SETTINGS } from './GameSettings'
-import { bump } from './settingsStore'
+import { SETTINGS } from '@/settings/GameSettings'
+import { bump } from '@/settings/settingsStore'
 import {
   savePreset,
   loadPresetFromFile,
   loadBundledPreset,
   fetchPresetManifest,
-} from './presets'
-import { useLevelStore } from './levelStore'
+} from '@/settings/presets'
+import { useLevelStore } from '@/levelStore'
 
 // Stores leva set-functions so we can update the panel after loading a preset
 type SetterMap = Record<string, (value: Record<string, unknown>) => void>

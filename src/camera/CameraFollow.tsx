@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import { useRef, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { SETTINGS } from './GameSettings'
-import type { WorldPosition } from './TargetAnchor'
+import { SETTINGS } from '@/settings/GameSettings'
+import type { WorldPosition } from '@/scene/TargetAnchor'
 
 // Återanvändbar vector (ingen allokering per frame)
 const _cameraTarget = new THREE.Vector3()

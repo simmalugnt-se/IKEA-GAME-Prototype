@@ -1,5 +1,5 @@
-import { SETTINGS } from './GameSettings'
-import { bump } from './settingsStore'
+import { SETTINGS } from '@/settings/GameSettings'
+import { bump } from '@/settings/settingsStore'
 
 // ---------------------------------------------------------------------------
 // Deep helpers

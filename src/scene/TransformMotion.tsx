@@ -9,17 +9,21 @@ import {
   type ReactNode,
 } from 'react'
 import { useFrame } from '@react-three/fiber'
-import type { Vec3 } from './GameSettings'
+import type { Vec3 } from '@/settings/GameSettings'
 
-type AxisName = 'x' | 'y' | 'z'
-type LoopMode = 'none' | 'loop' | 'pingpong'
+export const TRANSFORM_MOTION_AXES = ['x', 'y', 'z'] as const
+export const TRANSFORM_MOTION_LOOP_MODES = ['none', 'loop', 'pingpong'] as const
+
+export type AxisName = (typeof TRANSFORM_MOTION_AXES)[number]
+export type LoopMode = (typeof TRANSFORM_MOTION_LOOP_MODES)[number]
 type AxisRange = [number, number]
 type AxisValueMap = Partial<Record<AxisName, number>>
 type AxisRangeMap = Partial<Record<AxisName, AxisRange>>
 type Vec3Like = Vec3 | AxisValueMap
 
-type TransformMotionProps = {
+export type TransformMotionProps = {
   children: ReactNode
+  /** 'none' | 'loop' | 'pingpong' */
   loopMode?: LoopMode
   positionVelocity?: Vec3Like
   rotationVelocity?: Vec3Like
@@ -107,6 +111,10 @@ type XYZLike = {
   z: number
 }
 
+function hasAxisRange(range: AxisRangeMap | undefined): boolean {
+  return Boolean(range?.x || range?.y || range?.z)
+}
+
 function updateVector(
   vector: XYZLike,
   velocity: Vec3,
@@ -115,7 +123,7 @@ function updateVector(
   loopMode: LoopMode,
   delta: number,
 ) {
-  const axes: AxisName[] = ['x', 'y', 'z']
+  const axes = TRANSFORM_MOTION_AXES
 
   axes.forEach((axis, index) => {
     const speed = velocity[index] ?? 0
@@ -198,7 +206,7 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
 
 export function TransformMotion({
   children,
-  loopMode = 'none',
+  loopMode,
   positionVelocity,
   rotationVelocity,
   scaleVelocity,
@@ -211,9 +219,10 @@ export function TransformMotion({
     throw new Error('TransformMotion must be used inside MotionSystemProvider')
   }
 
+  const effectiveLoopMode: LoopMode = loopMode ?? (hasAxisRange(positionRange) ? 'loop' : 'none')
   const ref = useRef<THREE.Group | null>(null)
   const computedConfig = useMemo<MotionTrackConfig>(() => ({
-    loopMode,
+    loopMode: effectiveLoopMode,
     positionVelocity: normalizeVec3Like(positionVelocity),
     rotationVelocity: normalizeVec3Like(rotationVelocity),
     scaleVelocity: normalizeVec3Like(scaleVelocity),
@@ -221,7 +230,7 @@ export function TransformMotion({
     rotationRange,
     scaleRange,
   }), [
-    loopMode,
+    effectiveLoopMode,
     positionVelocity,
     rotationVelocity,
     scaleVelocity,

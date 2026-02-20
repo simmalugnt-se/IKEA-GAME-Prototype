@@ -1,9 +1,9 @@
 import * as THREE from 'three'
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { SETTINGS } from '../GameSettings'
+import { SETTINGS } from '@/settings/GameSettings'
 import type { ChunkActivationState, ChunkEntry } from '../streaming/ChunkStreamingSystem'
-import type { WorldPosition } from '../TargetAnchor'
+import type { WorldPosition } from '@/scene/TargetAnchor'
 
 type StreamingDebugOverlayProps = {
   getCenterPosition: () => WorldPosition | undefined

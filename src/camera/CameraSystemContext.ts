@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { TargetPositionGetter, WorldPosition } from './TargetAnchor'
+import type { TargetPositionGetter, WorldPosition } from '@/scene/TargetAnchor'
 
 export type CameraSystemContextValue = {
   setTargetPositionGetter: (targetId: string, getter: TargetPositionGetter | null) => void

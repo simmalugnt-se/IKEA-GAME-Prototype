@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { ThreeElements } from '@react-three/fiber'
-import { useCameraSystem } from './CameraSystemContext'
+import { useCameraSystem } from '@/camera/CameraSystemContext'
 
 export type WorldPosition = {
   x: number

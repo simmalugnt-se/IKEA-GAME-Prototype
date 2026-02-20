@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
-import { SETTINGS } from '../GameSettings'
+import { SETTINGS } from '@/settings/GameSettings'
 import {
   applyExternalControlPacket,
   clearExternalControlState,
   parseExternalControlPacket,
   type ExternalControlPacket,
-} from './ExternalControlStore'
+} from '@/input/control/ExternalControlStore'
 
 const CONTROL_EVENT_NAME = 'ikea-game-control'
 

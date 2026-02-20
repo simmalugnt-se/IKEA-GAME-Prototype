@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
-import { SETTINGS } from './GameSettings'
-import { useSettingsVersion } from './settingsStore'
+import { SETTINGS } from '@/settings/GameSettings'
+import { useSettingsVersion } from '@/settings/settingsStore'
 import { useLevelStore } from './levelStore'
 import type { LevelData } from './levelStore'
 

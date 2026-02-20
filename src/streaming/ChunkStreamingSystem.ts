@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import type { WorldPosition } from '../TargetAnchor'
+import type { WorldPosition } from '@/scene/TargetAnchor'
 
 export type ChunkEntry = {
   key: string

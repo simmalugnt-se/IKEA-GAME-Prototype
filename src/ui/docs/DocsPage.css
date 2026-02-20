@@ -211,6 +211,34 @@
   color: #c9d1d9;
 }
 
+.docs-code .tok-keyword {
+  color: #ff7b72;
+}
+
+.docs-code .tok-string {
+  color: #a5d6ff;
+}
+
+.docs-code .tok-number {
+  color: #79c0ff;
+}
+
+.docs-code .tok-comment {
+  color: #8b949e;
+}
+
+.docs-code .tok-property {
+  color: #d2a8ff;
+}
+
+.docs-code .tok-flag {
+  color: #ffa657;
+}
+
+.docs-code .tok-variable {
+  color: #7ee787;
+}
+
 .docs-content .mermaid {
   margin: 24px 0;
   padding: 20px;
