@@ -122,7 +122,7 @@ export function Scene() {
 
             <GridCloner
               position={[0, 3, 0]}
-              count={[1, 4, 1]}
+              count={[10, 4, 10]}
               spacing={[1.5, 2.1, 1.1]}
               gridUnit="md"
               centered
