@@ -60,6 +60,10 @@ const EFFECTOR_COMPONENTS: Record<string, React.ComponentType<any>> = {
   StepEffector,
 }
 
+function isNodeHiddenInBuilder(node: LevelNode): boolean {
+  return Boolean(node.builder?.hiddenInBuilder)
+}
+
 function renderObjectNode(node: LevelNode) {
   const entry = COMPONENT_REGISTRY[node.type]
   if (!entry) {
@@ -113,6 +117,7 @@ function renderGridClonerNode(node: LevelNode) {
   const objectChildren: LevelNode[] = []
 
   for (const child of children) {
+    if (isNodeHiddenInBuilder(child)) continue
     if (child.nodeType === 'effector') {
       const effectorType = EFFECTOR_TYPE_MAP[child.type]
       if (effectorType) {
@@ -139,6 +144,10 @@ function renderGridClonerNode(node: LevelNode) {
 }
 
 function renderNode(node: LevelNode) {
+  if (isNodeHiddenInBuilder(node)) {
+    return null
+  }
+
   if (node.nodeType === 'effector') {
     return renderEffectorNode(node)
   }

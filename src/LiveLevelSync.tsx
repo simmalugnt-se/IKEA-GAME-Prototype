@@ -10,9 +10,9 @@ function parseLevelMessage(data: string): LevelData | null {
     if (parsed === null || typeof parsed !== 'object') return null
     const obj = parsed as Record<string, unknown>
 
-    if (obj.version !== 4) return null
+    if (obj.version !== 5) return null
     if (!Array.isArray(obj.nodes)) return null
-    return { version: 4, nodes: obj.nodes }
+    return { version: 5, nodes: obj.nodes }
   } catch {
     return null
   }

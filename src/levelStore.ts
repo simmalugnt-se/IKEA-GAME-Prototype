@@ -5,6 +5,10 @@ export type LevelNode = {
   id: string
   nodeType: 'object' | 'effector'
   type: string
+  builder?: {
+    hiddenInBuilder?: boolean
+    locked?: boolean
+  }
   position?: Vec3
   rotation?: Vec3
   props: Record<string, unknown>
@@ -12,22 +16,22 @@ export type LevelNode = {
 }
 
 export type LevelData = {
-  version: 4
+  version: 5
   nodes: LevelNode[]
 }
 
 function parseLevelFileJson(raw: unknown): LevelData {
   const data = raw as Record<string, unknown>
 
-  if (data.version !== 4) {
-    throw new Error(`Unsupported level file version ${String(data.version)}, expected 4.`)
+  if (data.version !== 5) {
+    throw new Error(`Unsupported level file version ${String(data.version)}, expected 5.`)
   }
 
   if (!Array.isArray(data.nodes)) {
     throw new Error('Invalid level format: missing nodes array')
   }
 
-  return { version: 4, nodes: data.nodes as LevelNode[] }
+  return { version: 5, nodes: data.nodes as LevelNode[] }
 }
 
 type LevelStoreState = {
