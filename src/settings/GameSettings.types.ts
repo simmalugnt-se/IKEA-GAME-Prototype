@@ -188,6 +188,8 @@ export type Settings = {
     shadowArea: number
   }
   material: {
+    shadingDirection: Vec3
+    shadowFollowsLight: boolean
     highlightStep: number
     midtoneStep: number
     castMidtoneStep: number

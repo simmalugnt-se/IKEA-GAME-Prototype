@@ -4,7 +4,8 @@ import { converter, formatHex } from 'culori'
 import {
   SETTINGS,
   getPaletteEntry,
-  getLightDir,
+  getShadingDir,
+  getShadowLightDir,
   type PaletteAutoMidSettings,
   type MaterialColorIndex,
 } from '@/settings/GameSettings'
@@ -19,6 +20,7 @@ const ToonShaderMaterial = shaderMaterial(
     uMidColor: new THREE.Color('#888888'),
     uShadowColor: new THREE.Color('#000000'),
     uLightDir: new THREE.Vector3(1, 1, 1),
+    uShadowLightDir: new THREE.Vector3(1, 1, 1),
     uHighlightStep: 0.6,
     uMidtoneStep: 0.2,
     uCastMidtoneStep: 0.2,
@@ -54,6 +56,7 @@ const ToonShaderMaterial = shaderMaterial(
     uniform vec3 uMidColor;
     uniform vec3 uShadowColor;
     uniform vec3 uLightDir;
+    uniform vec3 uShadowLightDir;
     uniform float uHighlightStep;
     uniform float uMidtoneStep;
     uniform float uCastMidtoneStep;
@@ -69,14 +72,19 @@ const ToonShaderMaterial = shaderMaterial(
     #include <shadowmask_pars_fragment>
 
     void main() {
-      float NdotL = dot(vWorldNormal, uLightDir);
+      float NdotShading = dot(vWorldNormal, uLightDir);
+      float NdotShadow = dot(vWorldNormal, uShadowLightDir);
       float shadowMask = getShadowMask();
       float castOcclusion = 1.0 - shadowMask;
 
-      float directBand = 2.0;
-      if (NdotL > uHighlightStep) {
+      // Darkest band from shadow light direction (light.position)
+      // Highlight & midtone from shading direction
+      float directBand;
+      if (NdotShadow <= uMidtoneStep) {
+        directBand = 2.0;
+      } else if (NdotShading > uHighlightStep) {
         directBand = 0.0;
-      } else if (NdotL > uMidtoneStep) {
+      } else {
         directBand = 1.0;
       }
 
@@ -115,6 +123,7 @@ type ToonMaterialInstance = THREE.ShaderMaterial & {
     uMidColor: { value: THREE.Color }
     uShadowColor: { value: THREE.Color }
     uLightDir: { value: THREE.Vector3 }
+    uShadowLightDir: { value: THREE.Vector3 }
     uHighlightStep: { value: number }
     uMidtoneStep: { value: number }
     uCastMidtoneStep: { value: number }
@@ -166,6 +175,7 @@ function getOrCreateMaterial(
   castMidtoneStep: number,
   castShadowStep: number,
   lightDir: THREE.Vector3,
+  shadowLightDir: THREE.Vector3,
 ): ToonMaterialInstance {
   const key = `${baseHex}-${midHex}-${shadowHex}-${highlightStep}-${midtoneStep}-${castMidtoneStep}-${castShadowStep}`
   const cached = materialCache.get(key)
@@ -177,6 +187,7 @@ function getOrCreateMaterial(
   mat.uniforms.uMidColor.value = new THREE.Color(midHex)
   mat.uniforms.uShadowColor.value = new THREE.Color(shadowHex)
   mat.uniforms.uLightDir.value = lightDir
+  mat.uniforms.uShadowLightDir.value = shadowLightDir
   mat.uniforms.uHighlightStep.value = highlightStep
   mat.uniforms.uMidtoneStep.value = midtoneStep
   mat.uniforms.uCastMidtoneStep.value = castMidtoneStep
@@ -212,7 +223,12 @@ export function C4DMaterial({
   lightDir = null,
   ...props
 }: C4DMaterialProps) {
-  const finalLightDir = lightDir || getLightDir()
+  const finalLightDir = lightDir || getShadingDir()
+  // When shadowFollowsLight: use normalized light.position for darkest band
+  // When off: use same as shading dir (no branching in shader, identical result)
+  const finalShadowLightDir = SETTINGS.material.shadowFollowsLight
+    ? getShadowLightDir()
+    : finalLightDir
   const autoMid = SETTINGS.palette.autoMid
 
   let baseHex: string
@@ -243,6 +259,7 @@ export function C4DMaterial({
     castMidtoneStep,
     castShadowStep,
     finalLightDir,
+    finalShadowLightDir,
   )
 
   return <primitive object={material} attach="material" {...props} />

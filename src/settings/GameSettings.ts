@@ -227,6 +227,8 @@ export const SETTINGS: Settings = {
 
   // --- MATERIAL (Toon Shading) ---
   material: {
+    shadingDirection: [0, 4, 10], // Ljusriktning för toon-shading (oberoende av light.position)
+    shadowFollowsLight: true, // Mörkaste banden följer light.position istället för shadingDirection
     highlightStep: 0.6, // Gräns för ljusaste zonen
     midtoneStep: 0.1, // Gräns för mellantonen
     castMidtoneStep: 0.2, // Start för cast-shadow midtone (0 = ingen skugga, 1 = full skugga)
@@ -384,10 +386,33 @@ export const SETTINGS: Settings = {
   },
 };
 
-// Hjälpfunktion för att få ljusets position som en Vector3
-export const getLightDir = () => {
-  return new THREE.Vector3(...SETTINGS.light.position).normalize();
-};
+// Pre-computed shading direction — reuses a single Vector3, zero allocation
+const _shadingDir = new THREE.Vector3()
+let _shadingDirDirty = true
+
+export function markShadingDirDirty() { _shadingDirDirty = true }
+
+export function getShadingDir(): THREE.Vector3 {
+  if (_shadingDirDirty) {
+    _shadingDir.set(...SETTINGS.material.shadingDirection).normalize()
+    _shadingDirDirty = false
+  }
+  return _shadingDir
+}
+
+// Pre-computed shadow light direction — normalized light.position, zero allocation
+const _shadowLightDir = new THREE.Vector3()
+let _shadowLightDirDirty = true
+
+export function markShadowLightDirDirty() { _shadowLightDirDirty = true }
+
+export function getShadowLightDir(): THREE.Vector3 {
+  if (_shadowLightDirDirty) {
+    _shadowLightDir.set(...SETTINGS.light.position).normalize()
+    _shadowLightDirDirty = false
+  }
+  return _shadowLightDir
+}
 
 const FALLBACK_PALETTE_ENTRY: PaletteEntry = { base: "#ffffff" };
 

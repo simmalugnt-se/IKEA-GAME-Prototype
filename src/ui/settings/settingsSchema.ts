@@ -1,4 +1,4 @@
-import { SETTINGS } from '@/settings/GameSettings'
+import { SETTINGS, markShadingDirDirty, markShadowLightDirDirty } from '@/settings/GameSettings'
 import {
     RENDER_STYLES,
     CONTROL_INPUT_SOURCES,
@@ -456,7 +456,7 @@ export const settingsSections: SectionDescriptor[] = [
             {
                 type: 'vec3', label: 'position',
                 get: () => SETTINGS.light.position as Vec3,
-                set: (v) => { SETTINGS.light.position = v; bump() },
+                set: (v) => { SETTINGS.light.position = v; markShadowLightDirDirty(); bump() },
                 min: -20, max: 20, step: 0.1,
             },
             { type: 'number', label: 'intensity', get: () => SETTINGS.light.intensity, set: (v) => { SETTINGS.light.intensity = v; bump() }, min: 0, max: 10, step: 0.1 },
@@ -472,6 +472,13 @@ export const settingsSections: SectionDescriptor[] = [
         key: 'material',
         label: 'Material',
         fields: [
+            {
+                type: 'vec3', label: 'shadingDirection',
+                get: () => SETTINGS.material.shadingDirection as Vec3,
+                set: (v) => { SETTINGS.material.shadingDirection = v; markShadingDirDirty(); bump() },
+                min: -20, max: 20, step: 0.1,
+            },
+            { type: 'boolean', label: 'shadowFollowsLight', get: () => SETTINGS.material.shadowFollowsLight, set: (v) => { SETTINGS.material.shadowFollowsLight = v; bump() } },
             { type: 'number', label: 'highlightStep', get: () => SETTINGS.material.highlightStep, set: (v) => { SETTINGS.material.highlightStep = v; bump() }, min: 0, max: 1, step: 0.01 },
             { type: 'number', label: 'midtoneStep', get: () => SETTINGS.material.midtoneStep, set: (v) => { SETTINGS.material.midtoneStep = v; bump() }, min: 0, max: 1, step: 0.01 },
             { type: 'number', label: 'castMidtoneStep', get: () => SETTINGS.material.castMidtoneStep, set: (v) => { SETTINGS.material.castMidtoneStep = v; bump() }, min: 0, max: 1, step: 0.01 },
