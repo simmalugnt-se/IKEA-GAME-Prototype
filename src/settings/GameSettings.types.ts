@@ -50,6 +50,12 @@ export type SwooshSoundSettings = SoundCategorySettings & {
   cooldownMs: number
 }
 
+export type ComboSoundSettings = {
+  tier2: SoundCategorySettings
+  tier3: SoundCategorySettings
+  tier4Plus: SoundCategorySettings
+}
+
 export type SoundSettings = {
   enabled: boolean
   pop: SoundCategorySettings
@@ -58,6 +64,7 @@ export type SoundSettings = {
   error: SoundCategorySettings
   bee: SoundCategorySettings
   swoosh: SwooshSoundSettings
+  combo: ComboSoundSettings
 }
 
 export type AxisMask = {
@@ -229,6 +236,12 @@ export type Settings = {
         linearSpeedMax: number
         linearSpeedVelocityRangeMaxPx: number
         curve: AccelerationCurveName
+      }
+      combo: {
+        enabled: boolean
+        strikeWindowMs: number
+        chainWindowMs: number
+        chainBonusCap: number
       }
     }
   }

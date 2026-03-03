@@ -19,6 +19,7 @@ export {
 export type {
   AxisMask,
   CameraMode,
+  ComboSoundSettings,
   ControlInputSource,
   ExternalControlMode,
   MaterialColorIndex,
@@ -315,6 +316,12 @@ export const SETTINGS: Settings = {
         linearSpeedVelocityRangeMaxPx: 9500,
         curve: "exponential",
       },
+      combo: {
+        enabled: true,
+        strikeWindowMs: 100,
+        chainWindowMs: 800,
+        chainBonusCap: 2,
+      },
     },
   },
 
@@ -430,6 +437,32 @@ export const SETTINGS: Settings = {
       minVelocity: 300,
       maxVelocity: 2000,
       cooldownMs: 300,
+    },
+    combo: {
+      tier2: {
+        files: [
+          "/sounds/yes/yes1.wav",
+          "/sounds/yes/yes2.wav",
+          "/sounds/yes/yes3.wav",
+        ],
+        volume: 0.5,
+      },
+      tier3: {
+        files: [
+          "/sounds/yes/yes1.wav",
+          "/sounds/yes/yes2.wav",
+          "/sounds/yes/yes3.wav",
+        ],
+        volume: 0.7,
+      },
+      tier4Plus: {
+        files: [
+          "/sounds/yes/yes1.wav",
+          "/sounds/yes/yes2.wav",
+          "/sounds/yes/yes3.wav",
+        ],
+        volume: 1.0,
+      },
     },
   },
 };

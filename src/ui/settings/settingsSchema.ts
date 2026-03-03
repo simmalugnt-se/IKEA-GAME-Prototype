@@ -535,6 +535,10 @@ export const settingsSections: SectionDescriptor[] = [
                 set: (v) => { SETTINGS.gameplay.balloons.popRelease.curve = v as typeof SETTINGS.gameplay.balloons.popRelease.curve; bump() },
                 options: POP_RELEASE_CURVE_OPTIONS,
             },
+            { type: 'boolean', label: 'balloons.combo.enabled', get: () => SETTINGS.gameplay.balloons.combo.enabled, set: (v) => { SETTINGS.gameplay.balloons.combo.enabled = v; bump() } },
+            { type: 'number', label: 'balloons.combo.strikeWindowMs', get: () => SETTINGS.gameplay.balloons.combo.strikeWindowMs, set: (v) => { SETTINGS.gameplay.balloons.combo.strikeWindowMs = v; bump() }, min: 0, max: 1000, step: 5 },
+            { type: 'number', label: 'balloons.combo.chainWindowMs', get: () => SETTINGS.gameplay.balloons.combo.chainWindowMs, set: (v) => { SETTINGS.gameplay.balloons.combo.chainWindowMs = v; bump() }, min: 0, max: 5000, step: 10 },
+            { type: 'number', label: 'balloons.combo.chainBonusCap', get: () => SETTINGS.gameplay.balloons.combo.chainBonusCap, set: (v) => { SETTINGS.gameplay.balloons.combo.chainBonusCap = v; bump() }, min: 0, max: 10, step: 1 },
         ],
     },
 
@@ -721,6 +725,27 @@ export const settingsSections: SectionDescriptor[] = [
                 set: (v) => { SETTINGS.sounds.bee.files = v; bump() },
             },
             { type: 'number', label: 'bee.volume', get: () => SETTINGS.sounds.bee.volume, set: (v) => { SETTINGS.sounds.bee.volume = v; bump() }, min: 0, max: 2, step: 0.05 },
+            // combo tier2
+            {
+                type: 'stringArray', label: 'combo.tier2.files',
+                get: () => SETTINGS.sounds.combo.tier2.files,
+                set: (v) => { SETTINGS.sounds.combo.tier2.files = v; bump() },
+            },
+            { type: 'number', label: 'combo.tier2.volume', get: () => SETTINGS.sounds.combo.tier2.volume, set: (v) => { SETTINGS.sounds.combo.tier2.volume = v; bump() }, min: 0, max: 2, step: 0.05 },
+            // combo tier3
+            {
+                type: 'stringArray', label: 'combo.tier3.files',
+                get: () => SETTINGS.sounds.combo.tier3.files,
+                set: (v) => { SETTINGS.sounds.combo.tier3.files = v; bump() },
+            },
+            { type: 'number', label: 'combo.tier3.volume', get: () => SETTINGS.sounds.combo.tier3.volume, set: (v) => { SETTINGS.sounds.combo.tier3.volume = v; bump() }, min: 0, max: 2, step: 0.05 },
+            // combo tier4+
+            {
+                type: 'stringArray', label: 'combo.tier4Plus.files',
+                get: () => SETTINGS.sounds.combo.tier4Plus.files,
+                set: (v) => { SETTINGS.sounds.combo.tier4Plus.files = v; bump() },
+            },
+            { type: 'number', label: 'combo.tier4Plus.volume', get: () => SETTINGS.sounds.combo.tier4Plus.volume, set: (v) => { SETTINGS.sounds.combo.tier4Plus.volume = v; bump() }, min: 0, max: 2, step: 0.05 },
             // swoosh
             {
                 type: 'stringArray', label: 'swoosh.files',

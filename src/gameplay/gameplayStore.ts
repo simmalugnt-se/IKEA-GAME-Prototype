@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { playBee, playError, playSteel } from '@/audio/SoundManager'
+import { playBee, playComboMultiplier, playError, playSteel } from '@/audio/SoundManager'
 import { SETTINGS, resolveMaterialColorIndex } from '@/settings/GameSettings'
 import { onEntityUnregister } from '@/entities/entityStore'
 import { emitScorePop } from '@/input/scorePopEmitter'
@@ -20,6 +20,12 @@ export type ContagionCollisionEntity = {
   contagionInfectable?: boolean
   colorIndex?: number
   screenPos?: ScreenPos
+}
+
+export type BalloonPopForComboEvent = {
+  x: number
+  y: number
+  timeMs: number
 }
 
 type NormalizedCollisionEntity = {
@@ -51,6 +57,7 @@ type GameplayState = {
   loseLives: (delta: number) => void
   setGameOver: (value: boolean) => void
   removeEntities: (ids: string[]) => void
+  registerBalloonPopForCombo: (event: BalloonPopForComboEvent) => void
   enqueueCollisionPair: (
     entityA: ContagionCollisionEntity | null | undefined,
     entityB: ContagionCollisionEntity | null | undefined,
@@ -109,6 +116,18 @@ type ContagionMaps = {
   pendingPairs: Map<string, PendingPair>
 }
 
+type ComboStrike = {
+  pops: BalloonPopForComboEvent[]
+  lastTimeMs: number
+}
+
+type ComboRuntimeState = {
+  pendingStrike: ComboStrike | null
+  flushTimer: ReturnType<typeof setTimeout> | null
+  chainBonus: number
+  lastMultiStrikeTimeMs: number
+}
+
 function createContagionMaps(): ContagionMaps {
   return {
     records: new Map(),
@@ -116,7 +135,134 @@ function createContagionMaps(): ContagionMaps {
   }
 }
 
+function createComboRuntimeState(): ComboRuntimeState {
+  return {
+    pendingStrike: null,
+    flushTimer: null,
+    chainBonus: 0,
+    lastMultiStrikeTimeMs: Number.NEGATIVE_INFINITY,
+  }
+}
+
 let maps = createContagionMaps()
+let comboRuntime = createComboRuntimeState()
+
+function clearComboFlushTimer(): void {
+  if (comboRuntime.flushTimer === null) return
+  clearTimeout(comboRuntime.flushTimer)
+  comboRuntime.flushTimer = null
+}
+
+function resetComboRuntimeState(): void {
+  clearComboFlushTimer()
+  comboRuntime.pendingStrike = null
+  comboRuntime.chainBonus = 0
+  comboRuntime.lastMultiStrikeTimeMs = Number.NEGATIVE_INFINITY
+}
+
+function resolveComboStrikeWindowMs(): number {
+  return normalizeNonNegativeInt(SETTINGS.gameplay.balloons.combo.strikeWindowMs, 100)
+}
+
+function resolveComboChainWindowMs(): number {
+  return normalizeNonNegativeInt(SETTINGS.gameplay.balloons.combo.chainWindowMs, 800)
+}
+
+function resolveComboChainBonusCap(): number {
+  return normalizeNonNegativeInt(SETTINGS.gameplay.balloons.combo.chainBonusCap, 2)
+}
+
+function scheduleComboStrikeFlush(): void {
+  clearComboFlushTimer()
+  comboRuntime.flushTimer = setTimeout(() => {
+    comboRuntime.flushTimer = null
+    flushPendingComboStrike()
+  }, resolveComboStrikeWindowMs())
+}
+
+function flushPendingComboStrike(): void {
+  const strike = comboRuntime.pendingStrike
+  if (!strike) return
+  comboRuntime.pendingStrike = null
+  clearComboFlushTimer()
+
+  const strikeSize = strike.pops.length
+  if (strikeSize <= 0) return
+
+  const chainWindowMs = resolveComboChainWindowMs()
+  const chainBonusCap = resolveComboChainBonusCap()
+
+  let finalMultiplier = 1
+  if (strikeSize >= 2) {
+    const withinChainWindow = (
+      Number.isFinite(comboRuntime.lastMultiStrikeTimeMs)
+      && strike.lastTimeMs - comboRuntime.lastMultiStrikeTimeMs <= chainWindowMs
+    )
+    comboRuntime.chainBonus = withinChainWindow
+      ? Math.min(chainBonusCap, comboRuntime.chainBonus + 1)
+      : 0
+    finalMultiplier = strikeSize + comboRuntime.chainBonus
+    comboRuntime.lastMultiStrikeTimeMs = strike.lastTimeMs
+  } else if (
+    Number.isFinite(comboRuntime.lastMultiStrikeTimeMs)
+    && strike.lastTimeMs - comboRuntime.lastMultiStrikeTimeMs > chainWindowMs
+  ) {
+    comboRuntime.chainBonus = 0
+    comboRuntime.lastMultiStrikeTimeMs = Number.NEGATIVE_INFINITY
+  }
+
+  const baseScorePerPop = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
+  const perPopScore = baseScorePerPop * finalMultiplier
+  const totalStrikeScore = perPopScore * strikeSize
+
+  if (totalStrikeScore > 0) {
+    useGameplayStore.getState().addScore(totalStrikeScore)
+  }
+
+  if (perPopScore > 0) {
+    const scoreText = `+${perPopScore}`
+    for (let i = 0; i < strike.pops.length; i += 1) {
+      const pop = strike.pops[i]
+      if (!pop) continue
+      emitScorePop({
+        text: scoreText,
+        x: pop.x,
+        y: pop.y,
+      })
+    }
+  }
+
+  if (strikeSize >= 2) {
+    let sumX = 0
+    let sumY = 0
+    for (let i = 0; i < strike.pops.length; i += 1) {
+      const pop = strike.pops[i]
+      if (!pop) continue
+      sumX += pop.x
+      sumY += pop.y
+    }
+    const invCount = 1 / strikeSize
+    emitScorePop({
+      text: `x${finalMultiplier}`,
+      x: sumX * invCount,
+      y: sumY * invCount,
+      burst: false,
+    })
+    playComboMultiplier(finalMultiplier)
+  }
+}
+
+function normalizeComboPopEvent(raw: BalloonPopForComboEvent): BalloonPopForComboEvent {
+  const fallbackX = typeof window !== 'undefined' ? window.innerWidth * 0.5 : 0
+  const fallbackY = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 0
+  const fallbackTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
+
+  return {
+    x: Number.isFinite(raw.x) ? raw.x : fallbackX,
+    y: Number.isFinite(raw.y) ? raw.y : fallbackY,
+    timeMs: Number.isFinite(raw.timeMs) ? raw.timeMs : fallbackTime,
+  }
+}
 
 export const useGameplayStore = create<GameplayState>((set, get) => ({
   score: 0,
@@ -131,6 +277,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
 
   reset: () => {
     maps = createContagionMaps()
+    resetComboRuntimeState()
     set((state) => ({
       score: 0,
       lastRunScore: 0,
@@ -162,10 +309,12 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
     if (normalizedDelta === 0) return
     let playLifeLostSound = false
     let playRunEndSound = false
+    let shouldResetCombo = false
     set((state) => {
       if (state.gameOver) return state
       const nextLives = Math.max(0, state.lives - normalizedDelta)
       const didRunEnd = nextLives <= 0
+      shouldResetCombo = didRunEnd
       playLifeLostSound = nextLives < state.lives
       playRunEndSound = didRunEnd
       const autoResetLives = SETTINGS.gameplay.lives.autoReset === true
@@ -202,14 +351,17 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
     })
     if (playLifeLostSound) playError()
     if (playRunEndSound) playBee()
+    if (shouldResetCombo) resetComboRuntimeState()
   },
 
   setGameOver: (value) => {
     const nextValue = value === true
     let playGameOverSound = false
+    let shouldResetCombo = false
     set((state) => {
       if (state.gameOver === nextValue) return state
       playGameOverSound = nextValue
+      shouldResetCombo = nextValue
       const shouldResetScore = nextValue && SETTINGS.gameplay.score.resetOnGameOver === true
       return {
         ...state,
@@ -222,6 +374,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
       }
     })
     if (playGameOverSound) playBee()
+    if (shouldResetCombo) resetComboRuntimeState()
   },
 
   removeEntities: (ids) => {
@@ -240,6 +393,51 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
       if (!changed) return state
       return { contagionColorsByEntityId: next }
     })
+  },
+
+  registerBalloonPopForCombo: (rawEvent) => {
+    if (isScoreLockedOnGameOver() && get().gameOver) return
+
+    const popEvent = normalizeComboPopEvent(rawEvent)
+    const comboSettings = SETTINGS.gameplay.balloons.combo
+    if (!comboSettings.enabled) {
+      resetComboRuntimeState()
+      const baseScore = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
+      if (baseScore > 0) {
+        get().addScore(baseScore)
+        emitScorePop({
+          text: `+${baseScore}`,
+          x: popEvent.x,
+          y: popEvent.y,
+        })
+      }
+      return
+    }
+
+    const strikeWindowMs = resolveComboStrikeWindowMs()
+    const activeStrike = comboRuntime.pendingStrike
+    if (!activeStrike) {
+      comboRuntime.pendingStrike = {
+        pops: [popEvent],
+        lastTimeMs: popEvent.timeMs,
+      }
+      scheduleComboStrikeFlush()
+      return
+    }
+
+    if (popEvent.timeMs - activeStrike.lastTimeMs <= strikeWindowMs) {
+      activeStrike.pops.push(popEvent)
+      activeStrike.lastTimeMs = popEvent.timeMs
+      scheduleComboStrikeFlush()
+      return
+    }
+
+    flushPendingComboStrike()
+    comboRuntime.pendingStrike = {
+      pops: [popEvent],
+      lastTimeMs: popEvent.timeMs,
+    }
+    scheduleComboStrikeFlush()
   },
 
   enqueueCollisionPair: (rawA, rawB) => {
@@ -369,7 +567,10 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         const infectionScore = Math.max(0, contagionSettings.scorePerInfection)
         nextScore += infectionScore
         if (infectionScore > 0 && target.screenPos) {
-          emitScorePop({ amount: infectionScore, ...target.screenPos })
+          emitScorePop({
+            text: `+${infectionScore}`,
+            ...target.screenPos,
+          })
         }
       })
 

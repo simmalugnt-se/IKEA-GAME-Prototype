@@ -1,7 +1,8 @@
 export type ScorePopEvent = {
-  amount: number
+  text: string
   x: number
   y: number
+  burst?: boolean
 }
 
 type Listener = (event: ScorePopEvent) => void

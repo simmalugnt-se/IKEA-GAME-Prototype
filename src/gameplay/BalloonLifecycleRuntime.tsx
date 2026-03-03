@@ -31,6 +31,7 @@ export type BalloonLifecyclePopMeta = {
   worldDirX: number
   worldDirZ: number
   cursorSpeedPx: number
+  sweepTimeMs: number
 }
 
 export type BalloonLifecycleTarget = {
@@ -152,6 +153,7 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
     worldDirX: 0,
     worldDirZ: -1,
     cursorSpeedPx: 0,
+    sweepTimeMs: 0,
   })
   const frozenScreenRightOnFloorRef = useRef({ x: 0, z: 0 })
   const frozenScreenUpOnFloorRef = useRef({ x: 0, z: 0 })
@@ -379,6 +381,7 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
               popMeta.worldDirZ = frozenScreenUpOnFloor.z
             }
             popMeta.cursorSpeedPx = sweepSegment.velocityPx
+            popMeta.sweepTimeMs = sweepSegment.timeMs
             for (let i = 0; i < popQueue.length; i += 1) {
               popQueue[i]?.requestPop(popMeta)
             }

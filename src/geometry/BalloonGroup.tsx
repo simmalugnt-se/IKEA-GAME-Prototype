@@ -10,7 +10,6 @@ import {
   type BalloonLifecyclePopMeta,
 } from "@/gameplay/BalloonLifecycleRuntime";
 import { useGameplayStore } from "@/gameplay/gameplayStore";
-import { emitScorePop } from "@/input/scorePopEmitter";
 import { BlockElement } from "@/primitives/BlockElement";
 import { BallElement, BALL_RADII_M } from "@/primitives/BallElement";
 import { SplineElement } from "@/primitives/SplineElement";
@@ -556,15 +555,19 @@ export function BalloonGroup({
         };
       }
 
-      useGameplayStore
-        .getState()
-        .addScore(SETTINGS.gameplay.balloons.scorePerPop);
+      const gameplayState = useGameplayStore.getState();
       if (getWorldPopCenter(popCenterWorld)) {
         popCenterNdc.copy(popCenterWorld).project(camera);
-        emitScorePop({
-          amount: SETTINGS.gameplay.balloons.scorePerPop,
+        gameplayState.registerBalloonPopForCombo({
           x: ((popCenterNdc.x + 1) / 2) * window.innerWidth,
           y: ((-popCenterNdc.y + 1) / 2) * window.innerHeight,
+          timeMs: meta.sweepTimeMs,
+        });
+      } else {
+        gameplayState.registerBalloonPopForCombo({
+          x: window.innerWidth * 0.5,
+          y: window.innerHeight * 0.5,
+          timeMs: meta.sweepTimeMs,
         });
       }
       setPopped(true);

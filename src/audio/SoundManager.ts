@@ -1,7 +1,16 @@
 import { SETTINGS } from "@/settings/GameSettings";
 import type { SoundCategorySettings } from "@/settings/GameSettings";
 
-type SoundCategory = "pop" | "felt" | "steel" | "error" | "bee" | "swoosh";
+type SoundCategory =
+  | "pop"
+  | "felt"
+  | "steel"
+  | "error"
+  | "bee"
+  | "swoosh"
+  | "comboTier2"
+  | "comboTier3"
+  | "comboTier4Plus";
 
 type CategoryState = {
   buffers: AudioBuffer[];
@@ -84,6 +93,9 @@ export async function preload(): Promise<void> {
     loadCategory(audioCtx, "error", sounds.error),
     loadCategory(audioCtx, "bee", sounds.bee),
     loadCategory(audioCtx, "swoosh", sounds.swoosh),
+    loadCategory(audioCtx, "comboTier2", sounds.combo.tier2),
+    loadCategory(audioCtx, "comboTier3", sounds.combo.tier3),
+    loadCategory(audioCtx, "comboTier4Plus", sounds.combo.tier4Plus),
   ]);
 }
 
@@ -101,11 +113,28 @@ function playCategory(name: SoundCategory, volumeScale = 1): void {
   source.buffer = buffer;
 
   const gain = audioCtx.createGain();
-  gain.gain.value = SETTINGS.sounds[name].volume * volumeScale;
+  const categoryVolume = (() => {
+    switch (name) {
+      case "comboTier2":
+        return SETTINGS.sounds.combo.tier2.volume;
+      case "comboTier3":
+        return SETTINGS.sounds.combo.tier3.volume;
+      case "comboTier4Plus":
+        return SETTINGS.sounds.combo.tier4Plus.volume;
+      default:
+        return SETTINGS.sounds[name].volume;
+    }
+  })();
+  gain.gain.value = categoryVolume * volumeScale;
 
   source.connect(gain);
   gain.connect(audioCtx.destination);
   source.start();
+}
+
+function hasCategoryBuffers(name: SoundCategory): boolean {
+  const state = categories.get(name);
+  return Boolean(state && state.buffers.length > 0);
 }
 
 export function playPop(): void {
@@ -130,4 +159,32 @@ export function playBee(): void {
 
 export function playSwoosh(volumeScale = 1): void {
   playCategory("swoosh", volumeScale);
+}
+
+export function playComboMultiplier(multiplier: number): void {
+  if (!(multiplier >= 2)) return;
+
+  if (multiplier >= 4) {
+    if (hasCategoryBuffers("comboTier4Plus")) {
+      playCategory("comboTier4Plus");
+      return;
+    }
+    playBee();
+    return;
+  }
+
+  if (multiplier >= 3) {
+    if (hasCategoryBuffers("comboTier3")) {
+      playCategory("comboTier3");
+      return;
+    }
+    playBee();
+    return;
+  }
+
+  if (hasCategoryBuffers("comboTier2")) {
+    playCategory("comboTier2");
+    return;
+  }
+  playSteel();
 }

@@ -25,6 +25,7 @@ type ScorePop = {
   text: string
   x: number
   y: number
+  burst: boolean
   createdAt: number
 }
 
@@ -55,8 +56,8 @@ export function ScorePopCanvas() {
     const resizeObserver = new ResizeObserver(syncSize)
     resizeObserver.observe(canvas)
 
-    const unsubscribe = subscribeToScorePops(({ amount, x, y }) => {
-      pops.push({ text: `+${amount}`, x, y, createdAt: performance.now() })
+    const unsubscribe = subscribeToScorePops(({ text, x, y, burst }) => {
+      pops.push({ text, x, y, burst: burst !== false, createdAt: performance.now() })
     })
 
     const frame = () => {
@@ -79,7 +80,7 @@ export function ScorePopCanvas() {
         const alpha = 1 - t
         const floatY = pop.y + SCORE_TEXT_Y_OFFSET - FLOAT_DISTANCE * t
 
-        if (elapsed <= BURST_DURATION_MS) {
+        if (pop.burst && elapsed <= BURST_DURATION_MS) {
           const burstFrame = elapsed / BURST_FRAME_MS
           const trimStart = applyEasing(burstFrame / BURST_START_END_FRAME, 'easeOutQuart')
           const trimEnd = applyEasing(burstFrame / BURST_END_END_FRAME, 'easeOutCubic')
