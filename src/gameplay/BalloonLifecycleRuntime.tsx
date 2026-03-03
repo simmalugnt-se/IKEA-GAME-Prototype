@@ -28,7 +28,9 @@ type BalloonWorldXZ = {
 }
 
 export type BalloonLifecyclePopMeta = {
-  xVelocityPx: number
+  worldDirX: number
+  worldDirZ: number
+  cursorSpeedPx: number
 }
 
 export type BalloonLifecycleTarget = {
@@ -59,6 +61,8 @@ type CanvasRect = {
 
 const DEFAULT_LIFE_MARGIN = 0
 const SEGMENT_EPSILON = 1e-6
+const _cameraRight = new THREE.Vector3()
+const _cameraUp = new THREE.Vector3()
 
 const BalloonLifecycleRegistryContext = createContext<BalloonLifecycleRegistry | null>(null)
 
@@ -141,9 +145,17 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
     x1: 0,
     y1: 0,
     velocityPx: 0,
-    velocityXPx: 0,
+    velocityScreenXPx: 0,
+    velocityScreenYPx: 0,
   })
-  const popMetaRef = useRef<BalloonLifecyclePopMeta>({ xVelocityPx: 0 })
+  const popMetaRef = useRef<BalloonLifecyclePopMeta>({
+    worldDirX: 0,
+    worldDirZ: -1,
+    cursorSpeedPx: 0,
+  })
+  const frozenScreenRightOnFloorRef = useRef({ x: 0, z: 0 })
+  const frozenScreenUpOnFloorRef = useRef({ x: 0, z: 0 })
+  const frozenMappingReadyRef = useRef(false)
   const popCenterWorldRef = useRef(new THREE.Vector3())
   const popCenterNdcRef = useRef(new THREE.Vector3())
   const canvasRectRef = useRef<CanvasRect>({
@@ -227,11 +239,39 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
 
     const latestSweepSeq = getLatestCursorSweepSeq()
     if (latestSweepSeq > lastSweepSeqRef.current) {
+      if (!frozenMappingReadyRef.current) {
+        camera.updateMatrixWorld()
+        _cameraRight.set(1, 0, 0).applyQuaternion(camera.quaternion)
+        _cameraUp.set(0, 1, 0).applyQuaternion(camera.quaternion)
+
+        const rightX = _cameraRight.x
+        const rightZ = _cameraRight.z
+        const rightLength = Math.hypot(rightX, rightZ)
+        const upX = _cameraUp.x
+        const upZ = _cameraUp.z
+        const upLength = Math.hypot(upX, upZ)
+
+        if (
+          rightLength > SEGMENT_EPSILON
+          && upLength > SEGMENT_EPSILON
+          && Number.isFinite(rightLength)
+          && Number.isFinite(upLength)
+        ) {
+          const frozenScreenRightOnFloor = frozenScreenRightOnFloorRef.current
+          const frozenScreenUpOnFloor = frozenScreenUpOnFloorRef.current
+          frozenScreenRightOnFloor.x = rightX / rightLength
+          frozenScreenRightOnFloor.z = rightZ / rightLength
+          frozenScreenUpOnFloor.x = upX / upLength
+          frozenScreenUpOnFloor.z = upZ / upLength
+          frozenMappingReadyRef.current = true
+        }
+      }
+
       const canvasRect = canvasRectRef.current
       const canvasWidth = canvasRect.width
       const canvasHeight = canvasRect.height
 
-      if (canvasWidth > 0 && canvasHeight > 0) {
+      if (canvasWidth > 0 && canvasHeight > 0 && frozenMappingReadyRef.current) {
         const orthographicCamera = camera as THREE.OrthographicCamera
         const visibleWorldHeight = (orthographicCamera.top - orthographicCamera.bottom) / orthographicCamera.zoom
 
@@ -316,8 +356,29 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
           })
 
           if (popQueue.length > 0) {
+            const frozenScreenRightOnFloor = frozenScreenRightOnFloorRef.current
+            const frozenScreenUpOnFloor = frozenScreenUpOnFloorRef.current
+            const sx = sweepSegment.velocityScreenXPx
+            const sy = -sweepSegment.velocityScreenYPx
+            const worldX = (
+              sx * frozenScreenRightOnFloor.x
+              + sy * frozenScreenUpOnFloor.x
+            )
+            const worldZ = (
+              sx * frozenScreenRightOnFloor.z
+              + sy * frozenScreenUpOnFloor.z
+            )
+            const worldLength = Math.hypot(worldX, worldZ)
             const popMeta = popMetaRef.current
-            popMeta.xVelocityPx = sweepSegment.velocityXPx
+            if (worldLength > SEGMENT_EPSILON && Number.isFinite(worldLength)) {
+              const invWorldLength = 1 / worldLength
+              popMeta.worldDirX = worldX * invWorldLength
+              popMeta.worldDirZ = worldZ * invWorldLength
+            } else {
+              popMeta.worldDirX = frozenScreenUpOnFloor.x
+              popMeta.worldDirZ = frozenScreenUpOnFloor.z
+            }
+            popMeta.cursorSpeedPx = sweepSegment.velocityPx
             for (let i = 0; i < popQueue.length; i += 1) {
               popQueue[i]?.requestPop(popMeta)
             }

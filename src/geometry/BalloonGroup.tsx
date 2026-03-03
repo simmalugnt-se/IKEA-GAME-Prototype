@@ -40,30 +40,33 @@ type BalloonDetailLevel =
 type BalloonDropType = "block" | "ball";
 
 export type BalloonPopReleaseTuning = {
-  linearScale?: number;
-  linearScaleLeftMin?: number;
-  linearScaleLeftMax?: number;
-  linearScaleRightMin?: number;
-  linearScaleRightMax?: number;
-  linearScaleVelocityRangeMaxPx?: number;
-  linearDirectionDeadzonePx?: number;
+  linearSpeedMin?: number;
+  linearSpeedMax?: number;
+  linearSpeedVelocityRangeMaxPx?: number;
   angularScale?: number;
-  directionalBoost?: number;
   spinBoost?: number;
   linearDamping?: number;
   angularDamping?: number;
 };
 
+const POP_RELEASE_CURVE_NAMES = [
+  "power_1_25",
+  "power_1_5",
+  "exponential",
+] as const;
+type PopReleaseCurveName = (typeof POP_RELEASE_CURVE_NAMES)[number];
+const POP_RELEASE_DEFAULT_CURVE: PopReleaseCurveName = "power_1_5";
+const POP_RELEASE_EXPONENTIAL_K = 3;
+const POP_RELEASE_EXPONENTIAL_DENOM =
+  Math.exp(POP_RELEASE_EXPONENTIAL_K) - 1;
+const POP_RELEASE_SOFT_SAT = 0.9;
+
 type ResolvedBalloonPopReleaseTuning = {
-  linearScale: number;
-  linearScaleLeftMin: number;
-  linearScaleLeftMax: number;
-  linearScaleRightMin: number;
-  linearScaleRightMax: number;
-  linearScaleVelocityRangeMaxPx: number;
-  linearDirectionDeadzonePx: number;
+  linearSpeedMin: number;
+  linearSpeedMax: number;
+  linearSpeedVelocityRangeMaxPx: number;
+  curve: PopReleaseCurveName;
   angularScale: number;
-  directionalBoost: number;
   spinBoost: number;
   linearDamping: number;
   angularDamping: number;
@@ -123,18 +126,9 @@ const BALLOON_GROUP_SETTINGS = {
     rotationRangeStart: { x: 0, y: 0, z: 0.5 },
   },
   popRelease: {
-    fallbackLinearVelocity: [0, 0, 0.2] as Vec3,
     fallbackAngularVelocity: [0.2327, 0.4596, 0.2327] as Vec3,
     defaultTuning: {
-      linearScale: 1.5,
-      linearScaleLeftMin: 0,
-      linearScaleLeftMax: -6,
-      linearScaleRightMin: 0.5,
-      linearScaleRightMax: 6,
-      linearScaleVelocityRangeMaxPx: 20000,
-      linearDirectionDeadzonePx: 30,
       angularScale: 10,
-      directionalBoost: 0.05,
       spinBoost: 0.18,
       linearDamping: 0.45,
       angularDamping: 1.0,
@@ -309,91 +303,79 @@ function normalizeVec3(value: Vec3): Vec3 | null {
   return [value[0] * invLength, value[1] * invLength, value[2] * invLength];
 }
 
-function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value));
-}
-
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-const FALLBACK_LINEAR_DIRECTION: Vec3 = normalizeVec3(
-  BALLOON_GROUP_SETTINGS.popRelease.fallbackLinearVelocity,
-) ?? [0, 0, 1];
+function resolvePopReleaseCurve(value: string | undefined): PopReleaseCurveName {
+  if (typeof value === "string"
+    && (POP_RELEASE_CURVE_NAMES as readonly string[]).includes(value)) {
+    return value as PopReleaseCurveName;
+  }
+  return POP_RELEASE_DEFAULT_CURVE;
+}
+
+function resolvePopReleaseSpeedFactor(
+  rawNormalized: number,
+  curve: PopReleaseCurveName,
+): number {
+  const raw = Math.max(0, rawNormalized);
+  let base = raw;
+  switch (curve) {
+    case "power_1_25":
+      base = Math.pow(raw, 1.25);
+      break;
+    case "power_1_5":
+      base = Math.pow(raw, 1.5);
+      break;
+    case "exponential":
+      base = (Math.exp(POP_RELEASE_EXPONENTIAL_K * raw) - 1)
+        / POP_RELEASE_EXPONENTIAL_DENOM;
+      break;
+    default:
+      break;
+  }
+
+  if (base <= 1) return base;
+  const excess = base - 1;
+  return 1 + excess / (1 + POP_RELEASE_SOFT_SAT * excess);
+}
+
 const FALLBACK_ANGULAR_DIRECTION: Vec3 = normalizeVec3(
   BALLOON_GROUP_SETTINGS.popRelease.fallbackAngularVelocity,
 ) ?? [0, 1, 0];
 
-function createFallbackPopRelease(): PopRelease {
-  return {
-    linearVelocity: cloneVec3(
-      BALLOON_GROUP_SETTINGS.popRelease.fallbackLinearVelocity,
-    ),
-    angularVelocity: cloneVec3(
-      BALLOON_GROUP_SETTINGS.popRelease.fallbackAngularVelocity,
-    ),
-  };
-}
-
 function resolvePopReleaseTuning(
   input: BalloonPopReleaseTuning | undefined,
 ): ResolvedBalloonPopReleaseTuning {
-  const linearScaleVelocityRangeMaxPx = resolveClampedNumber(
-    input?.linearScaleVelocityRangeMaxPx,
-    BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.linearScaleVelocityRangeMaxPx,
+  const popReleaseSettings = SETTINGS.gameplay.balloons.popRelease;
+  const linearSpeedVelocityRangeMaxPx = resolveClampedNumber(
+    input?.linearSpeedVelocityRangeMaxPx,
+    popReleaseSettings.linearSpeedVelocityRangeMaxPx,
     SETTINGS.cursor.minPopVelocity + 1,
     10000,
   );
 
   return {
-    linearScale: resolveClampedNumber(
-      input?.linearScale,
-      BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.linearScale,
+    linearSpeedMin: resolveClampedNumber(
+      input?.linearSpeedMin,
+      popReleaseSettings.linearSpeedMin,
       0,
-      4,
+      30,
     ),
-    linearScaleLeftMin: resolveClampedNumber(
-      input?.linearScaleLeftMin,
-      BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.linearScaleLeftMin,
-      -20,
-      20,
-    ),
-    linearScaleLeftMax: resolveClampedNumber(
-      input?.linearScaleLeftMax,
-      BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.linearScaleLeftMax,
-      -20,
-      20,
-    ),
-    linearScaleRightMin: resolveClampedNumber(
-      input?.linearScaleRightMin,
-      BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.linearScaleRightMin,
-      -20,
-      20,
-    ),
-    linearScaleRightMax: resolveClampedNumber(
-      input?.linearScaleRightMax,
-      BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.linearScaleRightMax,
-      -20,
-      20,
-    ),
-    linearScaleVelocityRangeMaxPx,
-    linearDirectionDeadzonePx: resolveClampedNumber(
-      input?.linearDirectionDeadzonePx,
-      BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.linearDirectionDeadzonePx,
+    linearSpeedMax: resolveClampedNumber(
+      input?.linearSpeedMax,
+      popReleaseSettings.linearSpeedMax,
       0,
-      200,
+      40,
     ),
+    linearSpeedVelocityRangeMaxPx,
+    curve: resolvePopReleaseCurve(popReleaseSettings.curve),
     angularScale: resolveClampedNumber(
       input?.angularScale,
       BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.angularScale,
       0,
-      6,
-    ),
-    directionalBoost: resolveClampedNumber(
-      input?.directionalBoost,
-      BALLOON_GROUP_SETTINGS.popRelease.defaultTuning.directionalBoost,
-      0,
-      2,
+      40,
     ),
     spinBoost: resolveClampedNumber(
       input?.spinBoost,
@@ -414,31 +396,6 @@ function resolvePopReleaseTuning(
       10,
     ),
   };
-}
-
-function resolveDirectionalLinearScale(
-  xVelocityPx: number,
-  tuning: ResolvedBalloonPopReleaseTuning,
-): number {
-  if (Math.abs(xVelocityPx) < tuning.linearDirectionDeadzonePx) {
-    return tuning.linearScale;
-  }
-
-  const minV = SETTINGS.cursor.minPopVelocity;
-  const maxV = tuning.linearScaleVelocityRangeMaxPx;
-  const normalized = clamp01((Math.abs(xVelocityPx) - minV) / (maxV - minV));
-
-  if (xVelocityPx > 0) {
-    const raw = lerp(tuning.linearScaleLeftMin, tuning.linearScaleLeftMax, normalized);
-    const min = Math.min(tuning.linearScaleLeftMin, tuning.linearScaleLeftMax);
-    const max = Math.max(tuning.linearScaleLeftMin, tuning.linearScaleLeftMax);
-    return clamp(raw, min, max);
-  }
-
-  const raw = lerp(tuning.linearScaleRightMin, tuning.linearScaleRightMax, normalized);
-  const min = Math.min(tuning.linearScaleRightMin, tuning.linearScaleRightMax);
-  const max = Math.max(tuning.linearScaleRightMin, tuning.linearScaleRightMax);
-  return clamp(raw, min, max);
 }
 
 function pickRandomBalloonColorIndex(
@@ -557,35 +514,41 @@ export function BalloonGroup({
 
       if (!popReleaseRef.current) {
         const snapshot = motionRef.current?.getVelocitySnapshot();
-        const baseRelease: PopRelease = snapshot
-          ? {
-            linearVelocity: cloneVec3(snapshot.linearVelocity),
-            angularVelocity: cloneVec3(snapshot.angularVelocity),
-          }
-          : createFallbackPopRelease();
+        const baseAngularVelocity = snapshot
+          ? cloneVec3(snapshot.angularVelocity)
+          : cloneVec3(BALLOON_GROUP_SETTINGS.popRelease.fallbackAngularVelocity);
 
-        const resolvedLinearScale = resolveDirectionalLinearScale(
-          meta.xVelocityPx,
-          tuning,
+        const speedMin = Math.min(tuning.linearSpeedMin, tuning.linearSpeedMax);
+        const speedMax = Math.max(tuning.linearSpeedMin, tuning.linearSpeedMax);
+        const minPopVelocity = SETTINGS.cursor.minPopVelocity;
+        const speedRangeMax = Math.max(
+          minPopVelocity + 1,
+          tuning.linearSpeedVelocityRangeMaxPx,
         );
-        const scaledLinear = scaleVec3(
-          baseRelease.linearVelocity,
-          resolvedLinearScale,
+        const normalizedSpeed = Math.max(
+          0,
+          (meta.cursorSpeedPx - minPopVelocity) / (speedRangeMax - minPopVelocity),
         );
+        const releaseSpeedFactor = resolvePopReleaseSpeedFactor(
+          normalizedSpeed,
+          tuning.curve,
+        );
+        const releaseSpeed = lerp(speedMin, speedMax, releaseSpeedFactor);
+        const linearVelocity: Vec3 = [
+          meta.worldDirX * releaseSpeed,
+          0,
+          meta.worldDirZ * releaseSpeed,
+        ];
+
         const scaledAngular = scaleVec3(
-          baseRelease.angularVelocity,
+          baseAngularVelocity,
           tuning.angularScale,
         );
-        const direction =
-          normalizeVec3(scaledLinear) ?? FALLBACK_LINEAR_DIRECTION;
         const spinDirection =
           normalizeVec3(scaledAngular) ?? FALLBACK_ANGULAR_DIRECTION;
 
         popReleaseRef.current = {
-          linearVelocity: addVec3(
-            scaledLinear,
-            scaleVec3(direction, tuning.directionalBoost),
-          ),
+          linearVelocity,
           angularVelocity: addVec3(
             scaledAngular,
             scaleVec3(spinDirection, tuning.spinBoost),

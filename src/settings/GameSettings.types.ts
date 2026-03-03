@@ -21,7 +21,7 @@ export type PaletteAutoMidSettings = {
   hueShift: number
 }
 
-export const PALETTE_VARIANT_NAMES = ['classic', 'greyscale', 'green'] as const
+export const PALETTE_VARIANT_NAMES = ['classic', 'greyscale', 'green', 'test1', 'test2', 'test3'] as const
 export const SMAA_PRESET_NAMES = ['low', 'medium', 'high', 'ultra'] as const
 export const CAMERA_MODES = ['static', 'follow'] as const
 export const CAMERA_FOLLOW_Z_CLAMP_MODES = ['always', 'tilingOnly', 'never'] as const
@@ -232,6 +232,12 @@ export type Settings = {
       sensors: {
         lifeMargin: number
         cleanupMargin: number
+      }
+      popRelease: {
+        linearSpeedMin: number
+        linearSpeedMax: number
+        linearSpeedVelocityRangeMaxPx: number
+        curve: AccelerationCurveName
       }
     }
   }

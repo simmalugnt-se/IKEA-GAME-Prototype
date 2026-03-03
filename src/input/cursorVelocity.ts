@@ -1,8 +1,8 @@
 let screenX = 0
 let screenY = 0
 let velocityPx = 0
-let velocityXPx = 0
-let velocityXRawPx = 0
+let velocityScreenXPx = 0
+let velocityScreenYPx = 0
 let lastMoveTime = 0
 
 export type CursorSweepSegment = {
@@ -13,7 +13,8 @@ export type CursorSweepSegment = {
   x1: number
   y1: number
   velocityPx: number
-  velocityXPx: number
+  velocityScreenXPx: number
+  velocityScreenYPx: number
 }
 
 const SWEEP_BUFFER_SIZE = 128
@@ -27,14 +28,15 @@ const sweepBuffer: CursorSweepSegment[] = Array.from(
     x1: 0,
     y1: 0,
     velocityPx: 0,
-    velocityXPx: 0,
+    velocityScreenXPx: 0,
+    velocityScreenYPx: 0,
   }),
 )
 let latestSweepSeq = 0
 
-// Keep X response very close to raw cursor speed while filtering 1-frame jitter spikes.
-const X_VELOCITY_BLEND = 0.85
-const X_VELOCITY_MAX_ABS = 12000
+// Light smoothing keeps release direction stable without adding noticeable latency.
+const SCREEN_VELOCITY_BLEND = 0.35
+const SCREEN_VELOCITY_MAX_ABS = 12000
 
 export function updateCursorFromMouseEvent(
   x: number,
@@ -51,12 +53,25 @@ export function updateCursorFromMouseEvent(
     const dy = y - screenY
     const dist = Math.sqrt(dx * dx + dy * dy)
     velocityPx = (dist / dt) * 1000
-    velocityXRawPx = (dx / dt) * 1000
-    const clampedVelocityXRawPx = Math.max(
-      -X_VELOCITY_MAX_ABS,
-      Math.min(X_VELOCITY_MAX_ABS, velocityXRawPx),
+
+    const rawVelocityScreenXPx = (dx / dt) * 1000
+    const rawVelocityScreenYPx = (dy / dt) * 1000
+    const clampedVelocityScreenXPx = Math.max(
+      -SCREEN_VELOCITY_MAX_ABS,
+      Math.min(SCREEN_VELOCITY_MAX_ABS, rawVelocityScreenXPx),
     )
-    velocityXPx += (clampedVelocityXRawPx - velocityXPx) * X_VELOCITY_BLEND
+    const clampedVelocityScreenYPx = Math.max(
+      -SCREEN_VELOCITY_MAX_ABS,
+      Math.min(SCREEN_VELOCITY_MAX_ABS, rawVelocityScreenYPx),
+    )
+
+    velocityScreenXPx += (
+      clampedVelocityScreenXPx - velocityScreenXPx
+    ) * SCREEN_VELOCITY_BLEND
+    velocityScreenYPx += (
+      clampedVelocityScreenYPx - velocityScreenYPx
+    ) * SCREEN_VELOCITY_BLEND
+
     latestSweepSeq += 1
     const nextSweepSegment = sweepBuffer[latestSweepSeq % SWEEP_BUFFER_SIZE]
     if (nextSweepSegment) {
@@ -67,7 +82,8 @@ export function updateCursorFromMouseEvent(
       nextSweepSegment.x1 = x
       nextSweepSegment.y1 = y
       nextSweepSegment.velocityPx = velocityPx
-      nextSweepSegment.velocityXPx = velocityXPx
+      nextSweepSegment.velocityScreenXPx = velocityScreenXPx
+      nextSweepSegment.velocityScreenYPx = velocityScreenYPx
     }
   }
 
@@ -82,10 +98,6 @@ export function getCursorScreenPos(): { x: number; y: number } {
 
 export function getCursorVelocityPx(): number {
   return velocityPx
-}
-
-export function getCursorVelocityXPx(): number {
-  return velocityXPx
 }
 
 export function getLatestCursorSweepSeq(): number {
@@ -105,13 +117,14 @@ export function readCursorSweepSegment(seq: number, out: CursorSweepSegment): bo
   out.x1 = segment.x1
   out.y1 = segment.y1
   out.velocityPx = segment.velocityPx
-  out.velocityXPx = segment.velocityXPx
+  out.velocityScreenXPx = segment.velocityScreenXPx
+  out.velocityScreenYPx = segment.velocityScreenYPx
   return true
 }
 
 export function decayCursorVelocity(delta: number): void {
   const decay = Math.exp(-8 * delta)
   velocityPx *= decay
-  velocityXRawPx *= decay
-  velocityXPx *= decay
+  velocityScreenXPx *= decay
+  velocityScreenYPx *= decay
 }

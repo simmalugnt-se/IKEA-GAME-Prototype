@@ -13,6 +13,12 @@ import type { Vec3, AxisMask, PaletteVariant, PaletteVariantName } from '@/setti
 import { ACCELERATION_CURVE_NAMES } from '@/utils/accelerationCurve'
 import { bump } from '@/settings/settingsStore'
 
+const POP_RELEASE_CURVE_OPTIONS = [
+    'power_1_25',
+    'power_1_5',
+    'exponential',
+] as const
+
 // ═══════════════════════════════════════════════════════════════════
 // Field descriptor types
 // ═══════════════════════════════════════════════════════════════════
@@ -546,6 +552,15 @@ export const settingsSections: SectionDescriptor[] = [
             { type: 'number', label: 'balloons.scorePerPop', get: () => SETTINGS.gameplay.balloons.scorePerPop, set: (v) => { SETTINGS.gameplay.balloons.scorePerPop = v; bump() }, min: 0, max: 1000, step: 10 },
             { type: 'number', label: 'balloons.sensors.lifeMargin', get: () => SETTINGS.gameplay.balloons.sensors.lifeMargin, set: (v) => { SETTINGS.gameplay.balloons.sensors.lifeMargin = v; bump() }, min: -2, max: 5, step: 0.05 },
             { type: 'number', label: 'balloons.sensors.cleanupMargin', get: () => SETTINGS.gameplay.balloons.sensors.cleanupMargin, set: (v) => { SETTINGS.gameplay.balloons.sensors.cleanupMargin = v; bump() }, min: -2, max: 5, step: 0.05 },
+            { type: 'number', label: 'balloons.popRelease.linearSpeedMin', get: () => SETTINGS.gameplay.balloons.popRelease.linearSpeedMin, set: (v) => { SETTINGS.gameplay.balloons.popRelease.linearSpeedMin = v; bump() }, min: 0, max: 20, step: 0.01 },
+            { type: 'number', label: 'balloons.popRelease.linearSpeedMax', get: () => SETTINGS.gameplay.balloons.popRelease.linearSpeedMax, set: (v) => { SETTINGS.gameplay.balloons.popRelease.linearSpeedMax = v; bump() }, min: 0, max: 40, step: 0.01 },
+            { type: 'number', label: 'balloons.popRelease.linearSpeedVelocityRangeMaxPx', get: () => SETTINGS.gameplay.balloons.popRelease.linearSpeedVelocityRangeMaxPx, set: (v) => { SETTINGS.gameplay.balloons.popRelease.linearSpeedVelocityRangeMaxPx = v; bump() }, min: 0, max: 10000, step: 10 },
+            {
+                type: 'select', label: 'balloons.popRelease.curve',
+                get: () => SETTINGS.gameplay.balloons.popRelease.curve,
+                set: (v) => { SETTINGS.gameplay.balloons.popRelease.curve = v as typeof SETTINGS.gameplay.balloons.popRelease.curve; bump() },
+                options: POP_RELEASE_CURVE_OPTIONS,
+            },
         ],
     },
 
