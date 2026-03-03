@@ -151,6 +151,32 @@ export const settingsSections: SectionDescriptor[] = [
         ],
     },
 
+    // ── Scoreboard ──
+    {
+        key: 'scoreboard',
+        label: 'Scoreboard',
+        fields: [
+            {
+                type: 'boolean', label: 'websocket.enabled',
+                get: () => SETTINGS.scoreboard.websocket.enabled,
+                set: (v) => { SETTINGS.scoreboard.websocket.enabled = v; bump() },
+            },
+            {
+                type: 'text', label: 'websocket.url',
+                get: () => SETTINGS.scoreboard.websocket.url,
+                set: (v) => { SETTINGS.scoreboard.websocket.url = v; bump() },
+                visible: () => SETTINGS.scoreboard.websocket.enabled,
+            },
+            {
+                type: 'number', label: 'websocket.reconnectMs',
+                get: () => SETTINGS.scoreboard.websocket.reconnectMs,
+                set: (v) => { SETTINGS.scoreboard.websocket.reconnectMs = v; bump() },
+                min: 100, max: 10000, step: 100,
+                visible: () => SETTINGS.scoreboard.websocket.enabled,
+            },
+        ],
+    },
+
     // ── Controls ──
     {
         key: 'controls',

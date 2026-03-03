@@ -3,6 +3,9 @@ import { playBee, playComboMultiplier, playError, playSteel } from '@/audio/Soun
 import { SETTINGS, resolveMaterialColorIndex } from '@/settings/GameSettings'
 import { onEntityUnregister } from '@/entities/entityStore'
 import { emitScorePop } from '@/input/scorePopEmitter'
+import { sendScoreboardEvent } from '@/scoreboard/scoreboardSender'
+import { getRunId, rotateRunId } from '@/scoreboard/runId'
+import type { ScoreboardEventSource, ScoreboardLifeLossReason } from '@/scoreboard/scoreboardEvents'
 
 export type ContagionRecord = {
   lineageId: string
@@ -52,9 +55,9 @@ type GameplayState = {
   contagionEpoch: number
   contagionColorsByEntityId: Record<string, number>
   reset: () => void
-  addScore: (delta: number) => void
-  loseLife: () => void
-  loseLives: (delta: number) => void
+  addScore: (delta: number, source?: ScoreboardEventSource) => void
+  loseLife: (reason?: ScoreboardLifeLossReason) => void
+  loseLives: (delta: number, reason?: ScoreboardLifeLossReason) => void
   setGameOver: (value: boolean) => void
   removeEntities: (ids: string[]) => void
   registerBalloonPopForCombo: (event: BalloonPopForComboEvent) => void
@@ -193,6 +196,7 @@ function flushPendingComboStrike(): void {
   const chainBonusCap = resolveComboChainBonusCap()
 
   let finalMultiplier = 1
+  let appliedChainBonus = 0
   if (strikeSize >= 2) {
     const withinChainWindow = (
       Number.isFinite(comboRuntime.lastMultiStrikeTimeMs)
@@ -201,7 +205,8 @@ function flushPendingComboStrike(): void {
     comboRuntime.chainBonus = withinChainWindow
       ? Math.min(chainBonusCap, comboRuntime.chainBonus + 1)
       : 0
-    finalMultiplier = strikeSize + comboRuntime.chainBonus
+    appliedChainBonus = comboRuntime.chainBonus
+    finalMultiplier = strikeSize + appliedChainBonus
     comboRuntime.lastMultiStrikeTimeMs = strike.lastTimeMs
   } else if (
     Number.isFinite(comboRuntime.lastMultiStrikeTimeMs)
@@ -214,10 +219,14 @@ function flushPendingComboStrike(): void {
   const baseScorePerPop = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
   const perPopScore = baseScorePerPop * finalMultiplier
   const totalStrikeScore = perPopScore * strikeSize
+  const scoreSource: ScoreboardEventSource = strikeSize >= 2
+    ? 'balloon_combo'
+    : 'balloon_pop'
 
   if (totalStrikeScore > 0) {
-    useGameplayStore.getState().addScore(totalStrikeScore)
+    useGameplayStore.getState().addScore(totalStrikeScore, scoreSource)
   }
+  const totalScoreAfterStrike = useGameplayStore.getState().score
 
   if (perPopScore > 0) {
     const scoreText = `+${perPopScore}`
@@ -249,6 +258,17 @@ function flushPendingComboStrike(): void {
       burst: false,
     })
     playComboMultiplier(finalMultiplier)
+    sendScoreboardEvent({
+      type: 'combo_triggered',
+      timestamp: Date.now(),
+      runId: getRunId(),
+      multiplier: finalMultiplier,
+      strikeSize,
+      chainBonus: appliedChainBonus,
+      perPopPoints: perPopScore,
+      totalPoints: totalStrikeScore,
+      totalScore: totalScoreAfterStrike,
+    })
   }
 }
 
@@ -278,38 +298,64 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
   reset: () => {
     maps = createContagionMaps()
     resetComboRuntimeState()
+    const newRunId = rotateRunId()
+    const initialLives = getInitialLives()
     set((state) => ({
       score: 0,
       lastRunScore: 0,
       sessionHighScore: state.sessionHighScore,
-      lives: getInitialLives(),
+      lives: initialLives,
       gameOver: false,
       runEndSequence: 0,
       sequence: 0,
       contagionEpoch: 0,
       contagionColorsByEntityId: {},
     }))
-  },
-
-  addScore: (delta) => {
-    const normalizedDelta = normalizeNonNegativeInt(delta, 0)
-    if (normalizedDelta === 0) return
-    set((state) => {
-      if (isScoreLockedOnGameOver() && state.gameOver) return state
-      return { score: state.score + normalizedDelta }
+    sendScoreboardEvent({
+      type: 'game_started',
+      timestamp: Date.now(),
+      runId: newRunId,
+      score: 0,
+      lives: initialLives,
     })
   },
 
-  loseLife: () => {
-    useGameplayStore.getState().loseLives(SETTINGS.gameplay.lives.lossPerMiss)
+  addScore: (delta, source = 'unknown') => {
+    const normalizedDelta = normalizeNonNegativeInt(delta, 0)
+    if (normalizedDelta === 0) return
+    let nextTotal = 0
+    let blocked = false
+    set((state) => {
+      if (isScoreLockedOnGameOver() && state.gameOver) { blocked = true; return state }
+      nextTotal = state.score + normalizedDelta
+      return { score: nextTotal }
+    })
+    if (!blocked) {
+      sendScoreboardEvent({
+        type: 'points_received',
+        timestamp: Date.now(),
+        runId: getRunId(),
+        points: normalizedDelta,
+        generatedBy: source,
+        totalScore: nextTotal,
+      })
+    }
   },
 
-  loseLives: (delta) => {
+  loseLife: (reason = 'unknown') => {
+    useGameplayStore.getState().loseLives(SETTINGS.gameplay.lives.lossPerMiss, reason)
+  },
+
+  loseLives: (delta, reason = 'unknown') => {
     const normalizedDelta = normalizeNonNegativeInt(delta, 0)
     if (normalizedDelta === 0) return
     let playLifeLostSound = false
     let playRunEndSound = false
     let shouldResetCombo = false
+    let livesLostActual = 0
+    let livesRemaining = 0
+    let didEnterGameOver = false
+    let finalScore = 0
     set((state) => {
       if (state.gameOver) return state
       const nextLives = Math.max(0, state.lives - normalizedDelta)
@@ -317,28 +363,32 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
       shouldResetCombo = didRunEnd
       playLifeLostSound = nextLives < state.lives
       playRunEndSound = didRunEnd
+      livesLostActual = state.lives - nextLives
       const autoResetLives = SETTINGS.gameplay.lives.autoReset === true
       const nextGameOver = didRunEnd && !autoResetLives
-      const didEnterGameOver = nextGameOver && !state.gameOver
+      didEnterGameOver = nextGameOver && !state.gameOver
       const shouldResetOnRunEnd = didRunEnd && SETTINGS.gameplay.score.resetOnRunEnd === true
       const shouldResetOnGameOver = didEnterGameOver && SETTINGS.gameplay.score.resetOnGameOver === true
       const nextScore = (shouldResetOnRunEnd || shouldResetOnGameOver) ? 0 : state.score
+      finalScore = state.score
       const nextLastRunScore = didRunEnd ? state.score : state.lastRunScore
       const nextSessionHighScore = didRunEnd
         ? Math.max(state.sessionHighScore, state.score)
         : state.sessionHighScore
 
       if (didRunEnd && autoResetLives) {
+        livesRemaining = getInitialLives()
         return {
           ...state,
           score: nextScore,
           lastRunScore: nextLastRunScore,
           sessionHighScore: nextSessionHighScore,
-          lives: getInitialLives(),
+          lives: livesRemaining,
           runEndSequence: state.runEndSequence + 1,
         }
       }
 
+      livesRemaining = nextLives
       return {
         ...state,
         score: nextScore,
@@ -349,18 +399,42 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         runEndSequence: didRunEnd ? state.runEndSequence + 1 : state.runEndSequence,
       }
     })
-    if (playLifeLostSound) playError()
-    if (playRunEndSound) playBee()
+    if (playLifeLostSound) {
+      playError()
+      if (livesLostActual > 0) {
+        sendScoreboardEvent({
+          type: 'lives_lost',
+          timestamp: Date.now(),
+          runId: getRunId(),
+          amount: livesLostActual,
+          reason,
+          livesRemaining,
+        })
+      }
+    }
     if (shouldResetCombo) resetComboRuntimeState()
+    if (playRunEndSound) {
+      playBee()
+      if (didEnterGameOver) {
+        sendScoreboardEvent({
+          type: 'game_over',
+          timestamp: Date.now(),
+          runId: getRunId(),
+          finalScore,
+        })
+      }
+    }
   },
 
   setGameOver: (value) => {
     const nextValue = value === true
     let playGameOverSound = false
     let shouldResetCombo = false
+    let finalScore = 0
     set((state) => {
       if (state.gameOver === nextValue) return state
       playGameOverSound = nextValue
+      finalScore = state.score
       shouldResetCombo = nextValue
       const shouldResetScore = nextValue && SETTINGS.gameplay.score.resetOnGameOver === true
       return {
@@ -373,7 +447,15 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         gameOver: nextValue,
       }
     })
-    if (playGameOverSound) playBee()
+    if (playGameOverSound) {
+      playBee()
+      sendScoreboardEvent({
+        type: 'game_over',
+        timestamp: Date.now(),
+        runId: getRunId(),
+        finalScore,
+      })
+    }
     if (shouldResetCombo) resetComboRuntimeState()
   },
 
@@ -404,7 +486,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
       resetComboRuntimeState()
       const baseScore = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
       if (baseScore > 0) {
-        get().addScore(baseScore)
+        get().addScore(baseScore, 'balloon_pop')
         emitScorePop({
           text: `+${baseScore}`,
           x: popEvent.x,
@@ -465,6 +547,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
 
     const pendingPairs = Array.from(maps.pendingPairs.values())
     maps.pendingPairs.clear()
+
+    let contagionScoreDelta = 0
 
     set((state) => {
       const contagionSettings = SETTINGS.gameplay.contagion
@@ -580,6 +664,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
 
       playSteel()
 
+      contagionScoreDelta = nextScore - state.score
+
       return {
         ...state,
         score: nextScore,
@@ -588,6 +674,17 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         contagionColorsByEntityId: nextColorsByEntityId,
       }
     })
+
+    if (contagionScoreDelta > 0) {
+      sendScoreboardEvent({
+        type: 'points_received',
+        timestamp: Date.now(),
+        runId: getRunId(),
+        points: contagionScoreDelta,
+        generatedBy: 'contagion',
+        totalScore: useGameplayStore.getState().score,
+      })
+    }
   },
 }))
 

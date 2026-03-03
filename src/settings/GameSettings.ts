@@ -32,15 +32,27 @@ export type {
   SMAAPresetName,
   SoundCategorySettings,
   SoundSettings,
-  SwooshSoundSettings,
   StreamingCenterSource,
+  SwooshSoundSettings,
   Vec3,
+  WebSocketChannelSettings,
 } from "@/settings/GameSettings.types";
 
 export const SETTINGS: Settings = {
   // --- RENDER STYLE ---
   render: {
     style: "toon", // 'toon' | 'pixel' | 'retroPixelPass'
+  },
+
+  // --- SCOREBOARD ---
+  // BroadcastChannel (cross-tab, same origin) is always active.
+  // WebSocket below is optional — enable only when a relay server is running.
+  scoreboard: {
+    websocket: {
+      enabled: false,
+      url: "ws://localhost:5175/ws/scoreboard",
+      reconnectMs: 1000,
+    },
   },
 
   // --- INPUT PIPELINE ---
@@ -354,20 +366,20 @@ export const SETTINGS: Settings = {
     spawnXRange: 1.5,
     cullOffset: 6,
     spawnAcceleration: 0.005,
-    spawnAccelerationCurve: 'exponential',
+    spawnAccelerationCurve: "exponential",
     maxItemsAcceleration: 0.005,
-    maxItemsAccelerationCurve: 'exponential',
+    maxItemsAccelerationCurve: "exponential",
   },
 
   // --- MOTION ACCELERATION ---
   motionAcceleration: {
     cameraTracker: {
       timeScaleAcceleration: 0.005,
-      timeScaleAccelerationCurve: 'exponential',
+      timeScaleAccelerationCurve: "exponential",
     },
     balloons: {
       timeScaleAcceleration: 0.005,
-      timeScaleAccelerationCurve: 'exponential',
+      timeScaleAccelerationCurve: "exponential",
     },
   },
 
@@ -408,7 +420,7 @@ export const SETTINGS: Settings = {
         "/sounds/steel/steel2.wav",
         "/sounds/steel/steel3.wav",
       ],
-      volume: .5,
+      volume: 0.5,
     },
     error: {
       files: [
@@ -420,9 +432,7 @@ export const SETTINGS: Settings = {
       volume: 1,
     },
     bee: {
-      files: [
-        "/sounds/bee/bee1.wav",
-      ],
+      files: ["/sounds/bee/bee1.wav"],
       volume: 1.2,
     },
     swoosh: {
@@ -468,31 +478,35 @@ export const SETTINGS: Settings = {
 };
 
 // Pre-computed shading direction — reuses a single Vector3, zero allocation
-const _shadingDir = new THREE.Vector3()
-let _shadingDirDirty = true
+const _shadingDir = new THREE.Vector3();
+let _shadingDirDirty = true;
 
-export function markShadingDirDirty() { _shadingDirDirty = true }
+export function markShadingDirDirty() {
+  _shadingDirDirty = true;
+}
 
 export function getShadingDir(): THREE.Vector3 {
   if (_shadingDirDirty) {
-    _shadingDir.set(...SETTINGS.material.shadingDirection).normalize()
-    _shadingDirDirty = false
+    _shadingDir.set(...SETTINGS.material.shadingDirection).normalize();
+    _shadingDirDirty = false;
   }
-  return _shadingDir
+  return _shadingDir;
 }
 
 // Pre-computed shadow light direction — normalized light.position, zero allocation
-const _shadowLightDir = new THREE.Vector3()
-let _shadowLightDirDirty = true
+const _shadowLightDir = new THREE.Vector3();
+let _shadowLightDirDirty = true;
 
-export function markShadowLightDirDirty() { _shadowLightDirDirty = true }
+export function markShadowLightDirDirty() {
+  _shadowLightDirDirty = true;
+}
 
 export function getShadowLightDir(): THREE.Vector3 {
   if (_shadowLightDirDirty) {
-    _shadowLightDir.set(...SETTINGS.light.position).normalize()
-    _shadowLightDirDirty = false
+    _shadowLightDir.set(...SETTINGS.light.position).normalize();
+    _shadowLightDirDirty = false;
   }
-  return _shadowLightDir
+  return _shadowLightDir;
 }
 
 const FALLBACK_PALETTE_ENTRY: PaletteEntry = { base: "#ffffff" };

@@ -8,6 +8,7 @@ import { ExternalControlBridge } from "@/input/control/ExternalControlBridge";
 import { GameKeyboardControls } from "@/input/GameKeyboardControls";
 import { LevelTileManager } from "@/levels/LevelTileManager";
 import { LiveLevelSync } from "@/LiveLevelSync";
+import { ScoreboardBridge } from "@/scoreboard/ScoreboardBridge";
 import { BlockElement } from "@/primitives/BlockElement";
 import { CubeElement } from "@/primitives/CubeElement";
 import { InvisibleFloor } from "@/primitives/InvisibleFloor";
@@ -61,6 +62,7 @@ export function Scene() {
     <GameKeyboardControls>
       <ExternalControlBridge />
       <LiveLevelSync />
+      <ScoreboardBridge />
       <Physics
         gravity={[0, -9.81, 0]}
         debug={isDebug && SETTINGS.debug.showColliders}

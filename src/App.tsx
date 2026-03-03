@@ -9,6 +9,7 @@ import { SETTINGS, getActiveBackground } from "@/settings/GameSettings";
 import { useSettingsVersion } from "@/settings/settingsStore";
 import { GltfConverter } from "@/tools/GltfConverter";
 import { DocsPage } from "@/ui/docs/DocsPage";
+import { ScoreboardPage } from "@/ui/scoreboard/ScoreboardPage";
 import { GameSettingsPanel } from "@/ui/settings/GameSettingsPanel";
 import { ScoreHud } from "@/ui/ScoreHud";
 import { ScorePopCanvas } from "@/ui/ScorePopCanvas";
@@ -16,6 +17,7 @@ import { ScorePopCanvas } from "@/ui/ScorePopCanvas";
 export default function App() {
   const isConverter = window.location.pathname === "/converter";
   const isDocs = window.location.pathname === "/docs";
+  const isScoreboard = window.location.pathname === "/scoreboard";
 
   if (isConverter) {
     return <GltfConverter />;
@@ -23,6 +25,10 @@ export default function App() {
 
   if (isDocs) {
     return <DocsPage />;
+  }
+
+  if (isScoreboard) {
+    return <ScoreboardPage />;
   }
 
   return <GameApp />;

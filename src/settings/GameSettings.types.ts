@@ -73,9 +73,18 @@ export type AxisMask = {
   z: boolean
 }
 
+export type WebSocketChannelSettings = {
+  enabled: boolean
+  url: string
+  reconnectMs: number
+}
+
 export type Settings = {
   render: {
     style: RenderStyle
+  }
+  scoreboard: {
+    websocket: WebSocketChannelSettings
   }
   controls: {
     inputSource: ControlInputSource

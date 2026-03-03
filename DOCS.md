@@ -2,7 +2,7 @@
 
 > **Tech:** Vite + React 19 + TypeScript (strict) + Three.js r182 + React Three Fiber 9 + Rapier Physics + Culori (OKLCH)
 > **Repo:** [IKEA-GAME-Prototype](https://github.com/simmalugnt-se/IKEA-GAME-Prototype)
-> **Dev:** `npm run dev` → `http://localhost:5173` (spel) / `http://localhost:5173/converter` (konverterare) / `http://localhost:5173/docs` (dokumentation)
+> **Dev:** `npm run dev` → `http://localhost:5173` (spel) / `http://localhost:5173/converter` (konverterare) / `http://localhost:5173/docs` (dokumentation) / `http://localhost:5173/scoreboard` (scoreboard)
 
 ---
 
@@ -14,6 +14,7 @@ graph TD
     B -->|"/"| C[Scene.tsx]
     B -->|"/converter"| D[GltfConverter.tsx]
     B -->|"/docs"| L[DocsPage.tsx]
+    B -->|"/scoreboard"| SB[ScoreboardPage.tsx]
     C --> M[GameKeyboardControls.tsx]
     C --> E[Player.tsx]
     C --> ECB[control/ExternalControlBridge.tsx]
@@ -47,7 +48,7 @@ graph TD
 
 | Fil | Ansvar |
 |-----|--------|
-| `App.tsx` | Routing (`/` = spel, `/converter` = C4D-konverterare, `/docs` = dokumentation), Canvas-setup, kamera |
+| `App.tsx` | Routing (`/` = spel, `/converter` = C4D-konverterare, `/docs` = dokumentation, `/scoreboard` = scoreboard), Canvas-setup, kamera |
 | `src/settings/GameSettings.ts` | **Centrala konfigurationen** — färger, material, kamera, fysik, debug |
 | `src/settings/GameSettings.types.ts` | Delade typer + options-unions för settings/core-konfig |
 | `src/scene/Scene.tsx` | Spelscenens komposition: physics-wrapper, nivåinnehåll och koppling av delsystem |
@@ -57,6 +58,11 @@ graph TD
 | `src/scene/Player.tsx` | Spelarbol med physics/kinematik, input via keyboard/external pipeline, hopp (raycast i digitalt läge) |
 | `src/scene/PositionTargetHandle.ts` | Delad ref-handle-typ (`getPosition`) för player/primitives |
 | `src/input/control/ExternalControlBridge.tsx` | Adapterlager för extern styrdata (window API, custom events, valfri WebSocket-klient) |
+| `src/scoreboard/scoreboardEvents.ts` | Delade typer för scoreboard-telemetri (`game_started`, `points_received`, `lives_lost`, `game_over`) |
+| `src/scoreboard/scoreboardSender.ts` | Utgående WebSocket-klient med reconnect + offline-kö för scoreboard-telemetri |
+| `src/scoreboard/ScoreboardBridge.tsx` | React-komponent som mountar/unmountar `scoreboardSender` i scenen |
+| `src/scoreboard/runId.ts` | Genererar och roterar en unik `runId` per spelomgång |
+| `src/ui/scoreboard/ScoreboardPage.tsx` | Scoreboard-sida (`/scoreboard`) som lyssnar på WebSocket-strömmen och visar live-uppdaterat event-flöde |
 | `src/input/control/ExternalControlStore.ts` | Transport-oberoende in-memory store för digital/absolute kontrollframes |
 | `src/primitives/*` | Primitive-komponenter (`CubeElement`, `SphereElement`, `CylinderElement`, `BlockElement`, `InvisibleFloor`) |
 | `src/physics/PhysicsWrapper.tsx` | Gemensam physics/collider-wrapper för primitives |
@@ -190,6 +196,54 @@ Streaming är uppdelat så att debug/benchmark kan tas bort utan att röra kärn
 - `src/debug/StreamingDebugOverlay.tsx` — visuell debug-overlay
 - `src/camera/CameraSystem.tsx` levererar center-position till både kamera och streaming
 - `src/scene/Scene.tsx` kopplar in debugdelen via en enda komponent (`BenchmarkDebugContent`)
+
+---
+
+## Scoreboard Telemetri
+
+Spelet skickar händelser till en extern scoreboard via WebSocket.
+
+### Konfiguration
+
+```ts
+// src/settings/GameSettings.ts
+scoreboard: {
+  websocket: {
+    enabled: false,                          // Sätt true för att aktivera
+    url: 'ws://localhost:5175/ws/scoreboard',
+    reconnectMs: 1000,
+  },
+},
+```
+
+Kan också slås på/av live via inställningspanelen (Cmd+. → Scoreboard).
+
+### Händelsetyper (`ScoreboardEvent`)
+
+| Typ | Fält | Beskrivning |
+|-----|------|-------------|
+| `game_started` | `score`, `lives`, `runId` | Ny spelomgång påbörjad (vid `reset()`) |
+| `points_received` | `points`, `generatedBy`, `totalScore`, `runId` | Poäng erhållna (`balloon_pop` / `contagion`) |
+| `lives_lost` | `amount`, `reason`, `livesRemaining`, `runId` | Liv förlorade (`balloon_missed`) |
+| `game_over` | `finalScore`, `runId` | Spelet slut |
+
+Alla händelser har `timestamp` (ms sedan epoch) och `runId` (unik sträng per omgång).
+
+### Arkitektur
+
+```
+gameplayStore.ts ─► sendScoreboardEvent() ─► scoreboardSender.ts (ws + offline-kö)
+BalloonGroup.tsx ─►         (source tag)
+BalloonLifecycleRuntime.tsx ─► (reason tag)
+```
+
+Scoreboard-sidan (`/scoreboard`) öppnar en egen inkommande WebSocket-anslutning mot samma endpoint och visar ett automatiskt uppdaterat event-flöde.
+
+### Scoreboard
+
+**URL:** `http://localhost:5173/scoreboard`
+
+Visar ett realtidsflöde av alla game-händelser. Designen är avsiktligt enkel — fancy design läggs till senare.
 
 ---
 
