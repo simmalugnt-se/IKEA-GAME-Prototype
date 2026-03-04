@@ -16,12 +16,14 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ReactElement,
   type ReactNode,
   type RefObject,
 } from "react";
 
 const SPAWN_HEIGHT = 1.3;
+const GAME_OVER_AUTO_POP_STAGGER_MS = 25;
 
 type ZGetter = () => number | undefined;
 
@@ -29,10 +31,16 @@ function SpawnedItemView({
   item,
   templates,
   onRegisterCullZ,
+  onCleanupRequested,
+  autoPopSignal,
+  autoPopDelayMs,
 }: {
   item: SpawnedItemDescriptor;
   templates: ReactElement[];
   onRegisterCullZ: (getter: ZGetter) => () => void;
+  onCleanupRequested: () => void;
+  autoPopSignal: number;
+  autoPopDelayMs: number;
 }) {
   if (templates.length === 0) return null;
   const template = templates[item.templateIndex % templates.length];
@@ -40,6 +48,9 @@ function SpawnedItemView({
   return cloneElement(template as ReactElement<Record<string, unknown>>, {
     position: item.position,
     onRegisterCullZ,
+    onCleanupRequested,
+    autoPopSignal,
+    autoPopDelayMs,
   });
 }
 
@@ -55,9 +66,13 @@ export function ItemSpawner({
   children,
 }: ItemSpawnerProps) {
   const flowState = useGameplayStore((state) => state.flowState);
+  const flowEpoch = useGameplayStore((state) => state.flowEpoch);
   const spawnTimerRef = useRef(0);
   const spawnIdRef = useRef(0);
   const cullGettersRef = useRef<Map<string, ZGetter>>(new Map());
+  const previousFlowStateRef = useRef(flowState);
+  const autoPopDelayByItemIdRef = useRef<Map<string, number>>(new Map());
+  const [autoPopSignal, setAutoPopSignal] = useState(0);
 
   const templates = useMemo(() => {
     return Children.toArray(children).filter(
@@ -74,6 +89,36 @@ export function ItemSpawner({
     if (flowState === "run") return;
     spawnTimerRef.current = 0;
   }, [flowState]);
+
+  useEffect(() => {
+    const wasGameOverTravel = previousFlowStateRef.current === "game_over_travel";
+    const enteringGameOverTravel = flowState === "game_over_travel" && !wasGameOverTravel;
+    previousFlowStateRef.current = flowState;
+
+    if (!enteringGameOverTravel) {
+      if (flowState !== "game_over_travel") {
+        autoPopDelayByItemIdRef.current.clear();
+      }
+      return;
+    }
+
+    const activeItems = useSpawnerStore.getState().items;
+    const nextDelayMap = new Map<string, number>();
+    for (let i = 0; i < activeItems.length; i += 1) {
+      const item = activeItems[i];
+      if (!item) continue;
+      nextDelayMap.set(item.id, i * GAME_OVER_AUTO_POP_STAGGER_MS);
+    }
+    autoPopDelayByItemIdRef.current = nextDelayMap;
+    setAutoPopSignal((signal) => signal + 1);
+  }, [flowEpoch, flowState]);
+
+  const removeSpawnedItem = useCallback((id: string) => {
+    cullGettersRef.current.delete(id);
+    autoPopDelayByItemIdRef.current.delete(id);
+    useEntityStore.getState().unregister(id);
+    useSpawnerStore.getState().removeItem(id);
+  }, []);
 
   useFrame((_state, delta) => {
     // ── Spawn ─────────────────────────────────────────────────────────────
@@ -137,9 +182,7 @@ export function ItemSpawner({
     });
 
     for (const id of toRemove) {
-      cullGettersRef.current.delete(id);
-      useEntityStore.getState().unregister(id);
-      useSpawnerStore.getState().removeItem(id);
+      removeSpawnedItem(id);
     }
   });
 
@@ -151,6 +194,13 @@ export function ItemSpawner({
     [],
   );
 
+  const makeCleanupRequested = useCallback(
+    (id: string) => () => {
+      removeSpawnedItem(id);
+    },
+    [removeSpawnedItem],
+  );
+
   return (
     <group>
       {items.map((item) => (
@@ -159,6 +209,9 @@ export function ItemSpawner({
           item={item}
           templates={templates}
           onRegisterCullZ={makeRegisterCullZ(item.id)}
+          onCleanupRequested={makeCleanupRequested(item.id)}
+          autoPopSignal={autoPopSignal}
+          autoPopDelayMs={autoPopDelayByItemIdRef.current.get(item.id) ?? 0}
         />
       ))}
     </group>

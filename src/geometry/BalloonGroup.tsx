@@ -10,6 +10,7 @@ import {
   type BalloonLifecyclePopMeta,
 } from "@/gameplay/BalloonLifecycleRuntime";
 import { useGameplayStore } from "@/gameplay/gameplayStore";
+import { emitScorePop } from "@/input/scorePopEmitter";
 import { BlockElement } from "@/primitives/BlockElement";
 import { BallElement, BALL_RADII_M } from "@/primitives/BallElement";
 import { SplineElement } from "@/primitives/SplineElement";
@@ -17,6 +18,7 @@ import type { PositionTargetHandle } from "@/scene/PositionTargetHandle";
 import {
   TransformMotion,
   type TransformMotionHandle,
+  type TransformMotionProps,
 } from "@/scene/TransformMotion";
 import {
   SETTINGS,
@@ -24,7 +26,7 @@ import {
   type MaterialColorIndex,
   type Vec3,
 } from "@/settings/GameSettings";
-import { useFrame, useThree, type ThreeElements } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -38,6 +40,7 @@ type BalloonDetailLevel =
 
 type BalloonDropType = "block" | "ball";
 type BalloonFlowRole = "idle_start" | "run_spawn";
+const AUTO_POP_CLEANUP_DELAY_MS = 180;
 
 export type BalloonPopReleaseTuning = {
   linearSpeedMin?: number;
@@ -72,16 +75,17 @@ type ResolvedBalloonPopReleaseTuning = {
   angularDamping: number;
 };
 
-type BalloonGroupProps = Omit<ThreeElements["group"], "ref"> & {
+type BalloonGroupProps = Omit<TransformMotionProps, "ref" | "children"> & {
   detailLevel?: BalloonDetailLevel;
   color?: MaterialColorIndex;
   randomize?: boolean;
   /** Payload type when `randomize` is false. `randomize=true` overrides this to random block/ball per instance. */
   dropType?: BalloonDropType;
-  paused?: boolean;
   onPopped?: () => void;
   onMissed?: () => void;
   onCleanupRequested?: () => void;
+  autoPopSignal?: number;
+  autoPopDelayMs?: number;
   /** Called once on mount; the provided getter returns the item's current world Z. Returns an unregister function. */
   onRegisterCullZ?: (getter: () => number | undefined) => () => void;
   popReleaseTuning?: BalloonPopReleaseTuning;
@@ -430,10 +434,28 @@ export function BalloonGroup({
   flowRole = "run_spawn",
   onPopped,
   onMissed,
-  onCleanupRequested: _onCleanupRequested,
+  onCleanupRequested,
+  autoPopSignal = 0,
+  autoPopDelayMs = 0,
   onRegisterCullZ,
   popReleaseTuning,
-  ...props
+  positionVelocity,
+  randomPositionVelocity,
+  positionRange,
+  positionRangeStart,
+  positionEasing,
+  positionLoopMode,
+  rotationVelocity,
+  rotationEasing,
+  rotationLoopMode,
+  rotationRange,
+  rotationRangeStart,
+  rotationOffset,
+  randomRotationOffset,
+  timeScale,
+  timeScaleAcceleration,
+  timeScaleAccelerationCurve,
+  ...transformMotionProps
 }: BalloonGroupProps) {
   const BalloonComponent = BALLOONS[detailLevel];
   const { camera } = useThree();
@@ -443,9 +465,13 @@ export function BalloonGroup({
   const probeRef = useRef<THREE.Group | null>(null);
   const payloadRef = useRef<PositionTargetHandle | null>(null);
   const popReleaseRef = useRef<PopRelease | null>(null);
+  const suppressPayloadRef = useRef(false);
   const feltPlayedRef = useRef(false);
   const randomColorRef = useRef<MaterialColorIndex | null>(null);
   const randomDropTypeRef = useRef<BalloonDropType | null>(null);
+  const autoPopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoPopSignalRef = useRef(0);
   const probeWorld = useMemo(() => new THREE.Vector3(), []);
   const popCenterWorld = useMemo(() => new THREE.Vector3(), []);
   const popCenterNdc = useMemo(() => new THREE.Vector3(), []);
@@ -474,6 +500,12 @@ export function BalloonGroup({
     resolvedDropType === "ball"
       ? BALL_WRAP_TOP_Y
       : BLOCK_WRAP_TOP_Y;
+  const resolvedPositionVelocity = positionVelocity
+    ?? (randomize
+      ? { z: BALLOON_GROUP_SETTINGS.randomize.positionVelocityZBase }
+      : { z: BALLOON_GROUP_SETTINGS.motion.positionVelocityZ });
+  const resolvedRandomPositionVelocity = randomPositionVelocity
+    ?? (randomize ? { z: BALLOON_GROUP_SETTINGS.randomize.positionVelocityZAmplitude } : undefined);
 
   const getWorldXZ = useCallback(() => {
     if (poppedRef.current) {
@@ -591,6 +623,43 @@ export function BalloonGroup({
     [camera, flowRole, flowState, getWorldPopCenter, onPopped, popCenterNdc, popCenterWorld, tuning],
   );
 
+  const triggerAutoPop = useCallback(() => {
+    if (flowRole !== "run_spawn" || flowState !== "game_over_travel") return;
+    if (poppedRef.current) return;
+
+    poppedRef.current = true;
+    suppressPayloadRef.current = true;
+
+    if (getWorldPopCenter(popCenterWorld)) {
+      popCenterNdc.copy(popCenterWorld).project(camera);
+      emitScorePop({
+        text: "",
+        x: ((popCenterNdc.x + 1) / 2) * window.innerWidth,
+        y: ((-popCenterNdc.y + 1) / 2) * window.innerHeight,
+        burst: true,
+      });
+    } else {
+      emitScorePop({
+        text: "",
+        x: window.innerWidth * 0.5,
+        y: window.innerHeight * 0.5,
+        burst: true,
+      });
+    }
+
+    setPopped(true);
+    playGameSound({ type: "balloon_pop" });
+
+    if (cleanupTimerRef.current !== null) {
+      clearTimeout(cleanupTimerRef.current);
+      cleanupTimerRef.current = null;
+    }
+    cleanupTimerRef.current = setTimeout(() => {
+      cleanupTimerRef.current = null;
+      onCleanupRequested?.();
+    }, AUTO_POP_CLEANUP_DELAY_MS);
+  }, [camera, flowRole, flowState, getWorldPopCenter, onCleanupRequested, popCenterNdc, popCenterWorld]);
+
   useEffect(() => {
     if (!lifecycleRegistry) return;
     return lifecycleRegistry.register({
@@ -616,6 +685,39 @@ export function BalloonGroup({
   ]);
 
   useEffect(() => {
+    if (flowRole !== "run_spawn") return;
+    if (flowState !== "game_over_travel") return;
+    if (autoPopSignal <= lastAutoPopSignalRef.current) return;
+    lastAutoPopSignalRef.current = autoPopSignal;
+    if (poppedRef.current) return;
+
+    const delayMs = Math.max(0, autoPopDelayMs);
+    if (autoPopTimerRef.current !== null) {
+      clearTimeout(autoPopTimerRef.current);
+      autoPopTimerRef.current = null;
+    }
+    if (delayMs === 0) {
+      triggerAutoPop();
+      return;
+    }
+    autoPopTimerRef.current = setTimeout(() => {
+      autoPopTimerRef.current = null;
+      triggerAutoPop();
+    }, delayMs);
+  }, [autoPopDelayMs, autoPopSignal, flowRole, flowState, triggerAutoPop]);
+
+  useEffect(() => {
+    return () => {
+      if (autoPopTimerRef.current !== null) {
+        clearTimeout(autoPopTimerRef.current);
+      }
+      if (cleanupTimerRef.current !== null) {
+        clearTimeout(cleanupTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!onRegisterCullZ) return;
     return onRegisterCullZ(() => {
       if (poppedRef.current) return payloadRef.current?.getPosition()?.z;
@@ -628,6 +730,7 @@ export function BalloonGroup({
 
   useFrame(() => {
     if (!popped || feltPlayedRef.current) return;
+    if (suppressPayloadRef.current) return;
     const pos = payloadRef.current?.getPosition();
     if (pos && pos.y < 0.05) {
       feltPlayedRef.current = true;
@@ -635,40 +738,29 @@ export function BalloonGroup({
     }
   });
   const popRelease = popReleaseRef.current;
+  const renderPayload = !popped || !suppressPayloadRef.current;
 
   return (
     <TransformMotion
       ref={motionRef}
+      {...transformMotionProps}
       paused={motionPaused}
-      positionVelocity={
-        randomize
-          ? { z: BALLOON_GROUP_SETTINGS.randomize.positionVelocityZBase }
-          : { z: BALLOON_GROUP_SETTINGS.motion.positionVelocityZ }
-      }
-      randomPositionVelocity={
-        randomize
-          ? { z: BALLOON_GROUP_SETTINGS.randomize.positionVelocityZAmplitude }
-          : undefined
-      }
-      rotationVelocity={BALLOON_GROUP_SETTINGS.motion.rotationVelocity}
-      rotationEasing={BALLOON_GROUP_SETTINGS.motion.rotationEasing}
-      rotationLoopMode={BALLOON_GROUP_SETTINGS.motion.rotationLoopMode}
-      rotationRange={BALLOON_GROUP_SETTINGS.motion.rotationRange}
-      rotationRangeStart={BALLOON_GROUP_SETTINGS.motion.rotationRangeStart}
-      rotationOffset={
-        randomize
-          ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetBase
-          : undefined
-      }
-      randomRotationOffset={
-        randomize
-          ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetAmplitude
-          : undefined
-      }
-      timeScale={1.5}
-      timeScaleAcceleration={SETTINGS.motionAcceleration.balloons.timeScaleAcceleration}
-      timeScaleAccelerationCurve={SETTINGS.motionAcceleration.balloons.timeScaleAccelerationCurve}
-      {...props}
+      positionVelocity={resolvedPositionVelocity}
+      randomPositionVelocity={resolvedRandomPositionVelocity}
+      positionRange={positionRange}
+      positionRangeStart={positionRangeStart}
+      positionEasing={positionEasing}
+      positionLoopMode={positionLoopMode}
+      rotationVelocity={rotationVelocity ?? BALLOON_GROUP_SETTINGS.motion.rotationVelocity}
+      rotationEasing={rotationEasing ?? BALLOON_GROUP_SETTINGS.motion.rotationEasing}
+      rotationLoopMode={rotationLoopMode ?? BALLOON_GROUP_SETTINGS.motion.rotationLoopMode}
+      rotationRange={rotationRange ?? BALLOON_GROUP_SETTINGS.motion.rotationRange}
+      rotationRangeStart={rotationRangeStart ?? BALLOON_GROUP_SETTINGS.motion.rotationRangeStart}
+      rotationOffset={rotationOffset ?? (randomize ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetBase : undefined)}
+      randomRotationOffset={randomRotationOffset ?? (randomize ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetAmplitude : undefined)}
+      timeScale={timeScale ?? 1.5}
+      timeScaleAcceleration={timeScaleAcceleration ?? SETTINGS.motionAcceleration.balloons.timeScaleAcceleration}
+      timeScaleAccelerationCurve={timeScaleAccelerationCurve ?? SETTINGS.motionAcceleration.balloons.timeScaleAccelerationCurve}
     >
       <group ref={probeRef}>
         {showPopHitDebug && !popped ? (
@@ -707,53 +799,55 @@ export function BalloonGroup({
             )}
           </>
         ) : null}
-        {resolvedDropType === "ball" ? (
-          <BallElement
-            ref={payloadRef}
-            position={BALLOON_GROUP_SETTINGS.payload.ball.position}
-            sizePreset={BALLOON_GROUP_SETTINGS.payload.ball.sizePreset}
-            color={resolvedColor}
-            align={BALLOON_GROUP_SETTINGS.payload.ball.align}
-            physics={popped ? "dynamic" : undefined}
-            contagionCarrier={popped}
-            contagionInfectable={false}
-            contagionColor={resolvedColor}
-            linearVelocity={popped ? popRelease?.linearVelocity : undefined}
-            angularVelocity={popped ? popRelease?.angularVelocity : undefined}
-            linearDamping={popped ? tuning.linearDamping : undefined}
-            angularDamping={popped ? tuning.angularDamping : undefined}
-            mass={popped ? BALLOON_GROUP_SETTINGS.payload.ball.mass : undefined}
-            friction={
-              popped ? BALLOON_GROUP_SETTINGS.payload.ball.friction : undefined
-            }
-            restitution={
-              popped
-                ? BALLOON_GROUP_SETTINGS.payload.ball.restitution
-                : undefined
-            }
-          />
-        ) : (
-          <BlockElement
-            ref={payloadRef}
-            position={BALLOON_GROUP_SETTINGS.payload.block.position}
-            sizePreset={BALLOON_GROUP_SETTINGS.payload.block.sizePreset}
-            heightPreset={BALLOON_GROUP_SETTINGS.payload.block.heightPreset}
-            color={resolvedColor}
-            align={BALLOON_GROUP_SETTINGS.payload.block.align}
-            plane={BALLOON_GROUP_SETTINGS.payload.block.plane}
-            physics={popped ? "dynamic" : undefined}
-            contagionCarrier={popped}
-            contagionInfectable={false}
-            contagionColor={resolvedColor}
-            linearVelocity={popped ? popRelease?.linearVelocity : undefined}
-            angularVelocity={popped ? popRelease?.angularVelocity : undefined}
-            linearDamping={popped ? tuning.linearDamping : undefined}
-            angularDamping={popped ? tuning.angularDamping : undefined}
-            mass={
-              popped ? BALLOON_GROUP_SETTINGS.payload.block.mass : undefined
-            }
-          />
-        )}
+        {renderPayload ? (
+          resolvedDropType === "ball" ? (
+            <BallElement
+              ref={payloadRef}
+              position={BALLOON_GROUP_SETTINGS.payload.ball.position}
+              sizePreset={BALLOON_GROUP_SETTINGS.payload.ball.sizePreset}
+              color={resolvedColor}
+              align={BALLOON_GROUP_SETTINGS.payload.ball.align}
+              physics={popped ? "dynamic" : undefined}
+              contagionCarrier={popped}
+              contagionInfectable={false}
+              contagionColor={resolvedColor}
+              linearVelocity={popped ? popRelease?.linearVelocity : undefined}
+              angularVelocity={popped ? popRelease?.angularVelocity : undefined}
+              linearDamping={popped ? tuning.linearDamping : undefined}
+              angularDamping={popped ? tuning.angularDamping : undefined}
+              mass={popped ? BALLOON_GROUP_SETTINGS.payload.ball.mass : undefined}
+              friction={
+                popped ? BALLOON_GROUP_SETTINGS.payload.ball.friction : undefined
+              }
+              restitution={
+                popped
+                  ? BALLOON_GROUP_SETTINGS.payload.ball.restitution
+                  : undefined
+              }
+            />
+          ) : (
+            <BlockElement
+              ref={payloadRef}
+              position={BALLOON_GROUP_SETTINGS.payload.block.position}
+              sizePreset={BALLOON_GROUP_SETTINGS.payload.block.sizePreset}
+              heightPreset={BALLOON_GROUP_SETTINGS.payload.block.heightPreset}
+              color={resolvedColor}
+              align={BALLOON_GROUP_SETTINGS.payload.block.align}
+              plane={BALLOON_GROUP_SETTINGS.payload.block.plane}
+              physics={popped ? "dynamic" : undefined}
+              contagionCarrier={popped}
+              contagionInfectable={false}
+              contagionColor={resolvedColor}
+              linearVelocity={popped ? popRelease?.linearVelocity : undefined}
+              angularVelocity={popped ? popRelease?.angularVelocity : undefined}
+              linearDamping={popped ? tuning.linearDamping : undefined}
+              angularDamping={popped ? tuning.angularDamping : undefined}
+              mass={
+                popped ? BALLOON_GROUP_SETTINGS.payload.block.mass : undefined
+              }
+            />
+          )
+        ) : null}
       </group>
     </TransformMotion>
   );

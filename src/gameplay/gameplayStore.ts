@@ -413,7 +413,6 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
 
     resetComboRuntimeState()
     clearGameOverInputTimer()
-    useSpawnerStore.getState().clearAll()
 
     setGameRunClockRunning(false)
     resetGameRunClock()
