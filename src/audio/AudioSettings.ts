@@ -115,6 +115,12 @@ export const AUDIO_SETTINGS: AudioSettings = {
         switchMarkersSec: [4, 8, 12],
       },
     },
+    idleSequence: {
+      volume: 0.55,
+      timeline: [
+        { atSec: 0, loopId: 'pinjacolada_loop_2' },
+      ],
+    },
     runSequence: {
       volume: .75,
       timeline: [
@@ -128,7 +134,7 @@ export const AUDIO_SETTINGS: AudioSettings = {
       game_over: {
         volume: .5,
         timelineByLoop: [
-          { atLoop: 0, loopId: 'pinjacolada_loop_2' },
+          { atLoop: 0, loopId: 'pinjacolada_loop_1' },
         ],
       },
     },

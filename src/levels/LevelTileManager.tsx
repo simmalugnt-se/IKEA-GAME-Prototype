@@ -1,5 +1,6 @@
-import { memo, useEffect } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
+import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { SETTINGS } from '@/settings/GameSettings'
 import { useLevelTilingStore, getTileDepth, type LevelSegment } from '@/levels/levelTilingStore'
 import { renderNode } from '@/LevelRenderer'
@@ -12,20 +13,56 @@ const SegmentGroup = memo(function SegmentGroup({ segment }: { segment: LevelSeg
   )
 })
 
+function didCrossTarget(prev: number, current: number, target: number): boolean {
+  const prevDelta = prev - target
+  const currDelta = current - target
+  if (prevDelta === 0 || currDelta === 0) return true
+  return (prevDelta < 0 && currDelta > 0) || (prevDelta > 0 && currDelta < 0)
+}
+
 export function LevelTileManager() {
   const { camera } = useThree()
   const segments = useLevelTilingStore((state) => state.segments)
   const initialized = useLevelTilingStore((state) => state.initialized)
   const initialize = useLevelTilingStore((state) => state.initialize)
+  const setSpawnMode = useLevelTilingStore((state) => state.setSpawnMode)
   const spawnNextSegment = useLevelTilingStore((state) => state.spawnNextSegment)
   const cullSegments = useLevelTilingStore((state) => state.cullSegments)
+  const flowState = useGameplayStore((state) => state.flowState)
+  const onGameOverTileCentered = useGameplayStore((state) => state.onGameOverTileCentered)
+
+  const lastViewCenterZRef = useRef<number | null>(null)
+  const centeredGameOverSegmentIdRef = useRef<string | null>(null)
+  const cullIdsRef = useRef<string[]>([])
 
   const tiling = SETTINGS.level.tiling
 
   useEffect(() => {
-    if (!tiling.enabled || tiling.files.length === 0) return
-    initialize(tiling.files)
-  }, [tiling.enabled, tiling.files, initialize])
+    if (!tiling.enabled) return
+    void initialize({
+      runFiles: tiling.runFiles,
+      idleFiles: tiling.idleFiles,
+      gameOverFile: tiling.gameOverFile,
+    })
+  }, [
+    initialize,
+    tiling.enabled,
+    tiling.gameOverFile,
+    tiling.idleFiles,
+    tiling.runFiles,
+  ])
+
+  useEffect(() => {
+    if (!initialized) return
+    if (flowState === 'run') {
+      setSpawnMode('run', true)
+      return
+    }
+    if (flowState === 'idle') {
+      setSpawnMode('idle', true)
+      return
+    }
+  }, [flowState, initialized, setSpawnMode])
 
   useFrame(() => {
     if (!tiling.enabled || !initialized) return
@@ -37,30 +74,63 @@ export function LevelTileManager() {
     const viewCenterZ = camera.position.z - followOffsetZ
     const { lookAheadDistance, cullBehindDistance } = tiling
 
-    const currentSegments = useLevelTilingStore.getState().segments
-    const frontierZ =
-      currentSegments.length > 0
-        ? Math.min(
-            ...currentSegments.map(
-              (s) => s.zOffset - getTileDepth(s.data),
-            ),
-          )
-        : 0
+    const state = useLevelTilingStore.getState()
+    const currentSegments = state.segments
+
+    let frontierZ = 0
+    if (currentSegments.length > 0) {
+      frontierZ = Number.POSITIVE_INFINITY
+      for (let i = 0; i < currentSegments.length; i += 1) {
+        const segment = currentSegments[i]
+        if (!segment) continue
+        const farEdge = segment.zOffset - getTileDepth(segment.data)
+        if (farEdge < frontierZ) frontierZ = farEdge
+      }
+    }
 
     if (frontierZ > viewCenterZ - lookAheadDistance) {
       spawnNextSegment()
     }
 
-    const idsToCull: string[] = []
-    currentSegments.forEach((segment) => {
+    const cullIds = cullIdsRef.current
+    cullIds.length = 0
+    for (let i = 0; i < currentSegments.length; i += 1) {
+      const segment = currentSegments[i]
+      if (!segment) continue
       const segmentFarEdge = segment.zOffset - getTileDepth(segment.data)
       if (segmentFarEdge > viewCenterZ + cullBehindDistance) {
-        idsToCull.push(segment.id)
+        cullIds.push(segment.id)
       }
-    })
-    if (idsToCull.length > 0) {
-      cullSegments(idsToCull)
     }
+    if (cullIds.length > 0) {
+      cullSegments(cullIds)
+      cullIds.length = 0
+    }
+
+    if (flowState !== 'game_over_travel') {
+      centeredGameOverSegmentIdRef.current = null
+      lastViewCenterZRef.current = viewCenterZ
+      return
+    }
+
+    const gameOverFilename = tiling.gameOverFile
+    const prevViewCenterZ = lastViewCenterZRef.current
+    if (prevViewCenterZ !== null) {
+      for (let i = 0; i < currentSegments.length; i += 1) {
+        const segment = currentSegments[i]
+        if (!segment || segment.filename !== gameOverFilename) continue
+        if (centeredGameOverSegmentIdRef.current === segment.id) continue
+
+        const segmentCenterZ = segment.zOffset - getTileDepth(segment.data) * 0.5
+        if (!didCrossTarget(prevViewCenterZ, viewCenterZ, segmentCenterZ)) continue
+
+        centeredGameOverSegmentIdRef.current = segment.id
+        onGameOverTileCentered()
+        break
+      }
+    }
+
+    lastViewCenterZRef.current = viewCenterZ
   })
 
   if (!tiling.enabled) return null

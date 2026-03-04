@@ -39,6 +39,7 @@ export type BalloonLifecycleTarget = {
   getWorldPopCenter: (out: THREE.Vector3) => boolean
   getWorldPopRadiusX: () => number
   getWorldPopRadiusY: () => number
+  isLifeLossEnabled: () => boolean
   requestPop: (meta: BalloonLifecyclePopMeta) => void
   isPopped: () => boolean
   onMissed: () => void
@@ -132,8 +133,8 @@ export function useBalloonLifecycleRegistry(): BalloonLifecycleRegistry | null {
 
 export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
   const { camera, gl } = useThree()
+  const flowState = useGameplayStore((state) => state.flowState)
   const loseLives = useGameplayStore((state) => state.loseLives)
-  const gameOver = useGameplayStore((state) => state.gameOver)
   const entriesRef = useRef<Set<BalloonLifecycleEntry>>(new Set())
   const missQueueRef = useRef<Array<() => void>>([])
   const popQueueRef = useRef<Array<BalloonLifecycleTarget>>([])
@@ -206,7 +207,6 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
   }, [gl])
 
   useFrame(() => {
-    if (gameOver) return
     const entries = entriesRef.current
     if (entries.size === 0) return
 
@@ -234,7 +234,8 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
 
       if (pastLife) {
         entry.missApplied = true
-        if (lifeLoss > 0) loseLives(lifeLoss, 'balloon_missed')
+        const allowLifeLoss = flowState === 'run' && entry.target.isLifeLossEnabled()
+        if (allowLifeLoss && lifeLoss > 0) loseLives(lifeLoss, 'balloon_missed')
         missQueue.push(entry.target.onMissed)
       }
     })

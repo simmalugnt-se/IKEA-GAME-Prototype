@@ -38,7 +38,7 @@ type NormalizedEventStep = {
   loopId: string
 }
 
-type SequenceMode = 'none' | 'run' | 'event'
+type SequenceMode = 'none' | 'idle' | 'run' | 'event'
 
 const LOOP_EPSILON_SEC = 0.0005
 const SWITCH_COMMIT_PADDING_MS = 12
@@ -57,7 +57,10 @@ let scheduledSwitch: ScheduledSwitch | null = null
 
 let activeSequenceMode: SequenceMode = 'none'
 let activeSequenceVersion = 0
+let activeIdleEpoch = Number.NEGATIVE_INFINITY
 let activeRunEpoch = Number.NEGATIVE_INFINITY
+let idleTimeline: NormalizedRunStep[] = []
+let idleNextIndex = 0
 let runTimeline: NormalizedRunStep[] = []
 let runNextIndex = 0
 
@@ -443,6 +446,45 @@ export async function preloadBackgroundMusic(): Promise<void> {
   flushPendingLoopRequest()
 }
 
+export function activateIdleSequence(epoch: number): void {
+  if (!AUDIO_SETTINGS.music.enabled) return
+  if (activeSequenceMode === 'idle' && epoch === activeIdleEpoch) return
+
+  const normalizedIdleTimeline = normalizeRunTimeline(AUDIO_SETTINGS.music.idleSequence.timeline)
+  if (normalizedIdleTimeline.length === 0) {
+    console.error('[BackgroundMusicManager] Cannot activate idle sequence: timeline is empty.')
+    return
+  }
+
+  activeIdleEpoch = epoch
+  activeRunEpoch = Number.NEGATIVE_INFINITY
+  activeSequenceMode = 'idle'
+  activeSequenceVersion += 1
+  activeSequenceVolume = normalizeNonNegative(AUDIO_SETTINGS.music.idleSequence.volume, 1)
+
+  idleTimeline = normalizedIdleTimeline
+  idleNextIndex = 0
+  runTimeline = []
+  runNextIndex = 0
+  eventTimeline = []
+  eventNextIndex = 0
+  eventCompletedLoops = 0
+  clearEventLoopTimer()
+
+  updateIdleSequenceTime(0)
+}
+
+export function updateIdleSequenceTime(seconds: number): void {
+  if (activeSequenceMode !== 'idle') return
+  if (!Number.isFinite(seconds)) return
+  while (idleNextIndex < idleTimeline.length) {
+    const step = idleTimeline[idleNextIndex]
+    if (seconds < step.atSec) break
+    queueLoopRequest(step.loopId, activeSequenceVolume, activeSequenceVersion)
+    idleNextIndex += 1
+  }
+}
+
 export function activateRunSequence(epoch: number): void {
   if (!AUDIO_SETTINGS.music.enabled) return
   if (activeSequenceMode === 'run' && epoch === activeRunEpoch) return
@@ -454,12 +496,15 @@ export function activateRunSequence(epoch: number): void {
   }
 
   activeRunEpoch = epoch
+  activeIdleEpoch = Number.NEGATIVE_INFINITY
   activeSequenceMode = 'run'
   activeSequenceVersion += 1
   activeSequenceVolume = normalizeNonNegative(AUDIO_SETTINGS.music.runSequence.volume, 1)
 
   runTimeline = normalizedRunTimeline
   runNextIndex = 0
+  idleTimeline = []
+  idleNextIndex = 0
   eventTimeline = []
   eventNextIndex = 0
   eventCompletedLoops = 0
@@ -496,12 +541,16 @@ export function triggerEventSequence(eventId: string): void {
   activeSequenceMode = 'event'
   activeSequenceVersion += 1
   activeSequenceVolume = normalizeNonNegative(rawSequence.volume, 1)
+  activeRunEpoch = Number.NEGATIVE_INFINITY
+  activeIdleEpoch = Number.NEGATIVE_INFINITY
 
   eventTimeline = normalizedEventTimeline
   eventNextIndex = 0
   eventCompletedLoops = 0
   runTimeline = []
   runNextIndex = 0
+  idleTimeline = []
+  idleNextIndex = 0
   clearEventLoopTimer()
 
   flushEventTimelineForCurrentLoopCount()
@@ -517,6 +566,9 @@ export function disposeBackgroundMusic(): void {
   activeSequenceMode = 'none'
   activeSequenceVersion += 1
   activeRunEpoch = Number.NEGATIVE_INFINITY
+  activeIdleEpoch = Number.NEGATIVE_INFINITY
+  idleTimeline = []
+  idleNextIndex = 0
   runTimeline = []
   runNextIndex = 0
   eventTimeline = []

@@ -310,7 +310,9 @@ export const SETTINGS: Settings = {
     lives: {
       initial: 5,
       lossPerMiss: 1,
-      autoReset: true,
+    },
+    flow: {
+      gameOverInputDurationMs: 5000,
     },
     balloons: {
       scorePerPop: 100,
@@ -339,7 +341,9 @@ export const SETTINGS: Settings = {
     gridClonerSpawnChunkSize: 32, // Physics bodies registered per frame (0 = all at once)
     tiling: {
       enabled: true,
-      files: ["default.json"],
+      runFiles: ["default.json"],
+      idleFiles: ["default.json"],
+      gameOverFile: "gameover.json",
       lookAheadDistance: 15,
       cullBehindDistance: 3,
     },

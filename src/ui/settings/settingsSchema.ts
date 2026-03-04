@@ -567,7 +567,7 @@ export const settingsSections: SectionDescriptor[] = [
             // lives
             { type: 'number', label: 'lives.initial', get: () => SETTINGS.gameplay.lives.initial, set: (v) => { SETTINGS.gameplay.lives.initial = v; bump() }, min: 1, max: 10, step: 1 },
             { type: 'number', label: 'lives.lossPerMiss', get: () => SETTINGS.gameplay.lives.lossPerMiss, set: (v) => { SETTINGS.gameplay.lives.lossPerMiss = v; bump() }, min: 0, max: 5, step: 1 },
-            { type: 'boolean', label: 'lives.autoReset', get: () => SETTINGS.gameplay.lives.autoReset, set: (v) => { SETTINGS.gameplay.lives.autoReset = v; bump() } },
+            { type: 'number', label: 'flow.gameOverInputDurationMs', get: () => SETTINGS.gameplay.flow.gameOverInputDurationMs, set: (v) => { SETTINGS.gameplay.flow.gameOverInputDurationMs = v; bump() }, min: 1000, max: 20000, step: 100 },
             // balloons
             { type: 'number', label: 'balloons.scorePerPop', get: () => SETTINGS.gameplay.balloons.scorePerPop, set: (v) => { SETTINGS.gameplay.balloons.scorePerPop = v; bump() }, min: 0, max: 1000, step: 10 },
             { type: 'number', label: 'balloons.sensors.lifeMargin', get: () => SETTINGS.gameplay.balloons.sensors.lifeMargin, set: (v) => { SETTINGS.gameplay.balloons.sensors.lifeMargin = v; bump() }, min: -2, max: 5, step: 0.05 },
@@ -598,9 +598,21 @@ export const settingsSections: SectionDescriptor[] = [
             // tiling
             { type: 'boolean', label: 'tiling.enabled', get: () => SETTINGS.level.tiling.enabled, set: (v) => { SETTINGS.level.tiling.enabled = v; bump() } },
             {
-                type: 'stringArray', label: 'tiling.files',
-                get: () => SETTINGS.level.tiling.files,
-                set: (v) => { SETTINGS.level.tiling.files = v; bump() },
+                type: 'stringArray', label: 'tiling.runFiles',
+                get: () => SETTINGS.level.tiling.runFiles,
+                set: (v) => { SETTINGS.level.tiling.runFiles = v; bump() },
+                visible: () => SETTINGS.level.tiling.enabled,
+            },
+            {
+                type: 'stringArray', label: 'tiling.idleFiles',
+                get: () => SETTINGS.level.tiling.idleFiles,
+                set: (v) => { SETTINGS.level.tiling.idleFiles = v; bump() },
+                visible: () => SETTINGS.level.tiling.enabled,
+            },
+            {
+                type: 'text', label: 'tiling.gameOverFile',
+                get: () => SETTINGS.level.tiling.gameOverFile,
+                set: (v) => { SETTINGS.level.tiling.gameOverFile = v; bump() },
                 visible: () => SETTINGS.level.tiling.enabled,
             },
             {
@@ -744,6 +756,7 @@ export const settingsSections: SectionDescriptor[] = [
             { type: 'number', label: 'mix.masterVolume', get: () => AUDIO_SETTINGS.mix.masterVolume, set: (v) => { setAudioMixVolume('masterVolume', v) }, min: 0, max: 2, step: 0.05 },
             { type: 'number', label: 'mix.sfxMasterVolume', get: () => AUDIO_SETTINGS.mix.sfxMasterVolume, set: (v) => { setAudioMixVolume('sfxMasterVolume', v) }, min: 0, max: 2, step: 0.05 },
             { type: 'number', label: 'mix.musicMasterVolume', get: () => AUDIO_SETTINGS.mix.musicMasterVolume, set: (v) => { setAudioMixVolume('musicMasterVolume', v) }, min: 0, max: 2, step: 0.05 },
+            { type: 'number', label: 'music.idleSequence.volume', get: () => AUDIO_SETTINGS.music.idleSequence.volume, set: (v) => { AUDIO_SETTINGS.music.idleSequence.volume = v; bump() }, min: 0, max: 2, step: 0.05 },
             { type: 'number', label: 'music.runSequence.volume', get: () => AUDIO_SETTINGS.music.runSequence.volume, set: (v) => { AUDIO_SETTINGS.music.runSequence.volume = v; bump() }, min: 0, max: 2, step: 0.05 },
             { type: 'number', label: 'music.eventSequences.game_over.volume', get: () => AUDIO_SETTINGS.music.eventSequences.game_over?.volume ?? 1, set: (v) => { if (AUDIO_SETTINGS.music.eventSequences.game_over) { AUDIO_SETTINGS.music.eventSequences.game_over.volume = v; bump() } }, min: 0, max: 2, step: 0.05 },
             // pop

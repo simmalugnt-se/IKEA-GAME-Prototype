@@ -54,8 +54,7 @@ export function ItemSpawner({
   cullMarkerRef,
   children,
 }: ItemSpawnerProps) {
-  const runEndSequence = useGameplayStore((state) => state.runEndSequence);
-  const gameOver = useGameplayStore((state) => state.gameOver);
+  const flowState = useGameplayStore((state) => state.flowState);
   const spawnTimerRef = useRef(0);
   const spawnIdRef = useRef(0);
   const cullGettersRef = useRef<Map<string, ZGetter>>(new Map());
@@ -72,17 +71,13 @@ export function ItemSpawner({
   const registerEntity = useEntityStore((state) => state.register);
 
   useEffect(() => {
+    if (flowState === "run") return;
     spawnTimerRef.current = 0;
-  }, [runEndSequence]);
-
-  useEffect(() => {
-    if (!gameOver) return;
-    spawnTimerRef.current = 0;
-  }, [gameOver]);
+  }, [flowState]);
 
   useFrame((_state, delta) => {
     // ── Spawn ─────────────────────────────────────────────────────────────
-    if (isGameRunClockRunning()) {
+    if (flowState === "run" && isGameRunClockRunning()) {
       const cfg = SETTINGS.spawner;
       const runSeconds = getGameRunClockSeconds();
       if (cfg.enabled && templates.length > 0) {

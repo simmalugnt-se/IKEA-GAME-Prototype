@@ -37,6 +37,7 @@ type BalloonDetailLevel =
   | "minimal";
 
 type BalloonDropType = "block" | "ball";
+type BalloonFlowRole = "idle_start" | "run_spawn";
 
 export type BalloonPopReleaseTuning = {
   linearSpeedMin?: number;
@@ -84,6 +85,7 @@ type BalloonGroupProps = Omit<ThreeElements["group"], "ref"> & {
   /** Called once on mount; the provided getter returns the item's current world Z. Returns an unregister function. */
   onRegisterCullZ?: (getter: () => number | undefined) => () => void;
   popReleaseTuning?: BalloonPopReleaseTuning;
+  flowRole?: BalloonFlowRole;
 };
 
 const BALLOONS = {
@@ -425,6 +427,7 @@ export function BalloonGroup({
   randomize = false,
   dropType = "block",
   paused = false,
+  flowRole = "run_spawn",
   onPopped,
   onMissed,
   onCleanupRequested: _onCleanupRequested,
@@ -447,12 +450,15 @@ export function BalloonGroup({
   const popCenterWorld = useMemo(() => new THREE.Vector3(), []);
   const popCenterNdc = useMemo(() => new THREE.Vector3(), []);
   const lifecycleRegistry = useBalloonLifecycleRegistry();
-  const gameOver = useGameplayStore((state) => state.gameOver);
+  const flowState = useGameplayStore((state) => state.flowState);
   const tuning = useMemo(
     () => resolvePopReleaseTuning(popReleaseTuning),
     [popReleaseTuning],
   );
-  const motionPaused = paused || popped || gameOver;
+  const flowPaused = flowRole === "run_spawn"
+    ? flowState !== "run"
+    : flowState !== "idle";
+  const motionPaused = paused || popped || flowPaused;
   const showPopHitDebug = SETTINGS.debug.enabled;
   if (randomize && randomColorRef.current === null) {
     randomColorRef.current = pickRandomBalloonColorIndex(color);
@@ -500,6 +506,10 @@ export function BalloonGroup({
   const getWorldPopRadiusY = useCallback(() => POP_HIT_RADIUS_Y, []);
 
   const isPopped = useCallback(() => poppedRef.current, []);
+  const isLifeLossEnabled = useCallback(
+    () => flowRole === "run_spawn",
+    [flowRole],
+  );
 
   const handleMissed = useCallback(() => {
     onMissed?.();
@@ -507,7 +517,8 @@ export function BalloonGroup({
 
   const triggerPop = useCallback(
     (meta: BalloonLifecyclePopMeta) => {
-      if (gameOver) return;
+      if (flowRole === "run_spawn" && flowState !== "run") return;
+      if (flowRole === "idle_start" && flowState !== "idle") return;
       if (poppedRef.current) return;
       poppedRef.current = true;
 
@@ -556,6 +567,9 @@ export function BalloonGroup({
       }
 
       const gameplayState = useGameplayStore.getState();
+      if (flowRole === "idle_start") {
+        gameplayState.startRunFromIdleTrigger();
+      }
       if (getWorldPopCenter(popCenterWorld)) {
         popCenterNdc.copy(popCenterWorld).project(camera);
         gameplayState.registerBalloonPopForCombo({
@@ -574,7 +588,7 @@ export function BalloonGroup({
       playGameSound({ type: "balloon_pop" });
       onPopped?.();
     },
-    [camera, gameOver, getWorldPopCenter, onPopped, popCenterNdc, popCenterWorld, tuning],
+    [camera, flowRole, flowState, getWorldPopCenter, onPopped, popCenterNdc, popCenterWorld, tuning],
   );
 
   useEffect(() => {
@@ -584,6 +598,7 @@ export function BalloonGroup({
       getWorldPopCenter,
       getWorldPopRadiusX,
       getWorldPopRadiusY,
+      isLifeLossEnabled,
       requestPop: triggerPop,
       isPopped,
       onMissed: handleMissed,
@@ -594,6 +609,7 @@ export function BalloonGroup({
     getWorldPopCenter,
     getWorldPopRadiusX,
     getWorldPopRadiusY,
+    isLifeLossEnabled,
     triggerPop,
     isPopped,
     handleMissed,

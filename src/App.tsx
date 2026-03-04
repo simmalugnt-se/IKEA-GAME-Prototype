@@ -10,6 +10,7 @@ import { SETTINGS, getActiveBackground } from "@/settings/GameSettings";
 import { useSettingsVersion } from "@/settings/settingsStore";
 import { GltfConverter } from "@/tools/GltfConverter";
 import { DocsPage } from "@/ui/docs/DocsPage";
+import { GameFlowOverlay } from "@/ui/GameFlowOverlay";
 import { ScoreboardPage } from "@/ui/scoreboard/ScoreboardPage";
 import { GameSettingsPanel } from "@/ui/settings/GameSettingsPanel";
 import { ScoreHud } from "@/ui/ScoreHud";
@@ -76,6 +77,7 @@ function GameApp() {
       }}
     >
       <ScoreHud />
+      <GameFlowOverlay />
       <Canvas
         shadows={{ type: THREE.BasicShadowMap }}
         dpr={[1, 2]}

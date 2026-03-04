@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { CubeElement } from '@/primitives/CubeElement'
 import { SphereElement } from '@/primitives/SphereElement'
 import { CylinderElement } from '@/primitives/CylinderElement'
@@ -26,7 +25,6 @@ import {
 import { TransformMotion } from '@/scene/TransformMotion'
 import { useLevelStore, type LevelNode } from './levelStore'
 import type { Vec3 } from '@/settings/GameSettings'
-import { useGameplayStore } from '@/gameplay/gameplayStore'
 
 const IDENTITY_SCALE: Vec3 = [1, 1, 1]
 
@@ -279,11 +277,6 @@ export function renderNode(
 export function LevelRenderer() {
   const levelData = useLevelStore((state) => state.levelData)
   const levelReloadKey = useLevelStore((state) => state.levelReloadKey)
-  const resetGameplay = useGameplayStore((state) => state.reset)
-
-  useEffect(() => {
-    resetGameplay()
-  }, [levelReloadKey, levelData, resetGameplay])
 
   if (!levelData) {
     return null

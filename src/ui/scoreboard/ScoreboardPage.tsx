@@ -79,6 +79,36 @@ function EventRow({ item }: { item: FeedItem }) {
           </span>
         </div>
       )
+    case 'idle_started':
+      return (
+        <div style={styles.row}>
+          <span style={styles.time}>{time}</span>
+          <span style={{ ...styles.badge, background: '#0ea5e9' }}>IDLE</span>
+          <span style={styles.detail}>
+            Idle mode started
+          </span>
+        </div>
+      )
+    case 'initials_step_started':
+      return (
+        <div style={styles.row}>
+          <span style={styles.time}>{time}</span>
+          <span style={{ ...styles.badge, background: '#f59e0b' }}>INITIALS</span>
+          <span style={styles.detail}>
+            High-score step started — duration: <b>{item.durationMs} ms</b>
+          </span>
+        </div>
+      )
+    case 'initials_step_finished':
+      return (
+        <div style={styles.row}>
+          <span style={styles.time}>{time}</span>
+          <span style={{ ...styles.badge, background: '#f97316' }}>DONE</span>
+          <span style={styles.detail}>
+            High-score step finished ({item.reason}) — initials: <b>{item.initials}</b>
+          </span>
+        </div>
+      )
     default:
       return null
   }

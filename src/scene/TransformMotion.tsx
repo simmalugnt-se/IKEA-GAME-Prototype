@@ -13,7 +13,7 @@ import {
 import { useFrame, type ThreeElements } from '@react-three/fiber'
 import type { Vec3 } from '@/settings/GameSettings'
 import { applyEasing, type EasingName } from '@/utils/easing'
-import { isPlaying } from '@/game/gamePhaseStore'
+import { isMotionSystemFlowActive } from '@/gameplay/gameplayStore'
 import { getGameRunClockSeconds } from '@/game/GameRunClock'
 import {
   ACCELERATION_CURVE_NAMES,
@@ -510,7 +510,7 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
   }), [])
 
   useFrame((_, delta) => {
-    if (!isPlaying()) return
+    if (!isMotionSystemFlowActive()) return
     if (!(delta > 0)) return
     const clockSeconds = getGameRunClockSeconds()
 

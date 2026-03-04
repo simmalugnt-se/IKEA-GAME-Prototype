@@ -2,12 +2,23 @@ import { create } from 'zustand'
 import { triggerEventSequence } from '@/audio/BackgroundMusicManager'
 import { playGameSound } from '@/audio/GameAudioRouter'
 import { resetGameRunClock, setGameRunClockRunning } from '@/game/GameRunClock'
+import { useLevelTilingStore } from '@/levels/levelTilingStore'
 import { SETTINGS, resolveMaterialColorIndex } from '@/settings/GameSettings'
 import { onEntityUnregister } from '@/entities/entityStore'
 import { emitScorePop } from '@/input/scorePopEmitter'
 import { sendScoreboardEvent } from '@/scoreboard/scoreboardSender'
 import { getRunId, rotateRunId } from '@/scoreboard/runId'
+import { useSpawnerStore } from '@/gameplay/spawnerStore'
 import type { ScoreboardEventSource, ScoreboardLifeLossReason } from '@/scoreboard/scoreboardEvents'
+
+export const GAME_FLOW_STATES = [
+  'idle',
+  'run',
+  'game_over_travel',
+  'game_over_input',
+] as const
+
+export type GameFlowState = (typeof GAME_FLOW_STATES)[number]
 
 export type ContagionRecord = {
   lineageId: string
@@ -51,16 +62,20 @@ type GameplayState = {
   lastRunScore: number
   sessionHighScore: number
   lives: number
-  gameOver: boolean
-  runEndSequence: number
+  flowState: GameFlowState
+  flowEpoch: number
+  gameOverInputEndsAtMs: number
   sequence: number
   contagionEpoch: number
   contagionColorsByEntityId: Record<string, number>
-  reset: () => void
+  bootstrapIdle: () => void
+  startRunFromIdleTrigger: () => void
+  handleRunEndedByLives: () => void
+  onGameOverTileCentered: () => void
+  finishGameOverInputTimeout: () => void
   addScore: (delta: number, source?: ScoreboardEventSource) => void
   loseLife: (reason?: ScoreboardLifeLossReason) => void
   loseLives: (delta: number, reason?: ScoreboardLifeLossReason) => void
-  setGameOver: (value: boolean) => void
   removeEntities: (ids: string[]) => void
   registerBalloonPopForCombo: (event: BalloonPopForComboEvent) => void
   enqueueCollisionPair: (
@@ -75,12 +90,12 @@ function normalizeNonNegativeInt(value: number, fallback = 0): number {
   return Math.max(0, Math.trunc(value))
 }
 
-function isScoreLockedOnGameOver(): boolean {
-  return SETTINGS.gameplay.score.lockOnGameOver === true
-}
-
 function getInitialLives(): number {
   return normalizeNonNegativeInt(SETTINGS.gameplay.lives.initial, 0)
+}
+
+function resolveGameOverInputDurationMs(): number {
+  return normalizeNonNegativeInt(SETTINGS.gameplay.flow.gameOverInputDurationMs, 5000)
 }
 
 function normalizeCollisionEntity(raw: ContagionCollisionEntity | null | undefined): NormalizedCollisionEntity | null {
@@ -151,6 +166,7 @@ function createComboRuntimeState(): ComboRuntimeState {
 
 let maps = createContagionMaps()
 let comboRuntime = createComboRuntimeState()
+let gameOverInputTimer: ReturnType<typeof setTimeout> | null = null
 
 function clearComboFlushTimer(): void {
   if (comboRuntime.flushTimer === null) return
@@ -163,6 +179,12 @@ function resetComboRuntimeState(): void {
   comboRuntime.pendingStrike = null
   comboRuntime.chainBonus = 0
   comboRuntime.lastMultiStrikeTimeMs = Number.NEGATIVE_INFINITY
+}
+
+function clearGameOverInputTimer(): void {
+  if (gameOverInputTimer === null) return
+  clearTimeout(gameOverInputTimer)
+  gameOverInputTimer = null
 }
 
 function resolveComboStrikeWindowMs(): number {
@@ -291,28 +313,76 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
   lastRunScore: 0,
   sessionHighScore: 0,
   lives: getInitialLives(),
-  gameOver: false,
-  runEndSequence: 0,
+  flowState: 'idle',
+  flowEpoch: 0,
+  gameOverInputEndsAtMs: 0,
   sequence: 0,
   contagionEpoch: 0,
   contagionColorsByEntityId: {},
 
-  reset: () => {
+  bootstrapIdle: () => {
     maps = createContagionMaps()
     resetComboRuntimeState()
+    clearGameOverInputTimer()
+
+    let didTransition = false
+    set((state) => {
+      if (state.flowState === 'idle' && state.flowEpoch > 0) return state
+      didTransition = true
+      return {
+        ...state,
+        lives: getInitialLives(),
+        flowState: 'idle',
+        flowEpoch: state.flowEpoch + 1,
+        gameOverInputEndsAtMs: 0,
+        sequence: 0,
+        contagionEpoch: 0,
+        contagionColorsByEntityId: {},
+      }
+    })
+
+    useSpawnerStore.getState().clearAll()
+    setGameRunClockRunning(false)
+    resetGameRunClock()
+
+    if (didTransition) {
+      sendScoreboardEvent({
+        type: 'idle_started',
+        timestamp: Date.now(),
+        runId: getRunId(),
+      })
+    }
+  },
+
+  startRunFromIdleTrigger: () => {
+    const stateBefore = get()
+    if (stateBefore.flowState !== 'idle') return
+
+    maps = createContagionMaps()
+    resetComboRuntimeState()
+    clearGameOverInputTimer()
+
     const newRunId = rotateRunId()
     const initialLives = getInitialLives()
-    set((state) => ({
-      score: 0,
-      lastRunScore: 0,
-      sessionHighScore: state.sessionHighScore,
-      lives: initialLives,
-      gameOver: false,
-      runEndSequence: 0,
-      sequence: 0,
-      contagionEpoch: 0,
-      contagionColorsByEntityId: {},
-    }))
+
+    set((state) => {
+      if (state.flowState !== 'idle') return state
+      return {
+        ...state,
+        score: 0,
+        lives: initialLives,
+        flowState: 'run',
+        flowEpoch: state.flowEpoch + 1,
+        gameOverInputEndsAtMs: 0,
+        sequence: 0,
+        contagionEpoch: 0,
+        contagionColorsByEntityId: {},
+      }
+    })
+
+    resetGameRunClock()
+    setGameRunClockRunning(true)
+
     sendScoreboardEvent({
       type: 'game_started',
       timestamp: Date.now(),
@@ -320,30 +390,136 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
       score: 0,
       lives: initialLives,
     })
+  },
+
+  handleRunEndedByLives: () => {
+    let didTransition = false
+    let finalScore = 0
+    set((state) => {
+      if (state.flowState !== 'run') return state
+      didTransition = true
+      finalScore = state.score
+      return {
+        ...state,
+        lives: 0,
+        lastRunScore: state.score,
+        sessionHighScore: Math.max(state.sessionHighScore, state.score),
+        flowState: 'game_over_travel',
+        flowEpoch: state.flowEpoch + 1,
+        gameOverInputEndsAtMs: 0,
+      }
+    })
+    if (!didTransition) return
+
+    resetComboRuntimeState()
+    clearGameOverInputTimer()
+    useSpawnerStore.getState().clearAll()
+
+    setGameRunClockRunning(false)
     resetGameRunClock()
-    setGameRunClockRunning(true)
+
+    const gameOverFile = SETTINGS.level.tiling.gameOverFile
+    if (gameOverFile && gameOverFile.trim().length > 0) {
+      useLevelTilingStore.getState().queueForcedNextTile(gameOverFile)
+    } else {
+      console.error('[gameplayStore] Missing SETTINGS.level.tiling.gameOverFile while entering game_over_travel.')
+    }
+
+    triggerEventSequence('game_over')
+    playGameSound({ type: 'run_end' })
+    sendScoreboardEvent({
+      type: 'game_over',
+      timestamp: Date.now(),
+      runId: getRunId(),
+      finalScore,
+    })
+  },
+
+  onGameOverTileCentered: () => {
+    const durationMs = resolveGameOverInputDurationMs()
+    const endsAtMs = Date.now() + durationMs
+
+    let didTransition = false
+    set((state) => {
+      if (state.flowState !== 'game_over_travel') return state
+      didTransition = true
+      return {
+        ...state,
+        flowState: 'game_over_input',
+        flowEpoch: state.flowEpoch + 1,
+        gameOverInputEndsAtMs: endsAtMs,
+      }
+    })
+    if (!didTransition) return
+
+    clearGameOverInputTimer()
+    gameOverInputTimer = setTimeout(() => {
+      useGameplayStore.getState().finishGameOverInputTimeout()
+    }, durationMs)
+
+    sendScoreboardEvent({
+      type: 'initials_step_started',
+      timestamp: Date.now(),
+      runId: getRunId(),
+      durationMs,
+    })
+  },
+
+  finishGameOverInputTimeout: () => {
+    let didTransition = false
+    set((state) => {
+      if (state.flowState !== 'game_over_input') return state
+      didTransition = true
+      return {
+        ...state,
+        flowState: 'idle',
+        flowEpoch: state.flowEpoch + 1,
+        gameOverInputEndsAtMs: 0,
+      }
+    })
+    if (!didTransition) return
+
+    clearGameOverInputTimer()
+    setGameRunClockRunning(false)
+    resetGameRunClock()
+
+    sendScoreboardEvent({
+      type: 'initials_step_finished',
+      timestamp: Date.now(),
+      runId: getRunId(),
+      reason: 'timeout',
+      initials: 'AAA',
+    })
+    sendScoreboardEvent({
+      type: 'idle_started',
+      timestamp: Date.now(),
+      runId: getRunId(),
+    })
   },
 
   addScore: (delta, source = 'unknown') => {
     const normalizedDelta = normalizeNonNegativeInt(delta, 0)
     if (normalizedDelta === 0) return
+
     let nextTotal = 0
-    let blocked = false
+    let accepted = false
     set((state) => {
-      if (isScoreLockedOnGameOver() && state.gameOver) { blocked = true; return state }
+      if (state.flowState !== 'run') return state
+      accepted = true
       nextTotal = state.score + normalizedDelta
       return { score: nextTotal }
     })
-    if (!blocked) {
-      sendScoreboardEvent({
-        type: 'points_received',
-        timestamp: Date.now(),
-        runId: getRunId(),
-        points: normalizedDelta,
-        generatedBy: source,
-        totalScore: nextTotal,
-      })
-    }
+
+    if (!accepted) return
+
+    sendScoreboardEvent({
+      type: 'points_received',
+      timestamp: Date.now(),
+      runId: getRunId(),
+      points: normalizedDelta,
+      generatedBy: source,
+      totalScore: nextTotal,
+    })
   },
 
   loseLife: (reason = 'unknown') => {
@@ -353,136 +529,54 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
   loseLives: (delta, reason = 'unknown') => {
     const normalizedDelta = normalizeNonNegativeInt(delta, 0)
     if (normalizedDelta === 0) return
-    let playLifeLostSound = false
-    let playRunEndSound = false
-    let shouldResetCombo = false
+
+    let shouldEndRun = false
     let livesLostActual = 0
     let livesRemaining = 0
-    let didRunEnd = false
-    let didAutoResetRun = false
-    let didEnterGameOver = false
-    let finalScore = 0
     set((state) => {
-      if (state.gameOver) return state
+      if (state.flowState !== 'run') return state
+
       const nextLives = Math.max(0, state.lives - normalizedDelta)
-      didRunEnd = nextLives <= 0
-      shouldResetCombo = didRunEnd
-      playLifeLostSound = nextLives < state.lives
-      playRunEndSound = didRunEnd
       livesLostActual = state.lives - nextLives
-      const autoResetLives = SETTINGS.gameplay.lives.autoReset === true
-      didAutoResetRun = didRunEnd && autoResetLives
-      const nextGameOver = didRunEnd && !autoResetLives
-      didEnterGameOver = nextGameOver && !state.gameOver
-      const shouldResetOnRunEnd = didRunEnd && SETTINGS.gameplay.score.resetOnRunEnd === true
-      const shouldResetOnGameOver = didEnterGameOver && SETTINGS.gameplay.score.resetOnGameOver === true
-      const nextScore = (shouldResetOnRunEnd || shouldResetOnGameOver) ? 0 : state.score
-      finalScore = state.score
-      const nextLastRunScore = didRunEnd ? state.score : state.lastRunScore
-      const nextSessionHighScore = didRunEnd
-        ? Math.max(state.sessionHighScore, state.score)
-        : state.sessionHighScore
-
-      if (didRunEnd && autoResetLives) {
-        livesRemaining = getInitialLives()
-        return {
-          ...state,
-          score: nextScore,
-          lastRunScore: nextLastRunScore,
-          sessionHighScore: nextSessionHighScore,
-          lives: livesRemaining,
-          runEndSequence: state.runEndSequence + 1,
-        }
-      }
-
       livesRemaining = nextLives
-      return {
-        ...state,
-        score: nextScore,
-        lastRunScore: nextLastRunScore,
-        sessionHighScore: nextSessionHighScore,
-        lives: nextLives,
-        gameOver: nextGameOver,
-        runEndSequence: didRunEnd ? state.runEndSequence + 1 : state.runEndSequence,
-      }
-    })
-    if (playLifeLostSound) {
-      playGameSound({ type: 'life_lost' })
-      if (livesLostActual > 0) {
-        sendScoreboardEvent({
-          type: 'lives_lost',
-          timestamp: Date.now(),
-          runId: getRunId(),
-          amount: livesLostActual,
-          reason,
-          livesRemaining,
-        })
-      }
-    }
-    if (shouldResetCombo) resetComboRuntimeState()
-    if (didAutoResetRun) {
-      resetGameRunClock()
-      setGameRunClockRunning(true)
-    } else if (didEnterGameOver) {
-      setGameRunClockRunning(false)
-      triggerEventSequence('game_over')
-    }
-    if (playRunEndSound) {
-      playGameSound({ type: 'run_end' })
-      if (didEnterGameOver) {
-        sendScoreboardEvent({
-          type: 'game_over',
-          timestamp: Date.now(),
-          runId: getRunId(),
-          finalScore,
-        })
-      }
-    }
-  },
+      shouldEndRun = nextLives <= 0
 
-  setGameOver: (value) => {
-    const nextValue = value === true
-    let playGameOverSound = false
-    let shouldResetCombo = false
-    let finalScore = 0
-    set((state) => {
-      if (state.gameOver === nextValue) return state
-      playGameOverSound = nextValue
-      finalScore = state.score
-      shouldResetCombo = nextValue
-      const shouldResetScore = nextValue && SETTINGS.gameplay.score.resetOnGameOver === true
       return {
         ...state,
-        score: shouldResetScore ? 0 : state.score,
-        lastRunScore: nextValue ? state.score : state.lastRunScore,
-        sessionHighScore: nextValue
-          ? Math.max(state.sessionHighScore, state.score)
-          : state.sessionHighScore,
-        gameOver: nextValue,
+        lives: nextLives,
       }
     })
-    if (playGameOverSound) {
-      setGameRunClockRunning(false)
-      triggerEventSequence('game_over')
-      playGameSound({ type: 'game_over' })
-      sendScoreboardEvent({
-        type: 'game_over',
-        timestamp: Date.now(),
-        runId: getRunId(),
-        finalScore,
-      })
+
+    if (livesLostActual <= 0) return
+
+    playGameSound({ type: 'life_lost' })
+    sendScoreboardEvent({
+      type: 'lives_lost',
+      timestamp: Date.now(),
+      runId: getRunId(),
+      amount: livesLostActual,
+      reason,
+      livesRemaining,
+    })
+
+    if (shouldEndRun) {
+      get().handleRunEndedByLives()
     }
-    if (shouldResetCombo) resetComboRuntimeState()
   },
 
   removeEntities: (ids) => {
     let changed = false
-    for (const id of ids) {
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i]
+      if (!id) continue
       if (maps.records.delete(id)) changed = true
     }
+
     set((state) => {
       const next = { ...state.contagionColorsByEntityId }
-      for (const id of ids) {
+      for (let i = 0; i < ids.length; i += 1) {
+        const id = ids[i]
+        if (!id) continue
         if (id in next) {
           delete next[id]
           changed = true
@@ -494,7 +588,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
   },
 
   registerBalloonPopForCombo: (rawEvent) => {
-    if (isScoreLockedOnGameOver() && get().gameOver) return
+    if (get().flowState !== 'run') return
 
     const popEvent = normalizeComboPopEvent(rawEvent)
     const comboSettings = SETTINGS.gameplay.balloons.combo
@@ -539,9 +633,10 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
   },
 
   enqueueCollisionPair: (rawA, rawB) => {
+    if (get().flowState !== 'run') return
+
     const contagionSettings = SETTINGS.gameplay.contagion
     if (!contagionSettings.enabled) return
-    if (isScoreLockedOnGameOver() && get().gameOver) return
 
     const entityA = normalizeCollisionEntity(rawA)
     const entityB = normalizeCollisionEntity(rawB)
@@ -555,7 +650,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
   },
 
   flushContagionQueue: () => {
-    if (isScoreLockedOnGameOver() && get().gameOver) {
+    if (get().flowState !== 'run') {
       maps.pendingPairs.clear()
       return
     }
@@ -569,11 +664,11 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
     set((state) => {
       const contagionSettings = SETTINGS.gameplay.contagion
       if (!contagionSettings.enabled) return state
-      if (isScoreLockedOnGameOver() && state.gameOver) return state
+      if (state.flowState !== 'run') return state
 
       let nextSequence = state.sequence
       let nextScore = state.score
-      const nextColorsByEntityId = state.contagionColorsByEntityId
+      const nextColorsByEntityId = { ...state.contagionColorsByEntityId }
       let contagionChanged = false
       const setEntityColor = (entityId: string, colorIndex: number) => {
         if (nextColorsByEntityId[entityId] === colorIndex) return
@@ -598,7 +693,12 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         return seeded
       }
 
-      pendingPairs.forEach(({ a: entityA, b: entityB }) => {
+      for (let i = 0; i < pendingPairs.length; i += 1) {
+        const pair = pendingPairs[i]
+        if (!pair) continue
+        const entityA = pair.a
+        const entityB = pair.b
+
         const contagionA = ensureCarrier(entityA) ?? maps.records.get(entityA.entityId)
         const contagionB = ensureCarrier(entityB) ?? maps.records.get(entityB.entityId)
 
@@ -606,7 +706,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         const hasCarrierB = Boolean(contagionB?.carrier)
 
         if (!hasCarrierA && !hasCarrierB) {
-          return
+          continue
         }
 
         let source: NormalizedCollisionEntity
@@ -623,7 +723,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
           sourceRecord = contagionB!
         } else {
           if (contagionA!.lineageId === contagionB!.lineageId) {
-            return
+            continue
           }
 
           const aWins = sourceWinsByLww(
@@ -638,7 +738,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         }
 
         if (!target.infectable) {
-          return
+          continue
         }
 
         const targetCurrent = maps.records.get(target.entityId)
@@ -651,7 +751,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
           && targetCurrent.colorIndex === nextTargetColor
           && targetCurrent.lineageId === nextTargetLineage
         ) {
-          return
+          continue
         }
 
         contagionChanged = true
@@ -672,7 +772,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
             ...target.screenPos,
           })
         }
-      })
+      }
 
       if (!contagionChanged) {
         return state
@@ -709,6 +809,18 @@ export function useContagionColorOverride(entityId: string | undefined): number 
     if (!entityId) return undefined
     return state.contagionColorsByEntityId[entityId]
   })
+}
+
+export function getGameplayFlowState(): GameFlowState {
+  return useGameplayStore.getState().flowState
+}
+
+export function isGameplayRunFlow(): boolean {
+  return useGameplayStore.getState().flowState === 'run'
+}
+
+export function isMotionSystemFlowActive(): boolean {
+  return useGameplayStore.getState().flowState !== 'game_over_input'
 }
 
 onEntityUnregister((id) => {

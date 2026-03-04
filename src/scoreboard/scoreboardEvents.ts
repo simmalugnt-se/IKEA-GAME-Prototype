@@ -2,6 +2,8 @@ export type ScoreboardEventSource = 'balloon_pop' | 'balloon_combo' | 'contagion
 
 export type ScoreboardLifeLossReason = 'balloon_missed' | 'unknown'
 
+export type InitialsStepFinishReason = 'timeout'
+
 export type GameStartedEvent = {
   type: 'game_started'
   timestamp: number
@@ -47,22 +49,49 @@ export type ComboTriggeredEvent = {
   totalScore: number
 }
 
+export type IdleStartedEvent = {
+  type: 'idle_started'
+  timestamp: number
+  runId: string
+}
+
+export type InitialsStepStartedEvent = {
+  type: 'initials_step_started'
+  timestamp: number
+  runId: string
+  durationMs: number
+}
+
+export type InitialsStepFinishedEvent = {
+  type: 'initials_step_finished'
+  timestamp: number
+  runId: string
+  reason: InitialsStepFinishReason
+  initials: string
+}
+
 export type ScoreboardEvent =
   | GameStartedEvent
   | PointsReceivedEvent
   | LivesLostEvent
   | GameOverEvent
   | ComboTriggeredEvent
+  | IdleStartedEvent
+  | InitialsStepStartedEvent
+  | InitialsStepFinishedEvent
 
 export function isScoreboardEvent(value: unknown): value is ScoreboardEvent {
   if (value === null || typeof value !== 'object') return false
   const obj = value as Record<string, unknown>
   return (
-    obj.type === 'game_started' ||
-    obj.type === 'points_received' ||
-    obj.type === 'lives_lost' ||
-    obj.type === 'game_over' ||
-    obj.type === 'combo_triggered'
+    obj.type === 'game_started'
+    || obj.type === 'points_received'
+    || obj.type === 'lives_lost'
+    || obj.type === 'game_over'
+    || obj.type === 'combo_triggered'
+    || obj.type === 'idle_started'
+    || obj.type === 'initials_step_started'
+    || obj.type === 'initials_step_finished'
   )
 }
 

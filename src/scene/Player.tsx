@@ -7,9 +7,8 @@ import type { GameControlName } from '@/input/GameKeyboardControls'
 import { SETTINGS, type ControlInputSource, type MaterialColorIndex, type Vec3 } from '@/settings/GameSettings'
 import type { PositionTargetHandle } from '@/scene/PositionTargetHandle'
 import { getExternalAbsoluteTarget, getExternalDigitalState, type DigitalControlState } from '@/input/control/ExternalControlStore'
-import { useContagionColorOverride } from '@/gameplay/gameplayStore'
+import { useContagionColorOverride, useGameplayStore } from '@/gameplay/gameplayStore'
 import { useEntityRegistration, generateEntityId } from '@/entities/entityStore'
-import { isPlaying } from '@/game/gamePhaseStore'
 
 export type PlayerHandle = PositionTargetHandle
 
@@ -69,6 +68,7 @@ export const Player: PlayerComponent = forwardRef<PlayerHandle, PlayerProps>(fun
   const rb = useRef<RapierRigidBody | null>(null)
   const { rapier, world } = useRapier()
   const [, getKeys] = useKeyboardControls<GameControlName>()
+  const flowState = useGameplayStore((state) => state.flowState)
   const smoothedAbsoluteTarget = useRef<{ x: number; z: number } | null>(null)
   const rayRef = useRef<InstanceType<typeof rapier.Ray> | null>(null)
   const autoEntityIdRef = useRef<string>(createAutoPlayerEntityId())
@@ -104,7 +104,7 @@ export const Player: PlayerComponent = forwardRef<PlayerHandle, PlayerProps>(fun
 
   useFrame((_state, delta) => {
     if (!rb.current) return
-    if (!isPlaying()) return
+    if (flowState !== 'run') return
 
     const nowMs = Date.now()
 

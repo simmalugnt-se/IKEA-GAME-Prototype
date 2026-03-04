@@ -58,6 +58,7 @@ export type AudioMixSettings = {
 export type AudioMusicSettings = {
   enabled: boolean
   loops: Record<string, AudioMusicLoopSettings>
+  idleSequence: AudioMusicRunSequenceSettings
   runSequence: AudioMusicRunSequenceSettings
   eventSequences: Record<string, AudioMusicEventSequenceSettings>
 }

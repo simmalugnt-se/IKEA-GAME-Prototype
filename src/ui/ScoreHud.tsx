@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
-import { SETTINGS, getPaletteEntry } from '@/settings/GameSettings'
+import { SETTINGS } from '@/settings/GameSettings'
 
 function formatScore(value: number): string {
   const truncated = Number.isFinite(value) ? Math.trunc(value) : 0
@@ -16,12 +16,15 @@ export function ScoreHud() {
   const lastRunScore = useGameplayStore((state) => state.lastRunScore)
   const sessionHighScore = useGameplayStore((state) => state.sessionHighScore)
   const lives = useGameplayStore((state) => state.lives)
-  const gameOver = useGameplayStore((state) => state.gameOver)
+  const flowState = useGameplayStore((state) => state.flowState)
   const maxLives = SETTINGS.gameplay.lives.initial
   const secondaryColor = SETTINGS.colors.outline
   const consumedLives = Math.max(0, maxLives - lives)
   const fontSize = '2rem'
   const margin = '1.5rem'
+  const isTopHudHidden = flowState !== 'run'
+  const topHudTransform = isTopHudHidden ? 'translateY(-140%)' : 'translateY(0%)'
+  const topHudOpacity = isTopHudHidden ? 0 : 1
 
   const hudTextStyle: CSSProperties = {
     fontFamily: '"Instrument Sans", sans-serif',
@@ -48,6 +51,9 @@ export function ScoreHud() {
           maxWidth: 'min(70vw, 52ch)',
           flexWrap: 'wrap',
           color: uiWhite,
+          transform: topHudTransform,
+          opacity: topHudOpacity,
+          transition: 'transform 360ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out',
         }}
       >
         <div style={{ display: 'flex', gap: '1em', minWidth: 'max(15ch, calc(100vw / 4))' }}>
@@ -100,6 +106,9 @@ export function ScoreHud() {
           alignItems: 'center',
           gap: '0.125em',
           ...hudTextStyle,
+          transform: topHudTransform,
+          opacity: topHudOpacity,
+          transition: 'transform 360ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out',
         }}
       >
         {Array.from({ length: lives }, (_, index) => (
@@ -129,24 +138,6 @@ export function ScoreHud() {
           </span>
         ))}
       </div>
-
-      {
-        gameOver ? (
-          <div
-            style={{
-              position: 'absolute',
-              top: `calc(${margin} * 1.25 + ${fontSize})`,
-              left: margin,
-              zIndex: 30,
-              pointerEvents: 'none',
-              color: secondaryColor,
-              ...hudTextStyle,
-            }}
-          >
-            Game Over
-          </div>
-        ) : null
-      }
     </>
   )
 }

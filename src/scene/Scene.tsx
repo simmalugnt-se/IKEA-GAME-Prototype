@@ -4,7 +4,6 @@ import { GameMusicDirector } from "@/audio/GameMusicDirector";
 import { ContagionRuntime } from "@/gameplay/ContagionRuntime";
 import { useGameplayStore } from "@/gameplay/gameplayStore";
 import { ItemSpawner } from "@/gameplay/ItemSpawner";
-import { useSpawnerStore } from "@/gameplay/spawnerStore";
 import { ExternalControlBridge } from "@/input/control/ExternalControlBridge";
 import { GameKeyboardControls } from "@/input/GameKeyboardControls";
 import { LevelTileManager } from "@/levels/LevelTileManager";
@@ -28,10 +27,9 @@ import { BalloonGroup } from "@/geometry/BalloonGroup";
 import { Stats } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { LevelRenderer } from "@/LevelRenderer";
-import { WedgeElement } from "@/primitives/WedgeElement";
 
 export function Scene() {
   useSettingsVersion();
@@ -39,13 +37,19 @@ export function Scene() {
   const directionalLightRef = useRef<THREE.DirectionalLight | null>(null);
   const spawnMarkerRef = useRef<PositionTargetHandle | null>(null);
   const cullMarkerRef = useRef<PositionTargetHandle | null>(null);
+  const [idleBalloonVersion, setIdleBalloonVersion] = useState(0);
   const isDebug = SETTINGS.debug.enabled;
-  const gameOver = useGameplayStore((state) => state.gameOver);
+  const flowState = useGameplayStore((state) => state.flowState);
+  const bootstrapIdle = useGameplayStore((state) => state.bootstrapIdle);
 
   useEffect(() => {
-    if (!gameOver) return;
-    useSpawnerStore.getState().clearAll();
-  }, [gameOver]);
+    bootstrapIdle();
+  }, [bootstrapIdle]);
+
+  const handleIdleBalloonMissed = useCallback(() => {
+    if (useGameplayStore.getState().flowState !== "idle") return;
+    setIdleBalloonVersion((v) => v + 1);
+  }, []);
 
   // Calculate the diagonal of the viewport to ensure the floor covers the entire screen
   const { viewport } = useThree();
@@ -83,6 +87,7 @@ export function Scene() {
               {/* CAMERA TRACKER */}
 
               <TransformMotion
+                paused={flowState === "game_over_input"}
                 positionVelocity={{ z: -0.5 }}
                 timeScaleAcceleration={SETTINGS.motionAcceleration.cameraTracker.timeScaleAcceleration}
                 timeScaleAccelerationCurve={SETTINGS.motionAcceleration.cameraTracker.timeScaleAccelerationCurve}
@@ -102,6 +107,17 @@ export function Scene() {
                   hidden
                 />
                 <BlockElement ref={playerRef} hidden />
+                {flowState === "idle" ? (
+                  <BalloonGroup
+                    key={`idle-balloon-${idleBalloonVersion}`}
+                    flowRole="idle_start"
+                    color={8}
+                    randomize={false}
+                    dropType="ball"
+                    position={[0, 2.3, 0]}
+                    onMissed={handleIdleBalloonMissed}
+                  />
+                ) : null}
               </TransformMotion>
 
               {/* ENDLESS TILED LEVELS */}
@@ -112,7 +128,7 @@ export function Scene() {
                 spawnMarkerRef={spawnMarkerRef}
                 cullMarkerRef={cullMarkerRef}
               >
-                <BalloonGroup randomize position={[0, 2.3, 0]} />
+                <BalloonGroup randomize flowRole="run_spawn" position={[0, 2.3, 0]} />
               </ItemSpawner>
 
 

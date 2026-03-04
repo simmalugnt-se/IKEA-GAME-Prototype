@@ -204,7 +204,9 @@ export type Settings = {
     lives: {
       initial: number
       lossPerMiss: number
-      autoReset: boolean
+    }
+    flow: {
+      gameOverInputDurationMs: number
     }
     balloons: {
       scorePerPop: number
@@ -231,7 +233,9 @@ export type Settings = {
     gridClonerSpawnChunkSize: number
     tiling: {
       enabled: boolean
-      files: string[]
+      runFiles: string[]
+      idleFiles: string[]
+      gameOverFile: string
       lookAheadDistance: number
       cullBehindDistance: number
     }
