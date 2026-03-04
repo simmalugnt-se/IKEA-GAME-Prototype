@@ -32,7 +32,7 @@ import * as THREE from "three";
 import { LevelRenderer } from "@/LevelRenderer";
 import { applyEasing } from "@/utils/easing";
 
-const IDLE_BALLOON_TARGET_POSITION: [number, number, number] = [1, 1.3, 1];
+const IDLE_BALLOON_TARGET_POSITION: [number, number, number] = [.75, 1.3, .75];
 const IDLE_BALLOON_ENTRY_SPEED_Z = 0.4;
 
 export function Scene() {

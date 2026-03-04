@@ -1,6 +1,9 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
+import { AUDIO_SETTINGS } from '@/audio/AudioSettings'
+import { isAudioUnlocked, subscribeAudioUnlocked } from '@/audio/SoundManager'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { SETTINGS } from '@/settings/GameSettings'
+import { useSettingsVersion } from '@/settings/settingsStore'
 
 function formatScore(value: number): string {
   const truncated = Number.isFinite(value) ? Math.trunc(value) : 0
@@ -10,8 +13,9 @@ function formatScore(value: number): string {
 }
 
 export function ScoreHud() {
+  useSettingsVersion()
   const uiWhite = '#fff'
-  const uiWhiteAlpha = 'rgba(255, 255, 255, 0.333)'
+  const [audioUnlocked, setAudioUnlocked] = useState(() => isAudioUnlocked())
   const score = useGameplayStore((state) => state.score)
   const lastRunScore = useGameplayStore((state) => state.lastRunScore)
   const sessionHighScore = useGameplayStore((state) => state.sessionHighScore)
@@ -25,6 +29,7 @@ export function ScoreHud() {
   const isTopHudHidden = flowState !== 'run'
   const topHudTransform = isTopHudHidden ? 'translateY(calc(-100% - ' + margin + '))' : 'translateY(0%)'
   const topHudOpacity = isTopHudHidden ? 0 : 1
+  const isAudioOn = AUDIO_SETTINGS.enabled === true && audioUnlocked
 
   const hudTextStyle: CSSProperties = {
     fontFamily: '"Instrument Sans", sans-serif',
@@ -34,6 +39,12 @@ export function ScoreHud() {
     letterSpacing: '0.01em',
     textTransform: 'uppercase',
   }
+
+  useEffect(() => {
+    return subscribeAudioUnlocked(() => {
+      setAudioUnlocked(true)
+    })
+  }, [])
 
   return (
     <>
@@ -72,28 +83,43 @@ export function ScoreHud() {
         </div>
       </div >
 
-      <div
-        style={{
-          position: 'absolute',
-          bottom: margin,
-          right: margin,
-          zIndex: 30,
-          pointerEvents: 'none',
-          ...hudTextStyle,
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'flex-end',
-          gap: '2ch',
-          maxWidth: 'min(70vw, 52ch)',
-          flexWrap: 'wrap',
-          color: uiWhite,
-          textAlign: 'right',
-          textWrap: 'balance',
-          width: '10ch',
-        }}
-      >
-        <span style={{ fontSize: '0.25em', fontWeight: '600', letterSpacing: '0.025em' }}>CMD + . (Punctuation mark) to toggle the property panel for game settings.</span>
-      </div>
+      {!isAudioOn && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: margin,
+            right: margin,
+            zIndex: 30,
+            pointerEvents: 'none',
+            ...hudTextStyle,
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: '1ch',
+            flexWrap: 'wrap',
+            color: uiWhite,
+            textAlign: 'right',
+            textWrap: 'balance',
+          }}
+        >
+          <span style={{ fontSize: '0.375em', fontWeight: '600', letterSpacing: '0.025em', maxWidth: '30ch' }}>Click anywhere to enable the soundtrack and SFX</span>
+          <span
+            style={{
+              fontFamily: '"Material Symbols Outlined"',
+              fontWeight: 400,
+              fontStyle: 'normal',
+              fontSize: '0.75em',
+              lineHeight: '1em',
+              letterSpacing: 'normal',
+              textTransform: 'none',
+              userSelect: 'none',
+            }}
+          >
+            volume_off
+          </span>
+        </div>
+      )}
 
       <div
         style={{
