@@ -1456,7 +1456,7 @@
       ]
     },
     {
-      "id": "9ab4463b-37ac-4440-b650-35f0c657464e",
+      "id": "31851356-28bb-4451-a1fa-9feab3db347b",
       "nodeType": "object",
       "type": "BlockElement",
       "position": [
@@ -1480,37 +1480,6 @@
         "plane": "y",
         "color": 1,
         "singleTone": false,
-        "hidden": false,
-        "physics": "dynamic",
-        "contagionCarrier": false,
-        "contagionInfectable": true
-      }
-    },
-    {
-      "id": "8bc4b618-fcba-4b3a-81e2-b3cbb4614eef",
-      "nodeType": "object",
-      "type": "CylinderBlockElement",
-      "position": [
-        -0.7,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "props": {
-        "sizePreset": "lg",
-        "heightPreset": "sm",
-        "plane": "y",
-        "color": 1,
-        "singleTone": true,
         "hidden": false,
         "physics": "dynamic",
         "contagionCarrier": false,

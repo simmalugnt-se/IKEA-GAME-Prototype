@@ -350,6 +350,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
     resetGameRunClock()
 
     if (didTransition) {
+      playGameSound({ type: 'idle_started' })
       sendScoreboardEvent({
         type: 'idle_started',
         timestamp: Date.now(),
@@ -388,6 +389,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
     resetGameRunClock()
     setGameRunClockRunning(true)
 
+    playGameSound({ type: 'run_started' })
     sendScoreboardEvent({
       type: 'game_started',
       timestamp: Date.now(),
@@ -499,6 +501,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
     setGameRunClockRunning(false)
     resetGameRunClock()
 
+    playGameSound({ type: 'idle_started' })
     sendScoreboardEvent({
       type: 'initials_step_finished',
       timestamp: Date.now(),

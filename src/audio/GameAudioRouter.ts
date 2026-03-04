@@ -14,6 +14,8 @@ type ComboTierGameSoundEvent = {
 export type GameSoundEvent =
   | { type: 'balloon_pop' }
   | { type: 'payload_landed' }
+  | { type: 'run_started' }
+  | { type: 'idle_started' }
   | { type: 'life_lost' }
   | { type: 'run_end' }
   | { type: 'game_over' }
@@ -58,6 +60,12 @@ export function playGameSound(event: GameSoundEvent): void {
       playAudioBank('pop')
       return
     case 'payload_landed':
+      playAudioBank('felt')
+      return
+    case 'run_started':
+      playAudioBank('comboTier2')
+      return
+    case 'idle_started':
       playAudioBank('felt')
       return
     case 'life_lost':

@@ -6,7 +6,12 @@ import {
   updateIdleSequenceTime,
   updateRunSequenceTime,
 } from '@/audio/BackgroundMusicManager'
-import { subscribeGameRunClock } from '@/game/GameRunClock'
+import { subscribeAudioUnlocked } from '@/audio/SoundManager'
+import {
+  getGameRunClockEpoch,
+  getGameRunClockSeconds,
+  subscribeGameRunClock,
+} from '@/game/GameRunClock'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 
 export function GameMusicDirector(): null {
@@ -42,6 +47,26 @@ export function GameMusicDirector(): null {
     activateIdleSequence(flowEpoch)
     updateIdleSequenceTime(0)
   }, [flowEpoch, flowState])
+
+  useEffect(() => {
+    return subscribeAudioUnlocked(() => {
+      const state = useGameplayStore.getState()
+      if (state.flowState === 'run') {
+        const runEpoch = getGameRunClockEpoch()
+        latestRunEpochRef.current = runEpoch
+        activatedRunEpochRef.current = runEpoch
+        activateRunSequence(runEpoch)
+        updateRunSequenceTime(getGameRunClockSeconds())
+        return
+      }
+
+      if (state.flowState === 'idle') {
+        activatedIdleEpochRef.current = state.flowEpoch
+        activateIdleSequence(state.flowEpoch)
+        updateIdleSequenceTime(idleElapsedSecRef.current)
+      }
+    })
+  }, [])
 
   useFrame((_, delta) => {
     if (flowState !== 'idle') return

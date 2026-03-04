@@ -102,12 +102,27 @@ export const AUDIO_SETTINGS: AudioSettings = {
       goodvibes_loop_4: {
         file: '/sounds/goodvibes/goodvibes_loop_4.wav',
         volume: 1,
-        switchMarkersSec: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22],
+        switchMarkersSec: [2, 4, 6, 8, 10, 12, 14],
+      },
+      goodvibes_loop_5: {
+        file: '/sounds/goodvibes/goodvibes_loop_5.wav',
+        volume: 1,
+        switchMarkersSec: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+      },
+      goodvibes_loop_6: {
+        file: '/sounds/goodvibes/goodvibes_loop_6.wav',
+        volume: 1,
+        switchMarkersSec: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+      },
+      goodvibes_loop_7: {
+        file: '/sounds/goodvibes/goodvibes_loop_7.wav',
+        volume: 1,
+        switchMarkersSec: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
       },
       pinjacolada_loop_1: {
         file: '/sounds/pinjacolada/pinjacolada_loop_1.wav',
         volume: 1,
-        switchMarkersSec: [],
+        switchMarkersSec: [2, 4, 6],
       },
       pinjacolada_loop_2: {
         file: '/sounds/pinjacolada/pinjacolada_loop_2.wav',
@@ -115,19 +130,16 @@ export const AUDIO_SETTINGS: AudioSettings = {
         switchMarkersSec: [2, 4, 6, 8, 10, 12, 14],
       },
     },
-    idleSequence: {
-      volume: 0.55,
-      timeline: [
-        { atSec: 0, loopId: 'pinjacolada_loop_2' },
-      ],
-    },
     runSequence: {
       volume: .75,
       timeline: [
         { atSec: 0, loopId: 'goodvibes_loop_1' },
-        { atSec: 12, loopId: 'goodvibes_loop_2' },
-        { atSec: 32, loopId: 'goodvibes_loop_3' },
-        { atSec: 64, loopId: 'goodvibes_loop_4' },
+        { atSec: 8, loopId: 'goodvibes_loop_2' },
+        { atSec: 16, loopId: 'goodvibes_loop_3' },
+        { atSec: 32, loopId: 'goodvibes_loop_4' },
+        { atSec: 48, loopId: 'goodvibes_loop_5' },
+        { atSec: 80, loopId: 'goodvibes_loop_6' },
+        { atSec: 112, loopId: 'goodvibes_loop_7' },
       ],
     },
     eventSequences: {
@@ -137,6 +149,12 @@ export const AUDIO_SETTINGS: AudioSettings = {
           { atLoop: 0, loopId: 'pinjacolada_loop_1' },
         ],
       },
+    },
+    idleSequence: {
+      volume: 0.5,
+      timeline: [
+        { atSec: 0, loopId: 'pinjacolada_loop_2' },
+      ],
     },
   },
   rules: {

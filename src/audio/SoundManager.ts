@@ -6,10 +6,15 @@ type CategoryState = {
   index: number
 }
 
+type AudioUnlockedListener = () => void
+
 let ctx: AudioContext | null = null
 const categories = new Map<AudioBankId, CategoryState>()
 let preloaded = false
 let resumeListenerAttached = false
+let resumeListener: (() => void) | null = null
+let audioUnlocked = false
+const unlockListeners = new Set<AudioUnlockedListener>()
 let masterGain: GainNode | null = null
 let sfxBusGain: GainNode | null = null
 let musicBusGain: GainNode | null = null
@@ -19,37 +24,94 @@ function normalizeVolume(value: number | undefined, fallback: number): number {
   return Math.max(0, value)
 }
 
+function notifyAudioUnlockedOnce(): void {
+  if (!ctx) return
+  if (audioUnlocked) return
+  if (ctx.state !== 'running') return
+  audioUnlocked = true
+  if (unlockListeners.size === 0) return
+  unlockListeners.forEach((listener) => {
+    listener()
+  })
+  unlockListeners.clear()
+}
+
+function detachResumeListener(): void {
+  if (!resumeListenerAttached || !resumeListener) return
+  window.removeEventListener('mousedown', resumeListener)
+  window.removeEventListener('pointerdown', resumeListener)
+  window.removeEventListener('touchstart', resumeListener)
+  window.removeEventListener('keydown', resumeListener)
+  resumeListener = null
+  resumeListenerAttached = false
+}
+
+function tryResumeAudioContext(): void {
+  if (!ctx) return
+  if (ctx.state === 'running') {
+    notifyAudioUnlockedOnce()
+    detachResumeListener()
+    return
+  }
+  if (ctx.state === 'closed') return
+
+  void ctx.resume().then(() => {
+    if (!ctx) return
+    if (ctx.state !== 'running') return
+    notifyAudioUnlockedOnce()
+    detachResumeListener()
+  }).catch(() => {
+    // Keep gesture listeners attached so the next user interaction can retry.
+  })
+}
+
+function handleAudioContextStateChange(): void {
+  if (!ctx) return
+  if (ctx.state !== 'running') return
+  notifyAudioUnlockedOnce()
+  detachResumeListener()
+}
+
 function attachResumeListener(): void {
   if (resumeListenerAttached) return
   resumeListenerAttached = true
 
-  const resume = () => {
-    if (ctx && ctx.state === "suspended") {
-      ctx.resume()
-    }
-    window.removeEventListener('mousedown', resume)
-    window.removeEventListener('pointerdown', resume)
-    window.removeEventListener('touchstart', resume)
-    window.removeEventListener('keydown', resume)
+  resumeListener = () => {
+    tryResumeAudioContext()
   }
 
-  window.addEventListener('mousedown', resume, { once: false })
-  window.addEventListener('pointerdown', resume, { once: false })
-  window.addEventListener('touchstart', resume, { once: false })
-  window.addEventListener('keydown', resume, { once: false })
+  window.addEventListener('mousedown', resumeListener, { once: false })
+  window.addEventListener('pointerdown', resumeListener, { once: false })
+  window.addEventListener('touchstart', resumeListener, { once: false })
+  window.addEventListener('keydown', resumeListener, { once: false })
 }
 
 export function getOrCreateAudioContext(): AudioContext {
   if (!ctx) {
     ctx = new AudioContext()
+    ctx.addEventListener('statechange', handleAudioContextStateChange)
     attachResumeListener()
   }
   ensureBusGraph(ctx)
   syncAudioMixerGainsFromSettings()
-  if (ctx.state === 'suspended') {
-    ctx.resume()
-  }
+  tryResumeAudioContext()
+  notifyAudioUnlockedOnce()
   return ctx
+}
+
+export function subscribeAudioUnlocked(listener: AudioUnlockedListener): () => void {
+  if (audioUnlocked) {
+    queueMicrotask(listener)
+    return () => { /* no-op */ }
+  }
+  unlockListeners.add(listener)
+  return () => {
+    unlockListeners.delete(listener)
+  }
+}
+
+export function isAudioUnlocked(): boolean {
+  return audioUnlocked
 }
 
 function ensureBusGraph(audioCtx: AudioContext): void {
