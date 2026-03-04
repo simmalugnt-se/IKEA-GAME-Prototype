@@ -25,11 +25,15 @@ import { SETTINGS } from "@/settings/GameSettings";
 import { useSettingsVersion } from "@/settings/settingsStore";
 import { BalloonGroup } from "@/geometry/BalloonGroup";
 import { Stats } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { LevelRenderer } from "@/LevelRenderer";
+import { applyEasing } from "@/utils/easing";
+
+const IDLE_BALLOON_TARGET_POSITION: [number, number, number] = [1, 1.3, 1];
+const IDLE_BALLOON_ENTRY_SPEED_Z = 0.4;
 
 export function Scene() {
   useSettingsVersion();
@@ -37,9 +41,12 @@ export function Scene() {
   const directionalLightRef = useRef<THREE.DirectionalLight | null>(null);
   const spawnMarkerRef = useRef<PositionTargetHandle | null>(null);
   const cullMarkerRef = useRef<PositionTargetHandle | null>(null);
+  const flowState = useGameplayStore((state) => state.flowState);
+  const trackerTravelSpeedMultiplierRef = useRef(1);
+  const trackerTravelEaseStartMsRef = useRef<number | null>(null);
+  const previousFlowStateRef = useRef(flowState);
   const [idleBalloonVersion, setIdleBalloonVersion] = useState(0);
   const isDebug = SETTINGS.debug.enabled;
-  const flowState = useGameplayStore((state) => state.flowState);
   const bootstrapIdle = useGameplayStore((state) => state.bootstrapIdle);
 
   useEffect(() => {
@@ -56,6 +63,54 @@ export function Scene() {
   const diaginalRadiusOffset = -0.5;
   const diagonalRadius =
     Math.hypot(viewport.height, viewport.width) / 2 + diaginalRadiusOffset;
+  const idleBalloonStartOffsetZ = useMemo(() => {
+    const spawnMarkerLocalZ = -diagonalRadius;
+    const idleTargetLocalZ = IDLE_BALLOON_TARGET_POSITION[2];
+    return spawnMarkerLocalZ - idleTargetLocalZ;
+  }, [diagonalRadius]);
+  useFrame(() => {
+    const nowMs = performance.now();
+    const previousFlowState = previousFlowStateRef.current;
+    const enteringGameOverTravel =
+      flowState === "game_over_travel" && previousFlowState !== "game_over_travel";
+
+    if (enteringGameOverTravel) {
+      trackerTravelEaseStartMsRef.current = nowMs;
+    } else if (
+      flowState !== "game_over_travel" &&
+      previousFlowState === "game_over_travel"
+    ) {
+      trackerTravelEaseStartMsRef.current = null;
+    }
+    previousFlowStateRef.current = flowState;
+
+    if (flowState !== "game_over_travel") {
+      trackerTravelSpeedMultiplierRef.current = 1;
+      return;
+    }
+
+    const targetMultiplier = Math.max(
+      0,
+      SETTINGS.gameplay.flow.gameOverTravelSpeedMultiplier
+    );
+    const easeDurationMs = Math.max(
+      0,
+      SETTINGS.gameplay.flow.gameOverTravelSpeedEaseInMs
+    );
+    const easeName = SETTINGS.gameplay.flow.gameOverTravelSpeedEaseInEasing;
+
+    if (easeDurationMs <= 0) {
+      trackerTravelSpeedMultiplierRef.current = targetMultiplier;
+      return;
+    }
+
+    const easeStartMs = trackerTravelEaseStartMsRef.current ?? nowMs;
+    trackerTravelEaseStartMsRef.current = easeStartMs;
+    const progress = Math.min(1, Math.max(0, (nowMs - easeStartMs) / easeDurationMs));
+    const easedProgress = applyEasing(progress, easeName);
+    trackerTravelSpeedMultiplierRef.current =
+      1 + (targetMultiplier - 1) * easedProgress;
+  });
 
   return (
     <GameKeyboardControls>
@@ -89,6 +144,7 @@ export function Scene() {
               <TransformMotion
                 paused={flowState === "game_over_input"}
                 positionVelocity={{ z: -0.5 }}
+                runtimeTimeScaleMultiplierRef={trackerTravelSpeedMultiplierRef}
                 timeScaleAcceleration={SETTINGS.motionAcceleration.cameraTracker.timeScaleAcceleration}
                 timeScaleAccelerationCurve={SETTINGS.motionAcceleration.cameraTracker.timeScaleAccelerationCurve}
               >
@@ -114,7 +170,12 @@ export function Scene() {
                     color={8}
                     randomize={false}
                     dropType="ball"
-                    position={[0, 2.3, 0]}
+                    position={IDLE_BALLOON_TARGET_POSITION}
+                    positionVelocity={{ z: IDLE_BALLOON_ENTRY_SPEED_Z }}
+                    positionRange={{ z: [idleBalloonStartOffsetZ, 0.325] }}
+                    positionRangeStart={{ z: 0 }}
+                    positionEasing={{ z: "easeOutExpo" }}
+                    positionLoopMode={{ z: "none" }}
                     onMissed={handleIdleBalloonMissed}
                   />
                 ) : null}
@@ -134,7 +195,7 @@ export function Scene() {
 
 
               {/* LEVEL FROM STORE (file or live sync) */}
-              <LevelRenderer />
+              {!SETTINGS.level.tiling.enabled ? <LevelRenderer /> : null}
 
               {/* DEBUG BENCHMARK + STREAMING */}
               {/* <BenchmarkDebugContent />

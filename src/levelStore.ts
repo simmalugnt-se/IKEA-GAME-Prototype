@@ -18,6 +18,9 @@ export type LevelNode = {
 
 export type LevelSceneMetrics = {
   highestVertexY: number | null
+  tileCenterZ?: number
+  tileSpanZMin?: number
+  tileSpanZMax?: number
 }
 
 export type LevelData = {
@@ -100,10 +103,44 @@ export function parseLevelFileJson(raw: unknown): LevelData {
   }
   if (data.sceneMetrics && typeof data.sceneMetrics === 'object') {
     const metrics = data.sceneMetrics as Record<string, unknown>
+    const nextMetrics: LevelSceneMetrics = { highestVertexY: null }
+    let hasMetrics = false
+
     if (metrics.highestVertexY === null) {
-      result.sceneMetrics = { highestVertexY: null }
+      nextMetrics.highestVertexY = null
+      hasMetrics = true
     } else if (typeof metrics.highestVertexY === 'number' && Number.isFinite(metrics.highestVertexY)) {
-      result.sceneMetrics = { highestVertexY: metrics.highestVertexY }
+      nextMetrics.highestVertexY = metrics.highestVertexY
+      hasMetrics = true
+    }
+
+    if (typeof metrics.tileCenterZ === 'number' && Number.isFinite(metrics.tileCenterZ)) {
+      nextMetrics.tileCenterZ = metrics.tileCenterZ
+      hasMetrics = true
+    }
+
+    const hasSpanMin = typeof metrics.tileSpanZMin === 'number' && Number.isFinite(metrics.tileSpanZMin)
+    const hasSpanMax = typeof metrics.tileSpanZMax === 'number' && Number.isFinite(metrics.tileSpanZMax)
+    if (hasSpanMin) {
+      nextMetrics.tileSpanZMin = metrics.tileSpanZMin as number
+      hasMetrics = true
+    }
+    if (hasSpanMax) {
+      nextMetrics.tileSpanZMax = metrics.tileSpanZMax as number
+      hasMetrics = true
+    }
+    if (hasSpanMin && hasSpanMax) {
+      const spanMin = metrics.tileSpanZMin as number
+      const spanMax = metrics.tileSpanZMax as number
+      if (!(spanMax > spanMin)) {
+        delete nextMetrics.tileSpanZMin
+        delete nextMetrics.tileSpanZMax
+        console.error('[levelStore] Invalid sceneMetrics tile span: tileSpanZMax must be greater than tileSpanZMin.')
+      }
+    }
+
+    if (hasMetrics) {
+      result.sceneMetrics = nextMetrics
     }
   }
   return result

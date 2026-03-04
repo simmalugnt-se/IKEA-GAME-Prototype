@@ -23,7 +23,7 @@ export function ScoreHud() {
   const fontSize = '2rem'
   const margin = '1.5rem'
   const isTopHudHidden = flowState !== 'run'
-  const topHudTransform = isTopHudHidden ? 'translateY(-140%)' : 'translateY(0%)'
+  const topHudTransform = isTopHudHidden ? 'translateY(calc(-100% - ' + margin + '))' : 'translateY(0%)'
   const topHudOpacity = isTopHudHidden ? 0 : 1
 
   const hudTextStyle: CSSProperties = {
@@ -53,7 +53,7 @@ export function ScoreHud() {
           color: uiWhite,
           transform: topHudTransform,
           opacity: topHudOpacity,
-          transition: 'transform 360ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out',
+          transition: 'transform 2s cubic-bezier(0.6, 0, 0, 1), opacity 2s cubic-bezier(0.6, 0, 0, 1)',
         }}
       >
         <div style={{ display: 'flex', gap: '1em', minWidth: 'max(15ch, calc(100vw / 4))' }}>
@@ -108,7 +108,7 @@ export function ScoreHud() {
           ...hudTextStyle,
           transform: topHudTransform,
           opacity: topHudOpacity,
-          transition: 'transform 360ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out',
+          transition: 'transform 2s .15s cubic-bezier(0.6, 0, 0, 1), opacity 2s .15s cubic-bezier(0.6, 0, 0, 1)',
         }}
       >
         {Array.from({ length: lives }, (_, index) => (

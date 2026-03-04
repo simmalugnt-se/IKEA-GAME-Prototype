@@ -14,6 +14,7 @@ import {
 } from '@/settings/GameSettings.types'
 import type { Vec3, AxisMask, PaletteVariant, PaletteVariantName } from '@/settings/GameSettings.types'
 import { ACCELERATION_CURVE_NAMES } from '@/utils/accelerationCurve'
+import { EASING_NAMES } from '@/utils/easing'
 import { bump } from '@/settings/settingsStore'
 
 const POP_RELEASE_CURVE_OPTIONS = [
@@ -568,6 +569,14 @@ export const settingsSections: SectionDescriptor[] = [
             { type: 'number', label: 'lives.initial', get: () => SETTINGS.gameplay.lives.initial, set: (v) => { SETTINGS.gameplay.lives.initial = v; bump() }, min: 1, max: 10, step: 1 },
             { type: 'number', label: 'lives.lossPerMiss', get: () => SETTINGS.gameplay.lives.lossPerMiss, set: (v) => { SETTINGS.gameplay.lives.lossPerMiss = v; bump() }, min: 0, max: 5, step: 1 },
             { type: 'number', label: 'flow.gameOverInputDurationMs', get: () => SETTINGS.gameplay.flow.gameOverInputDurationMs, set: (v) => { SETTINGS.gameplay.flow.gameOverInputDurationMs = v; bump() }, min: 1000, max: 20000, step: 100 },
+            { type: 'number', label: 'flow.gameOverTravelSpeedMultiplier', get: () => SETTINGS.gameplay.flow.gameOverTravelSpeedMultiplier, set: (v) => { SETTINGS.gameplay.flow.gameOverTravelSpeedMultiplier = v; bump() }, min: 0, max: 20, step: 0.1 },
+            { type: 'number', label: 'flow.gameOverTravelSpeedEaseInMs', get: () => SETTINGS.gameplay.flow.gameOverTravelSpeedEaseInMs, set: (v) => { SETTINGS.gameplay.flow.gameOverTravelSpeedEaseInMs = v; bump() }, min: 0, max: 5000, step: 10 },
+            {
+                type: 'select', label: 'flow.gameOverTravelSpeedEaseInEasing',
+                get: () => SETTINGS.gameplay.flow.gameOverTravelSpeedEaseInEasing,
+                set: (v) => { SETTINGS.gameplay.flow.gameOverTravelSpeedEaseInEasing = v as typeof SETTINGS.gameplay.flow.gameOverTravelSpeedEaseInEasing; bump() },
+                options: EASING_NAMES,
+            },
             // balloons
             { type: 'number', label: 'balloons.scorePerPop', get: () => SETTINGS.gameplay.balloons.scorePerPop, set: (v) => { SETTINGS.gameplay.balloons.scorePerPop = v; bump() }, min: 0, max: 1000, step: 10 },
             { type: 'number', label: 'balloons.sensors.lifeMargin', get: () => SETTINGS.gameplay.balloons.sensors.lifeMargin, set: (v) => { SETTINGS.gameplay.balloons.sensors.lifeMargin = v; bump() }, min: -2, max: 5, step: 0.05 },
@@ -610,9 +619,9 @@ export const settingsSections: SectionDescriptor[] = [
                 visible: () => SETTINGS.level.tiling.enabled,
             },
             {
-                type: 'text', label: 'tiling.gameOverFile',
-                get: () => SETTINGS.level.tiling.gameOverFile,
-                set: (v) => { SETTINGS.level.tiling.gameOverFile = v; bump() },
+                type: 'stringArray', label: 'tiling.gameOverFiles',
+                get: () => SETTINGS.level.tiling.gameOverFiles,
+                set: (v) => { SETTINGS.level.tiling.gameOverFiles = v; bump() },
                 visible: () => SETTINGS.level.tiling.enabled,
             },
             {

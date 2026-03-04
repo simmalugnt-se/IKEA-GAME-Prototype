@@ -167,12 +167,13 @@ export function CameraFollow({ getTargetPosition, cameraFocusRef, directionalLig
     const light = directionalLightRef.current
     if (light && followSettings.moveLightWithTarget) {
       const lightOffset = SETTINGS.light.position
+      const focus = lookAtCurrent.current
       light.position.set(
-        targetPos.x + lightOffset[0],
-        targetPos.y + lightOffset[1],
-        targetPos.z + lightOffset[2],
+        focus.x + lightOffset[0],
+        focus.y + lightOffset[1],
+        focus.z + lightOffset[2],
       )
-      light.target.position.set(targetPos.x, targetPos.y, targetPos.z)
+      light.target.position.set(focus.x, focus.y, focus.z)
       light.target.updateMatrixWorld()
     }
 

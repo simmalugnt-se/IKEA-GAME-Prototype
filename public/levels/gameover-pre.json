@@ -3,9 +3,6 @@
   "nodes": [
     {
       "id": "afac4620-7be7-44eb-9ed9-4ad561e71f72",
-      "builder": {
-        "hiddenInBuilder": true
-      },
       "nodeType": "object",
       "type": "Null",
       "position": [
@@ -27,9 +24,6 @@
       "children": [
         {
           "id": "ccfd45a7-6d8d-4aff-871c-cca20d0a1b50",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -61,9 +55,6 @@
         },
         {
           "id": "53bade3e-0d42-4678-a4d2-8459ce344856",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -95,9 +86,6 @@
         },
         {
           "id": "e728741d-2086-4593-a0da-e14431e3b6e3",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -129,9 +117,6 @@
         },
         {
           "id": "0246523c-6541-47e9-bedc-2cdc83d3ea18",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -163,9 +148,6 @@
         },
         {
           "id": "3300a43e-d168-4eb7-9651-5e2c98bab2ac",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -197,9 +179,6 @@
         },
         {
           "id": "4884ae9e-0ba0-49c2-8500-840287666fd6",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -231,9 +210,6 @@
         },
         {
           "id": "2d2398ce-abb1-4b7b-87aa-e2106958d188",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -265,9 +241,6 @@
         },
         {
           "id": "4ef31dbc-dd92-4a98-ac01-b9c1f8fbf0bb",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -299,15 +272,12 @@
         },
         {
           "id": "26006ede-16fe-41f4-982e-028c9ffc1f6a",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
-            -0.1952,
+            0.4048,
             0,
-            1
+            0.8048
           ],
           "rotation": [
             0,
@@ -333,15 +303,12 @@
         },
         {
           "id": "ccef146e-5d85-4657-bc45-e370958bf7df",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
-            0.0048,
+            0.2048,
             0,
-            1
+            0.8048
           ],
           "rotation": [
             0,
@@ -367,15 +334,12 @@
         },
         {
           "id": "c254b83a-80b5-4f57-befd-9a300797b2c8",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
-            -0.1952,
+            0.0048,
             0,
-            -1.9
+            0.8048
           ],
           "rotation": [
             0,
@@ -401,15 +365,12 @@
         },
         {
           "id": "79d34620-276c-4b35-8efe-16e4ce770a91",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             -0.1952,
             0,
-            0.6
+            0.8048
           ],
           "rotation": [
             0,
@@ -435,9 +396,6 @@
         },
         {
           "id": "fb718c3a-850a-4850-bc3c-8eece64086dd",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -468,16 +426,44 @@
           }
         },
         {
-          "id": "cfa36716-4398-413a-96fa-556c25723b6c",
-          "builder": {
-            "hiddenInBuilder": true
-          },
+          "id": "60e96793-ad02-4c05-982c-5939d33cfdca",
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
-            0.2048,
+            -0.1952,
             0,
-            -1.9
+            0.4048
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "sizePreset": "lg",
+            "heightPreset": "sm",
+            "plane": "y",
+            "color": 1,
+            "singleTone": false,
+            "hidden": false,
+            "physics": "dynamic",
+            "contagionCarrier": false,
+            "contagionInfectable": true
+          }
+        },
+        {
+          "id": "cfa36716-4398-413a-96fa-556c25723b6c",
+          "nodeType": "object",
+          "type": "BlockElement",
+          "position": [
+            0.0048,
+            0,
+            0.4048
           ],
           "rotation": [
             0,
@@ -503,9 +489,6 @@
         },
         {
           "id": "09740d75-25e7-4fde-8253-ce7e8a3b9094",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -537,9 +520,6 @@
         },
         {
           "id": "c1ca142d-cc41-4fbd-9e46-352505c301f1",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -571,15 +551,12 @@
         },
         {
           "id": "21fb102d-a5c6-4fe1-9ce9-bed43d05158b",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.4048,
             0,
-            0.2
+            0.4048
           ],
           "rotation": [
             0,
@@ -605,15 +582,12 @@
         },
         {
           "id": "e0c2ccb5-9248-4d1f-a17b-6cfaf4c37913",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.4048,
             0,
-            -1.9
+            0.0048
           ],
           "rotation": [
             0,
@@ -639,15 +613,12 @@
         },
         {
           "id": "1db9a590-2718-4504-add8-299738d11181",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.2048,
             0,
-            0
+            0.0048
           ],
           "rotation": [
             0,
@@ -673,15 +644,12 @@
         },
         {
           "id": "9b4dc500-e75f-40dd-9887-b5258c549585",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.0048,
             0,
-            -0.2
+            0.0048
           ],
           "rotation": [
             0,
@@ -707,49 +675,12 @@
         },
         {
           "id": "cc510b54-7f9f-4462-83d9-51e61bc8ec55",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
-            0.0048,
+            -0.1952,
             0,
-            -1.7
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "props": {
-            "sizePreset": "lg",
-            "heightPreset": "sm",
-            "plane": "y",
-            "color": 1,
-            "singleTone": false,
-            "hidden": false,
-            "physics": "dynamic",
-            "contagionCarrier": false,
-            "contagionInfectable": true
-          }
-        },
-        {
-          "id": "32247dc9-6c20-4cae-b00e-eb6a31630c8c",
-          "builder": {
-            "hiddenInBuilder": true
-          },
-          "nodeType": "object",
-          "type": "BlockElement",
-          "position": [
-            0.0048,
-            0,
-            -1.5
+            0.0048
           ],
           "rotation": [
             0,
@@ -775,15 +706,12 @@
         },
         {
           "id": "462e1013-149d-49c7-a045-5d88e232b717",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             -0.3952,
             0,
-            -0.2
+            0.0048
           ],
           "rotation": [
             0,
@@ -809,9 +737,6 @@
         },
         {
           "id": "639a76a1-3cf2-45c4-8902-55aab2146c3b",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -843,15 +768,12 @@
         },
         {
           "id": "46334d6d-26c2-4c06-94dc-00ba75218f36",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
-            -0.3952,
+            0.0048,
             0,
-            -1.7
+            -0.3952
           ],
           "rotation": [
             0,
@@ -877,15 +799,12 @@
         },
         {
           "id": "a3171542-ac01-42e2-8471-aa5fe81e9674",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
-            -0.3952,
+            -0.1952,
             0,
-            -1.5
+            -0.5952
           ],
           "rotation": [
             0,
@@ -911,15 +830,12 @@
         },
         {
           "id": "7bff50a8-1662-4a5f-8ca1-36605f6af374",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             -0.3952,
             0,
-            -1.3
+            -0.7952
           ],
           "rotation": [
             0,
@@ -945,15 +861,12 @@
         },
         {
           "id": "125fbd10-be41-4337-8b4e-e9f00deec301",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             -0.3952,
             0,
-            -0.56
+            -1.1952
           ],
           "rotation": [
             0,
@@ -979,15 +892,12 @@
         },
         {
           "id": "78371990-c82f-4906-990e-01f9ef7cf589",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             -0.1952,
             0,
-            -0.56
+            -1.1952
           ],
           "rotation": [
             0,
@@ -1013,15 +923,12 @@
         },
         {
           "id": "b46a9e18-3e15-4ea0-bd46-e3fd75281d75",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.0048,
             0,
-            -0.56
+            -1.1952
           ],
           "rotation": [
             0,
@@ -1047,15 +954,12 @@
         },
         {
           "id": "d654af9f-17d9-4305-87e7-476a52d85568",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.0048,
             0,
-            -0.76
+            -1.3952
           ],
           "rotation": [
             0,
@@ -1081,15 +985,12 @@
         },
         {
           "id": "ede4feac-7f96-4bf7-a768-d0aabc15c46a",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.2048,
             0,
-            -0.56
+            -1.1952
           ],
           "rotation": [
             0,
@@ -1115,15 +1016,12 @@
         },
         {
           "id": "9fbcc57d-8eec-4905-99a1-1d1793342a40",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.4048,
             0,
-            -0.56
+            -1.1952
           ],
           "rotation": [
             0,
@@ -1149,15 +1047,12 @@
         },
         {
           "id": "a428c685-e3ac-4259-871a-323219f92d4c",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.4048,
             0,
-            -0.76
+            -1.3952
           ],
           "rotation": [
             0,
@@ -1183,15 +1078,12 @@
         },
         {
           "id": "fd937f1b-ed3e-4ec1-98ff-512089e4bf1d",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.4048,
             0,
-            -0.96
+            -1.5952
           ],
           "rotation": [
             0,
@@ -1217,15 +1109,12 @@
         },
         {
           "id": "57c048d2-608c-4383-9d47-26e286dd348f",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             -0.3952,
             0,
-            -0.96
+            -1.5952
           ],
           "rotation": [
             0,
@@ -1251,15 +1140,12 @@
         },
         {
           "id": "47af7ee4-40ea-4941-a20e-980e13194537",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             -0.3952,
             0,
-            -0.76
+            -1.3952
           ],
           "rotation": [
             0,
@@ -1285,15 +1171,12 @@
         },
         {
           "id": "8ff3877f-d70d-422e-ae66-5d653674ce58",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             -0.1952,
             0,
-            -1.3
+            -0.7952
           ],
           "rotation": [
             0,
@@ -1319,15 +1202,12 @@
         },
         {
           "id": "a54dd285-948d-42e7-aa24-94465d21b19f",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.0048,
             0,
-            -1.3
+            -0.7952
           ],
           "rotation": [
             0,
@@ -1353,15 +1233,12 @@
         },
         {
           "id": "76254d62-b1c8-477f-bd18-886bb4ae6b71",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.2048,
             0,
-            -1.3
+            -0.7952
           ],
           "rotation": [
             0,
@@ -1387,15 +1264,12 @@
         },
         {
           "id": "c8ad185f-6108-4394-8b95-7e52e5e68a84",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.4048,
             0,
-            -1.3
+            -0.7952
           ],
           "rotation": [
             0,
@@ -1421,15 +1295,12 @@
         },
         {
           "id": "48b0f253-13da-41d7-a042-9201759dc1bc",
-          "builder": {
-            "hiddenInBuilder": true
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
             0.2048,
             0,
-            1
+            1.2048
           ],
           "rotation": [
             0,
@@ -1454,74 +1325,12 @@
           }
         }
       ]
-    },
-    {
-      "id": "9ab4463b-37ac-4440-b650-35f0c657464e",
-      "nodeType": "object",
-      "type": "BlockElement",
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "props": {
-        "sizePreset": "lg",
-        "heightPreset": "sm",
-        "plane": "y",
-        "color": 1,
-        "singleTone": false,
-        "hidden": false,
-        "physics": "dynamic",
-        "contagionCarrier": false,
-        "contagionInfectable": true
-      }
-    },
-    {
-      "id": "8bc4b618-fcba-4b3a-81e2-b3cbb4614eef",
-      "nodeType": "object",
-      "type": "CylinderBlockElement",
-      "position": [
-        -0.7,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "props": {
-        "sizePreset": "lg",
-        "heightPreset": "sm",
-        "plane": "y",
-        "color": 1,
-        "singleTone": true,
-        "hidden": false,
-        "physics": "dynamic",
-        "contagionCarrier": false,
-        "contagionInfectable": true
-      }
     }
   ],
   "unitSize": 0.1,
   "gridSize": [
     128,
-    48
+    128
   ],
   "builderSettings": {
     "palette": {

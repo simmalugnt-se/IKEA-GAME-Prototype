@@ -65,6 +65,7 @@ type GameplayState = {
   flowState: GameFlowState
   flowEpoch: number
   gameOverInputEndsAtMs: number
+  gameOverTravelTargetZ: number | null
   sequence: number
   contagionEpoch: number
   contagionColorsByEntityId: Record<string, number>
@@ -73,6 +74,7 @@ type GameplayState = {
   handleRunEndedByLives: () => void
   onGameOverTileCentered: () => void
   finishGameOverInputTimeout: () => void
+  setGameOverTravelTargetZ: (targetZ: number | null) => void
   addScore: (delta: number, source?: ScoreboardEventSource) => void
   loseLife: (reason?: ScoreboardLifeLossReason) => void
   loseLives: (delta: number, reason?: ScoreboardLifeLossReason) => void
@@ -316,6 +318,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
   flowState: 'idle',
   flowEpoch: 0,
   gameOverInputEndsAtMs: 0,
+  gameOverTravelTargetZ: null,
   sequence: 0,
   contagionEpoch: 0,
   contagionColorsByEntityId: {},
@@ -335,6 +338,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         flowState: 'idle',
         flowEpoch: state.flowEpoch + 1,
         gameOverInputEndsAtMs: 0,
+        gameOverTravelTargetZ: null,
         sequence: 0,
         contagionEpoch: 0,
         contagionColorsByEntityId: {},
@@ -374,6 +378,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         flowState: 'run',
         flowEpoch: state.flowEpoch + 1,
         gameOverInputEndsAtMs: 0,
+        gameOverTravelTargetZ: null,
         sequence: 0,
         contagionEpoch: 0,
         contagionColorsByEntityId: {},
@@ -393,6 +398,14 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
   },
 
   handleRunEndedByLives: () => {
+    const levelTilingStore = useLevelTilingStore.getState()
+    const gameOverFiles = SETTINGS.level.tiling.gameOverFiles
+      .map((file) => file.trim())
+      .filter((file) => file.length > 0)
+    const previewTravelTargetZ = gameOverFiles.length > 0
+      ? levelTilingStore.previewForcedFinalCenterZ(gameOverFiles)
+      : null
+
     let didTransition = false
     let finalScore = 0
     set((state) => {
@@ -407,6 +420,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         flowState: 'game_over_travel',
         flowEpoch: state.flowEpoch + 1,
         gameOverInputEndsAtMs: 0,
+        gameOverTravelTargetZ: previewTravelTargetZ,
       }
     })
     if (!didTransition) return
@@ -417,11 +431,13 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
     setGameRunClockRunning(false)
     resetGameRunClock()
 
-    const gameOverFile = SETTINGS.level.tiling.gameOverFile
-    if (gameOverFile && gameOverFile.trim().length > 0) {
-      useLevelTilingStore.getState().queueForcedNextTile(gameOverFile)
+    if (gameOverFiles.length > 0) {
+      levelTilingStore.setForcedTiles(gameOverFiles)
+      if (previewTravelTargetZ === null) {
+        console.error('[gameplayStore] Could not resolve game-over travel target from forced tile preview.')
+      }
     } else {
-      console.error('[gameplayStore] Missing SETTINGS.level.tiling.gameOverFile while entering game_over_travel.')
+      console.error('[gameplayStore] Missing SETTINGS.level.tiling.gameOverFiles while entering game_over_travel.')
     }
 
     triggerEventSequence('game_over')
@@ -474,6 +490,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         flowState: 'idle',
         flowEpoch: state.flowEpoch + 1,
         gameOverInputEndsAtMs: 0,
+        gameOverTravelTargetZ: null,
       }
     })
     if (!didTransition) return
@@ -493,6 +510,16 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
       type: 'idle_started',
       timestamp: Date.now(),
       runId: getRunId(),
+    })
+  },
+
+  setGameOverTravelTargetZ: (targetZ) => {
+    set((state) => {
+      if (state.flowState !== 'game_over_travel') return state
+      return {
+        ...state,
+        gameOverTravelTargetZ: Number.isFinite(targetZ) ? (targetZ as number) : null,
+      }
     })
   },
 

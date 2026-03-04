@@ -37,12 +37,15 @@ type PerAxisOverride<T> = T | Partial<Record<AxisName, T>>
 type PerAxisLoopMode = [LoopMode, LoopMode, LoopMode]
 type PerAxisEasing = [EasingName, EasingName, EasingName]
 type AxisEnabledMap = [boolean, boolean, boolean]
+type AxisStoppedMap = [boolean, boolean, boolean]
 
 export type TransformMotionProps = Omit<ThreeElements['group'], 'ref'> & {
-  /** 'none' | 'loop' | 'pingpong' */
+  /** 'none' = clamp/stop when range exists, otherwise free movement; 'loop' | 'pingpong'. */
   loopMode?: LoopMode
   /** Global motion speed multiplier. 1 = normal speed, 0.5 = half speed, 10 = ten times speed. */
   timeScale?: number
+  /** Optional runtime multiplier sampled from ref each frame to avoid render churn when smoothing speed transitions. */
+  runtimeTimeScaleMultiplierRef?: MutableRefObject<number>
   /** Additive random amplitude for `timeScale` (sampled once at mount). Requires explicit `timeScale`. */
   randomTimeScale?: number
   /** Global acceleration amount for timeScale over MotionSystem global clock. */
@@ -99,7 +102,7 @@ export type TransformMotionProps = Omit<ThreeElements['group'], 'ref'> & {
   rotationRangeStart?: PerAxisOverride<number>
   /** Override rangeStart for scale (number = all axes, object = per-axis). */
   scaleRangeStart?: PerAxisOverride<number>
-  /** Easing curve applied when a range is active. Defaults to 'linear' (no easing). */
+  /** Easing curve applied when a range is active, including clamp (`loopMode='none'`). Defaults to 'linear'. */
   easing?: EasingName
   /** Override easing for position (string = all axes, object = per-axis). */
   positionEasing?: PerAxisOverride<EasingName>
@@ -131,6 +134,7 @@ type MotionTrackConfig = {
   rotationVelocity: Vec3
   scaleVelocity: Vec3
   timeScale: number
+  runtimeTimeScaleMultiplierRef?: MutableRefObject<number>
   timeScaleAccelerationCurve: TimeScaleAccelerationCurve
   positionTimeScaleAcceleration: Vec3
   rotationTimeScaleAcceleration: Vec3
@@ -147,6 +151,9 @@ type MotionTrackState = {
   positionProgress: Vec3
   rotationProgress: Vec3
   scaleProgress: Vec3
+  positionStopped: AxisStoppedMap
+  rotationStopped: AxisStoppedMap
+  scaleStopped: AxisStoppedMap
   positionVelocityScratch: Vec3
   rotationVelocityScratch: Vec3
   scaleVelocityScratch: Vec3
@@ -167,6 +174,7 @@ type MotionRegistry = {
 
 const ZERO_VEC3: Vec3 = [0, 0, 0]
 const DEG2RAD = Math.PI / 180
+const AXIS_CLAMP_EPSILON = 1e-6
 
 function normalizeVec3Like(input?: Vec3Like): Vec3 {
   if (!input) return [...ZERO_VEC3]
@@ -216,10 +224,6 @@ type XYZLike = {
   x: number
   y: number
   z: number
-}
-
-function hasAxisRange(range: AxisRangeMap | undefined): boolean {
-  return Boolean(range?.x || range?.y || range?.z)
 }
 
 function rangeMapToRadians(range?: AxisRangeMap): AxisRangeMap | undefined {
@@ -272,6 +276,11 @@ function resolveRandomAmplitude(value: number | undefined): number {
 }
 
 function resolveTimeScale(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 1
+  return Math.max(0, value)
+}
+
+function resolveRuntimeTimeScaleMultiplier(value: number | undefined): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 1
   return Math.max(0, value)
 }
@@ -361,6 +370,25 @@ function bounceProgress(t: number, direction: number): { t: number; direction: n
   return { t: v, direction: dir }
 }
 
+function clampToRange(value: number, min: number, max: number): number {
+  if (value <= min) return min
+  if (value >= max) return max
+  return value
+}
+
+function shouldStopAtBoundary(
+  value: number,
+  min: number,
+  max: number,
+  signedStep: number,
+): boolean {
+  const atMin = value <= min + AXIS_CLAMP_EPSILON
+  const atMax = value >= max - AXIS_CLAMP_EPSILON
+  if (atMin && signedStep <= 0) return true
+  if (atMax && signedStep >= 0) return true
+  return false
+}
+
 function updateVector(
   vector: XYZLike,
   velocity: Vec3,
@@ -369,15 +397,53 @@ function updateVector(
   loopModes: PerAxisLoopMode,
   easings: PerAxisEasing,
   progress: Vec3,
+  stopped: AxisStoppedMap,
   delta: number,
 ) {
   TRANSFORM_MOTION_AXES.forEach((axis, index) => {
+    if (stopped[index]) return
+
     const speed = velocity[index] ?? 0
     if (speed === 0) return
 
     const lm = loopModes[index]
     const easing = easings[index]
     const axisRange = range?.[axis]
+    const directionValue = direction[index] ?? 1
+    const signedSpeed = speed * directionValue
+
+    if (axisRange && lm === 'none') {
+      const [min, max] = normalizeRange(axisRange)
+      const span = max - min
+      if (span <= 0) {
+        vector[axis] = min
+        progress[index] = 0
+        stopped[index] = true
+        return
+      }
+
+      if (easing !== 'linear') {
+        const currentProgress = clampToRange(progress[index] ?? 0, 0, 1)
+        const nextProgress = currentProgress + ((signedSpeed / span) * delta)
+        const clampedProgress = clampToRange(nextProgress, 0, 1)
+        progress[index] = clampedProgress
+        const easedValue = min + applyEasing(clampedProgress, easing) * span
+        vector[axis] = clampToRange(easedValue, min, max)
+        if (shouldStopAtBoundary(clampedProgress, 0, 1, nextProgress - currentProgress)) {
+          stopped[index] = true
+        }
+        return
+      }
+
+      const next = vector[axis] + signedSpeed * delta
+      const clampedNext = clampToRange(next, min, max)
+      vector[axis] = clampedNext
+      progress[index] = (clampedNext - min) / span
+      if (shouldStopAtBoundary(clampedNext, min, max, signedSpeed * delta)) {
+        stopped[index] = true
+      }
+      return
+    }
 
     if (easing !== 'linear' && axisRange && lm !== 'none') {
       const [min, max] = normalizeRange(axisRange)
@@ -385,13 +451,12 @@ function updateVector(
       if (span <= 0) return
 
       const dt = (Math.abs(speed) / span) * delta
-      const dirValue = direction[index] ?? 1
-      let t = progress[index] + dt * dirValue
+      let t = progress[index] + dt * directionValue
 
       if (lm === 'loop') {
         t = wrapProgress(t)
       } else {
-        const result = bounceProgress(t, dirValue)
+        const result = bounceProgress(t, directionValue)
         t = result.t
         direction[index] = result.direction
       }
@@ -401,8 +466,7 @@ function updateVector(
       return
     }
 
-    const directionValue = direction[index] ?? 1
-    const step = speed * directionValue * delta
+    const step = signedSpeed * delta
     const next = vector[axis] + step
 
     if (!axisRange || lm === 'none') {
@@ -441,14 +505,13 @@ function resolveInstantAxisVelocity(
   speed: number,
   direction: number,
   axisRange: AxisRange | undefined,
-  loopMode: LoopMode,
   easing: EasingName,
   progress: number,
 ): number {
   if (speed === 0) return 0
 
   const dir = direction === 0 ? 1 : direction
-  if (easing !== 'linear' && axisRange && loopMode !== 'none') {
+  if (easing !== 'linear' && axisRange) {
     const [min, max] = normalizeRange(axisRange)
     const span = max - min
     if (span <= 0) return 0
@@ -465,17 +528,17 @@ function resolveInstantVelocityVector(
   velocity: Vec3,
   range: AxisRangeMap | undefined,
   direction: Vec3,
-  loopModes: PerAxisLoopMode,
   easings: PerAxisEasing,
   progress: Vec3,
+  stopped: AxisStoppedMap,
 ): Vec3 {
   const result: Vec3 = [0, 0, 0]
   TRANSFORM_MOTION_AXES.forEach((axis, index) => {
+    if (stopped[index]) return
     result[index] = resolveInstantAxisVelocity(
       velocity[index] ?? 0,
       direction[index] ?? 1,
       range?.[axis],
-      loopModes[index],
       easings[index],
       progress[index] ?? 0,
     )
@@ -519,7 +582,8 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
       if (!object) return
 
       const config = track.configRef.current
-      const baseDelta = delta * config.timeScale
+      const runtimeScale = resolveRuntimeTimeScaleMultiplier(config.runtimeTimeScaleMultiplierRef?.current)
+      const baseDelta = delta * config.timeScale * runtimeScale
       if (baseDelta === 0) return
 
       resolveAccelerationMultipliers(
@@ -564,6 +628,7 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
         config.positionLoopMode,
         config.positionEasing,
         track.state.positionProgress,
+        track.state.positionStopped,
         baseDelta,
       )
       updateVector(
@@ -574,6 +639,7 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
         config.rotationLoopMode,
         config.rotationEasing,
         track.state.rotationProgress,
+        track.state.rotationStopped,
         baseDelta,
       )
       updateVector(
@@ -584,6 +650,7 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
         config.scaleLoopMode,
         config.scaleEasing,
         track.state.scaleProgress,
+        track.state.scaleStopped,
         baseDelta,
       )
     })
@@ -600,6 +667,7 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
   children,
   loopMode,
   timeScale,
+  runtimeTimeScaleMultiplierRef,
   randomTimeScale,
   timeScaleAcceleration,
   timeScaleAccelerationCurve,
@@ -642,7 +710,8 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
     throw new Error('TransformMotion must be used inside MotionSystemProvider')
   }
 
-  const effectiveLoopMode: LoopMode = loopMode ?? (hasAxisRange(positionRange) ? 'loop' : 'none')
+  // Breaking semantics: when range exists and loop mode is not explicitly set, we now default to clamp/stop.
+  const effectiveLoopMode: LoopMode = loopMode ?? 'none'
   const ref = useRef<THREE.Group | null>(null)
   const effectiveEasing: EasingName = easing ?? 'linear'
   const randomProfileRef = useRef<{
@@ -719,6 +788,7 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
     rotationVelocity: randomizedRotationVelocityDeg.map(v => v * DEG2RAD) as Vec3,
     scaleVelocity: randomizedScaleVelocity,
     timeScale: effectiveTimeScale,
+    runtimeTimeScaleMultiplierRef,
     timeScaleAccelerationCurve: effectiveTimeScaleAccelerationCurve,
     positionTimeScaleAcceleration: resolvedPositionTimeScaleAcceleration,
     rotationTimeScaleAcceleration: resolvedRotationTimeScaleAcceleration,
@@ -733,6 +803,7 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
     randomizedRotationVelocityDeg,
     randomizedScaleVelocity,
     effectiveTimeScale,
+    runtimeTimeScaleMultiplierRef,
     effectiveTimeScaleAccelerationCurve,
     resolvedPositionTimeScaleAcceleration,
     resolvedRotationTimeScaleAcceleration,
@@ -755,6 +826,9 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
     positionProgress: [0, 0, 0],
     rotationProgress: [0, 0, 0],
     scaleProgress: [0, 0, 0],
+    positionStopped: [false, false, false],
+    rotationStopped: [false, false, false],
+    scaleStopped: [false, false, false],
     positionVelocityScratch: [0, 0, 0],
     rotationVelocityScratch: [0, 0, 0],
     scaleVelocityScratch: [0, 0, 0],
@@ -778,21 +852,22 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
 
       const config = configRef.current
       const state = stateRef.current
+      const runtimeScale = resolveRuntimeTimeScaleMultiplier(config.runtimeTimeScaleMultiplierRef?.current)
       const localLinearVelocity = resolveInstantVelocityVector(
         config.positionVelocity,
         config.positionRange,
         state.positionDirection,
-        config.positionLoopMode,
         config.positionEasing,
         state.positionProgress,
+        state.positionStopped,
       )
       const localAngularVelocity = resolveInstantVelocityVector(
         config.rotationVelocity,
         config.rotationRange,
         state.rotationDirection,
-        config.rotationLoopMode,
         config.rotationEasing,
         state.rotationProgress,
+        state.rotationStopped,
       )
       const clockSeconds = getGameRunClockSeconds()
       resolveAccelerationMultipliers(
@@ -817,8 +892,9 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
         state.rotationAccelerationMultiplierScratch,
         state.rotationVelocityScratch,
       )
-      const scaledLinearVelocity = scaleVec3(state.positionVelocityScratch, config.timeScale)
-      const scaledAngularVelocity = scaleVec3(state.rotationVelocityScratch, config.timeScale)
+      const effectiveTimeScale = config.timeScale * runtimeScale
+      const scaledLinearVelocity = scaleVec3(state.positionVelocityScratch, effectiveTimeScale)
+      const scaledAngularVelocity = scaleVec3(state.rotationVelocityScratch, effectiveTimeScale)
 
       return {
         linearVelocity: toWorldVelocity(scaledLinearVelocity, object, parentWorldQuaternion, worldLinearVelocityScratch),
@@ -829,6 +905,16 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
 
   useEffect(() => {
     configRef.current = computedConfig
+    const state = stateRef.current
+    state.positionStopped[0] = false
+    state.positionStopped[1] = false
+    state.positionStopped[2] = false
+    state.rotationStopped[0] = false
+    state.rotationStopped[1] = false
+    state.rotationStopped[2] = false
+    state.scaleStopped[0] = false
+    state.scaleStopped[1] = false
+    state.scaleStopped[2] = false
   }, [computedConfig])
 
   useEffect(() => {
@@ -868,10 +954,6 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
       scaleOffsetAxes,
     )
 
-    const hasAnyStart = posStarts.some(v => v !== 0) || rotStarts.some(v => v !== 0) || sclStarts.some(v => v !== 0)
-    const hasAnyOffset = posOffsets.some(v => v !== 0) || rotOffsets.some(v => v !== 0) || sclOffsets.some(v => v !== 0)
-    if (!hasAnyStart && !hasAnyOffset) return
-
     TRANSFORM_MOTION_AXES.forEach((axis, i) => {
       const initAxis = (
         target: XYZLike,
@@ -881,16 +963,21 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
         dirArr: Vec3,
         easingName: EasingName,
         progressArr: Vec3,
+        stoppedArr: AxisStoppedMap,
         axisRangeStart: number,
         axisOffset: number,
       ) => {
-        if (axisRangeStart === 0 && axisOffset === 0) return
         const axisRange = range?.[axis]
 
-        if (easingName !== 'linear' && axisRange && lm !== 'none') {
+        if (easingName !== 'linear' && axisRange) {
           const [min, max] = normalizeRange(axisRange)
           const span = max - min
-          if (span <= 0) return
+          if (span <= 0) {
+            target[axis] = min
+            progressArr[i] = 0
+            stoppedArr[i] = true
+            return
+          }
 
           let t = Math.max(0, Math.min(1, axisRangeStart))
           if (axisOffset !== 0) {
@@ -898,17 +985,16 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
           }
           if (lm === 'loop') {
             t = wrapProgress(t)
-          } else {
+          } else if (lm === 'pingpong') {
             const result = bounceProgress(t, dirArr[i])
             t = result.t
             dirArr[i] = result.direction
+          } else {
+            t = clampToRange(t, 0, 1)
           }
           progressArr[i] = t
-          target[axis] = min + applyEasing(t, easingName) * span
-          return
-        }
-
-        if (axisRange && lm !== 'none' && axisRangeStart !== 0) {
+          target[axis] = clampToRange(min + applyEasing(t, easingName) * span, min, max)
+        } else if (axisRange && axisRangeStart !== 0) {
           const [min, max] = normalizeRange(axisRange)
           const span = max - min
           target[axis] = min + Math.max(0, Math.min(1, axisRangeStart)) * span
@@ -918,19 +1004,46 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
           target[axis] += velocity[i] * axisOffset
         }
 
-        if (!axisRange || lm === 'none') return
+        if (!axisRange) {
+          stoppedArr[i] = false
+          return
+        }
+
+        const [min, max] = normalizeRange(axisRange)
+        const span = max - min
+        if (span <= 0) {
+          target[axis] = min
+          progressArr[i] = 0
+          stoppedArr[i] = true
+          return
+        }
+
         if (lm === 'loop') {
           target[axis] = applyLoop(target[axis], axisRange)
-        } else {
+          progressArr[i] = (target[axis] - min) / span
+          stoppedArr[i] = false
+          return
+        }
+
+        if (lm === 'pingpong') {
           const r = applyPingPong(target[axis], dirArr[i], axisRange)
           target[axis] = r.value
           dirArr[i] = r.direction
+          progressArr[i] = (target[axis] - min) / span
+          stoppedArr[i] = false
+          return
         }
+
+        const clampedValue = clampToRange(target[axis], min, max)
+        target[axis] = clampedValue
+        progressArr[i] = (clampedValue - min) / span
+        const signedSpeed = (velocity[i] ?? 0) * (dirArr[i] ?? 1)
+        stoppedArr[i] = shouldStopAtBoundary(clampedValue, min, max, signedSpeed)
       }
 
-      initAxis(object.position, config.positionVelocity, config.positionRange, config.positionLoopMode[i], state.positionDirection, config.positionEasing[i], state.positionProgress, posStarts[i], posOffsets[i])
-      initAxis(object.rotation, config.rotationVelocity, config.rotationRange, config.rotationLoopMode[i], state.rotationDirection, config.rotationEasing[i], state.rotationProgress, rotStarts[i], rotOffsets[i])
-      initAxis(object.scale, config.scaleVelocity, config.scaleRange, config.scaleLoopMode[i], state.scaleDirection, config.scaleEasing[i], state.scaleProgress, sclStarts[i], sclOffsets[i])
+      initAxis(object.position, config.positionVelocity, config.positionRange, config.positionLoopMode[i], state.positionDirection, config.positionEasing[i], state.positionProgress, state.positionStopped, posStarts[i], posOffsets[i])
+      initAxis(object.rotation, config.rotationVelocity, config.rotationRange, config.rotationLoopMode[i], state.rotationDirection, config.rotationEasing[i], state.rotationProgress, state.rotationStopped, rotStarts[i], rotOffsets[i])
+      initAxis(object.scale, config.scaleVelocity, config.scaleRange, config.scaleLoopMode[i], state.scaleDirection, config.scaleEasing[i], state.scaleProgress, state.scaleStopped, sclStarts[i], sclOffsets[i])
     })
   }, [])
 

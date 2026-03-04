@@ -112,7 +112,7 @@ export const AUDIO_SETTINGS: AudioSettings = {
       pinjacolada_loop_2: {
         file: '/sounds/pinjacolada/pinjacolada_loop_2.wav',
         volume: 1,
-        switchMarkersSec: [4, 8, 12],
+        switchMarkersSec: [2, 4, 6, 8, 10, 12, 14],
       },
     },
     idleSequence: {

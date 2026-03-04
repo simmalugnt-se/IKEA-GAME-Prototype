@@ -45,11 +45,17 @@ export function CameraSystemProvider({ playerRef, directionalLightRef: externalL
     return targetCenter ?? cameraFocusRef.current ?? undefined
   }, [getTargetPosition])
 
+  const getCameraFocus = useCallback((): WorldPosition | undefined => {
+    return cameraFocusRef.current ?? undefined
+  }, [])
+
   const contextValue = useMemo<CameraSystemContextValue>(() => ({
     setTargetPositionGetter,
+    getTargetPosition,
     getStreamingCenter,
+    getCameraFocus,
     directionalLightRef,
-  }), [setTargetPositionGetter, getStreamingCenter])
+  }), [setTargetPositionGetter, getTargetPosition, getStreamingCenter, getCameraFocus, directionalLightRef])
 
   return (
     <CameraSystemContext.Provider value={contextValue}>

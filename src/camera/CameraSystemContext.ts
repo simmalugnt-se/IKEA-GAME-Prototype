@@ -4,7 +4,9 @@ import type { TargetPositionGetter, WorldPosition } from '@/scene/TargetAnchor'
 
 export type CameraSystemContextValue = {
   setTargetPositionGetter: (targetId: string, getter: TargetPositionGetter | null) => void
+  getTargetPosition: (targetId: string) => WorldPosition | undefined
   getStreamingCenter: () => WorldPosition | undefined
+  getCameraFocus: () => WorldPosition | undefined
   directionalLightRef: RefObject<THREE.DirectionalLight | null>
 }
 

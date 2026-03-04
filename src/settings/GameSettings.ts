@@ -313,6 +313,9 @@ export const SETTINGS: Settings = {
     },
     flow: {
       gameOverInputDurationMs: 5000,
+      gameOverTravelSpeedMultiplier: 20.0,
+      gameOverTravelSpeedEaseInMs: 320,
+      gameOverTravelSpeedEaseInEasing: "easeInSine",
     },
     balloons: {
       scorePerPop: 100,
@@ -343,7 +346,7 @@ export const SETTINGS: Settings = {
       enabled: true,
       runFiles: ["default.json"],
       idleFiles: ["default.json"],
-      gameOverFile: "gameover.json",
+      gameOverFiles: ["gameover.json"],
       lookAheadDistance: 15,
       cullBehindDistance: 3,
     },

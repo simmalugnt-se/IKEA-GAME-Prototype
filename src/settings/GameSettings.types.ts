@@ -1,4 +1,5 @@
 import type { AccelerationCurveName } from '@/utils/accelerationCurve'
+import type { EasingName } from '@/utils/easing'
 
 export type Vec3 = [number, number, number]
 
@@ -207,6 +208,9 @@ export type Settings = {
     }
     flow: {
       gameOverInputDurationMs: number
+      gameOverTravelSpeedMultiplier: number
+      gameOverTravelSpeedEaseInMs: number
+      gameOverTravelSpeedEaseInEasing: EasingName
     }
     balloons: {
       scorePerPop: number
@@ -235,7 +239,7 @@ export type Settings = {
       enabled: boolean
       runFiles: string[]
       idleFiles: string[]
-      gameOverFile: string
+      gameOverFiles: string[]
       lookAheadDistance: number
       cullBehindDistance: number
     }
