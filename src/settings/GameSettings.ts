@@ -313,7 +313,8 @@ export const SETTINGS: Settings = {
     external: {
       enabled: false,
       websocket: {
-        url: "ws://127.0.0.1:5173/ws/cursor",
+        // url: "ws://127.0.0.1:5173/ws/cursor",
+        url: "ws://localhost:5173/ws/cursor",
         reconnectMs: 1000,
       },
       staleTimeoutMs: 120,
@@ -326,7 +327,6 @@ export const SETTINGS: Settings = {
       smoothing: 0.75,
     },
   },
-
 };
 
 // Pre-computed shading direction — reuses a single Vector3, zero allocation
