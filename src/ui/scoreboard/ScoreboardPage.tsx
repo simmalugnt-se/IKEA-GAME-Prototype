@@ -1,221 +1,295 @@
-import { useEffect, useState } from 'react'
-import { parseScoreboardEvent, type ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
-import { CHANNEL_NAME } from '@/scoreboard/scoreboardSender'
+import { useEffect, useRef, useState } from 'react'
+import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
+import {
+  subscribeScoreboardEvents,
+  type ScoreboardReceiverStatus,
+} from '@/scoreboard/scoreboardReceiver'
+import { useSettingsVersion } from '@/settings/settingsStore'
+import { ScoreboardDmdRenderer } from '@/ui/scoreboard/ScoreboardDmdRenderer'
+import {
+  ScoreboardRiveDriver,
+  type ScoreboardRiveStatus,
+} from '@/ui/scoreboard/ScoreboardRiveDriver'
 
-const MAX_FEED_LENGTH = 200
-
-type FeedItem = ScoreboardEvent & { id: number }
-
-let feedIdCounter = 0
-
-function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
+type ScoreboardUiState = {
+  wsState: ScoreboardReceiverStatus['wsState']
+  wsEnabled: boolean
+  wsUrl: string
+  riveState: ScoreboardRiveStatus['state']
+  artboardName: string
+  animationName: string
+  stateMachineName: string
+  lastEventType: ScoreboardEvent['type'] | 'none'
+  sourceLuma: number
+  sourceAlpha: number
+  fps: number
+  error: string | null
 }
 
-function handleRawMessage(data: unknown, push: (item: FeedItem) => void): void {
-  const str = typeof data === 'string' ? data : null
-  if (!str) return
-  const parsed = parseScoreboardEvent(str)
-  if (!parsed) return
-  push({ ...parsed, id: feedIdCounter++ })
+const INITIAL_UI_STATE: ScoreboardUiState = {
+  wsState: 'disabled',
+  wsEnabled: false,
+  wsUrl: '',
+  riveState: 'idle',
+  artboardName: '-',
+  animationName: '-',
+  stateMachineName: '-',
+  lastEventType: 'none',
+  sourceLuma: 0,
+  sourceAlpha: 0,
+  fps: 0,
+  error: null,
 }
 
-function EventRow({ item }: { item: FeedItem }) {
-  const time = formatTime(item.timestamp)
-
-  switch (item.type) {
-    case 'game_started':
-      return (
-        <div style={styles.row}>
-          <span style={styles.time}>{time}</span>
-          <span style={{ ...styles.badge, background: '#2563eb' }}>START</span>
-          <span style={styles.detail}>
-            Game started — lives: <b>{item.lives}</b>
-          </span>
-        </div>
-      )
-    case 'points_received':
-      return (
-        <div style={styles.row}>
-          <span style={styles.time}>{time}</span>
-          <span style={{ ...styles.badge, background: '#16a34a' }}>+{item.points}</span>
-          <span style={styles.detail}>
-            via <b>{item.generatedBy}</b> — total: <b>{item.totalScore}</b>
-          </span>
-        </div>
-      )
-    case 'lives_lost':
-      return (
-        <div style={styles.row}>
-          <span style={styles.time}>{time}</span>
-          <span style={{ ...styles.badge, background: '#dc2626' }}>-{item.amount} ♥</span>
-          <span style={styles.detail}>
-            {item.reason} — remaining: <b>{item.livesRemaining}</b>
-          </span>
-        </div>
-      )
-    case 'game_over':
-      return (
-        <div style={styles.row}>
-          <span style={styles.time}>{time}</span>
-          <span style={{ ...styles.badge, background: '#7c3aed' }}>OVER</span>
-          <span style={styles.detail}>
-            Final score: <b>{item.finalScore}</b>
-          </span>
-        </div>
-      )
-    case 'combo_triggered':
-      return (
-        <div style={styles.row}>
-          <span style={styles.time}>{time}</span>
-          <span style={{ ...styles.badge, background: '#ea580c' }}>x{item.multiplier}</span>
-          <span style={styles.detail}>
-            Combo strike: <b>{item.strikeSize}</b> pops, chain: <b>+{item.chainBonus}</b>,
-            per pop: <b>{item.perPopPoints}</b>, strike: <b>{item.totalPoints}</b>, total: <b>{item.totalScore}</b>
-          </span>
-        </div>
-      )
-    case 'idle_started':
-      return (
-        <div style={styles.row}>
-          <span style={styles.time}>{time}</span>
-          <span style={{ ...styles.badge, background: '#0ea5e9' }}>IDLE</span>
-          <span style={styles.detail}>
-            Idle mode started
-          </span>
-        </div>
-      )
-    case 'initials_step_started':
-      return (
-        <div style={styles.row}>
-          <span style={styles.time}>{time}</span>
-          <span style={{ ...styles.badge, background: '#f59e0b' }}>INITIALS</span>
-          <span style={styles.detail}>
-            High-score step started — duration: <b>{item.durationMs} ms</b>
-          </span>
-        </div>
-      )
-    case 'initials_step_finished':
-      return (
-        <div style={styles.row}>
-          <span style={styles.time}>{time}</span>
-          <span style={{ ...styles.badge, background: '#f97316' }}>DONE</span>
-          <span style={styles.detail}>
-            High-score step finished ({item.reason}) — initials: <b>{item.initials}</b>
-          </span>
-        </div>
-      )
-    default:
-      return null
-  }
+function getStatusColor(wsState: ScoreboardReceiverStatus['wsState']): string {
+  if (wsState === 'open') return '#4ade80'
+  if (wsState === 'connecting') return '#f59e0b'
+  if (wsState === 'closed') return '#f97316'
+  if (wsState === 'error') return '#ef4444'
+  return '#94a3b8'
 }
 
 export function ScoreboardPage() {
-  const [feed, setFeed] = useState<FeedItem[]>([])
-
-  const pushItem = (item: FeedItem) => {
-    setFeed((prev) => {
-      const next = [item, ...prev]
-      return next.length > MAX_FEED_LENGTH ? next.slice(0, MAX_FEED_LENGTH) : next
-    })
-  }
+  const settingsVersion = useSettingsVersion()
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [uiState, setUiState] = useState<ScoreboardUiState>(INITIAL_UI_STATE)
 
   useEffect(() => {
-    const bc = new BroadcastChannel(CHANNEL_NAME)
-    bc.onmessage = (event) => {
-      handleRawMessage(event.data, pushItem)
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    let rafId = 0
+    let disposed = false
+    let frameCounter = 0
+    let fpsWindowStart = performance.now()
+    let lastSourceSampleMs = 0
+
+    let riveDriver: ScoreboardRiveDriver | null = null
+    let dmdRenderer: ScoreboardDmdRenderer | null = null
+    let unsubscribeReceiver: (() => void) | null = null
+
+    const setError = (message: string) => {
+      setUiState((prev) => ({ ...prev, error: message }))
     }
+
+    try {
+      dmdRenderer = new ScoreboardDmdRenderer(canvas)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'DMD renderer failed'
+      setError(message)
+      return () => {
+        // no-op cleanup branch for failed init
+      }
+    }
+
+    riveDriver = new ScoreboardRiveDriver((status) => {
+      setUiState((prev) => ({
+        ...prev,
+        riveState: status.state,
+        artboardName: status.artboardName ?? '-',
+        animationName: status.animationName ?? '-',
+        stateMachineName: status.stateMachineName ?? '-',
+        error: status.error ?? prev.error,
+      }))
+    })
+
+    unsubscribeReceiver = subscribeScoreboardEvents(
+      (event) => {
+        setUiState((prev) => ({
+          ...prev,
+          lastEventType: event.type,
+        }))
+      },
+      (status) => {
+        setUiState((prev) => ({
+          ...prev,
+          wsEnabled: status.wsEnabled,
+          wsState: status.wsState,
+          wsUrl: status.wsUrl,
+        }))
+      },
+    )
+
+    const frame = (now: number) => {
+      if (disposed) return
+      rafId = requestAnimationFrame(frame)
+
+      const sourceCanvas = riveDriver?.getCanvas()
+      if (sourceCanvas && dmdRenderer) {
+        dmdRenderer.render(sourceCanvas)
+        frameCounter += 1
+
+        if (now - lastSourceSampleMs >= 500) {
+          lastSourceSampleMs = now
+          const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true })
+          if (sourceCtx) {
+            const image = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
+            const data = image.data
+            let lumaAcc = 0
+            let alphaAcc = 0
+            let samples = 0
+
+            for (let i = 0; i < data.length; i += 64) {
+              const r = data[i] / 255
+              const g = data[i + 1] / 255
+              const b = data[i + 2] / 255
+              const a = data[i + 3] / 255
+              const unpremultipliedLuma = a > 0.0001
+                ? ((r / a) * 0.2126 + (g / a) * 0.7152 + (b / a) * 0.0722)
+                : 0
+              lumaAcc += Math.max(0, Math.min(1, unpremultipliedLuma)) * a
+              alphaAcc += a
+              samples += 1
+            }
+
+            const avgLuma = samples > 0 ? lumaAcc / samples : 0
+            const avgAlpha = samples > 0 ? alphaAcc / samples : 0
+            setUiState((prev) => ({
+              ...prev,
+              sourceLuma: Number(avgLuma.toFixed(3)),
+              sourceAlpha: Number(avgAlpha.toFixed(3)),
+            }))
+          }
+        }
+      }
+
+      const elapsed = now - fpsWindowStart
+      if (elapsed >= 1000) {
+        const fps = Math.round((frameCounter * 1000) / elapsed)
+        frameCounter = 0
+        fpsWindowStart = now
+        setUiState((prev) => (prev.fps === fps ? prev : { ...prev, fps }))
+      }
+    }
+
+    rafId = requestAnimationFrame(frame)
+
     return () => {
-      bc.close()
+      disposed = true
+      cancelAnimationFrame(rafId)
+      unsubscribeReceiver?.()
+      riveDriver?.dispose()
+      dmdRenderer?.dispose()
     }
-  }, [])
+  }, [settingsVersion])
 
   return (
     <div style={styles.page}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Scoreboard</h1>
-        <div style={styles.statusRow}>
-          <span style={styles.statusOn}>
-            ● Listening for game events
+      <canvas ref={canvasRef} style={styles.canvas} />
+
+      <div style={styles.status}>
+        <div style={styles.statusLine}>
+          <span style={styles.label}>transport</span>
+          <span style={{ ...styles.value, color: getStatusColor(uiState.wsState) }}>
+            {uiState.wsEnabled ? uiState.wsState : 'bc_only'}
           </span>
+          <span style={styles.muted}>{uiState.wsEnabled ? uiState.wsUrl : 'BroadcastChannel only'}</span>
+        </div>
+        <div style={styles.statusLine}>
+          <span style={styles.label}>rive</span>
+          <span style={styles.value}>{uiState.riveState}</span>
+          <span style={styles.muted}>
+            artboard: {uiState.artboardName} | animation: {uiState.animationName} | sm: {uiState.stateMachineName}
+          </span>
+        </div>
+        <div style={styles.statusLine}>
+          <span style={styles.label}>event</span>
+          <span style={styles.value}>{uiState.lastEventType}</span>
+          <span style={styles.muted}>fps: {uiState.fps}</span>
+        </div>
+        <div style={styles.statusLine}>
+          <span style={styles.label}>source</span>
+          <span style={styles.value}>luma {uiState.sourceLuma}</span>
+          <span style={styles.muted}>alpha {uiState.sourceAlpha}</span>
         </div>
       </div>
 
-      <div style={styles.feed}>
-        {feed.length === 0 ? (
-          <div style={styles.empty}>No events yet. Start a game to see activity.</div>
-        ) : (
-          feed.map((item) => <EventRow key={item.id} item={item} />)
-        )}
-      </div>
+      {uiState.error && (
+        <div style={styles.errorOverlay}>
+          <div style={styles.errorTitle}>Scoreboard Renderer Error</div>
+          <div style={styles.errorText}>{uiState.error}</div>
+        </div>
+      )}
     </div>
   )
 }
 
 const styles = {
   page: {
-    minHeight: '100vh',
-    background: '#0f172a',
-    color: '#e2e8f0',
+    position: 'relative',
+    width: '100vw',
+    height: '100vh',
+    background: '#040b07',
+    overflow: 'hidden',
     fontFamily: 'monospace',
-    padding: '32px',
-    boxSizing: 'border-box' as const,
   },
-  header: {
-    marginBottom: '24px',
+  canvas: {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    display: 'block',
   },
-  title: {
-    margin: '0 0 8px 0',
-    fontSize: '28px',
-    fontWeight: 700,
-    color: '#f8fafc',
-    letterSpacing: '0.05em',
-  },
-  statusRow: {
-    fontSize: '13px',
-  },
-  statusOn: {
-    color: '#4ade80',
-  },
-  feed: {
-    display: 'flex' as const,
+  status: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 12,
+    display: 'flex',
     flexDirection: 'column' as const,
-    gap: '6px',
+    gap: 6,
+    padding: '10px 12px',
+    borderRadius: 8,
+    background: 'rgba(0, 0, 0, 0.55)',
+    color: '#d1fae5',
+    pointerEvents: 'none' as const,
   },
-  row: {
-    display: 'flex' as const,
+  statusLine: {
+    display: 'flex',
     alignItems: 'center' as const,
-    gap: '10px',
-    padding: '8px 12px',
-    background: '#1e293b',
-    borderRadius: '6px',
-    fontSize: '13px',
+    gap: 10,
+    fontSize: 12,
+    minHeight: 16,
   },
-  time: {
-    color: '#64748b',
-    minWidth: '80px',
-    flexShrink: 0 as const,
+  label: {
+    color: '#86efac',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.08em',
+    minWidth: 78,
+    opacity: 0.9,
   },
-  badge: {
-    padding: '2px 8px',
-    borderRadius: '4px',
-    fontSize: '11px',
+  value: {
+    color: '#ecfccb',
+    minWidth: 80,
     fontWeight: 700,
-    color: '#fff',
-    minWidth: '60px',
+  },
+  muted: {
+    color: '#a7f3d0',
+    opacity: 0.75,
+  },
+  errorOverlay: {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+    background: 'rgba(8, 0, 0, 0.88)',
+    color: '#fecaca',
+    padding: 24,
     textAlign: 'center' as const,
-    flexShrink: 0 as const,
   },
-  detail: {
-    color: '#cbd5e1',
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: '#fca5a5',
+    letterSpacing: '0.03em',
   },
-  empty: {
-    color: '#475569',
-    padding: '24px 0',
-    fontSize: '14px',
+  errorText: {
+    fontSize: 14,
+    color: '#fee2e2',
+    maxWidth: 720,
+    lineHeight: 1.45,
   },
 } as const

@@ -308,10 +308,10 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "external",
+    inputSource: "mouse", // "mouse" or "external"
     minPopVelocity: 300,
     external: {
-      enabled: true,
+      enabled: false,
       websocket: {
         url: "ws://127.0.0.1:5173/ws/cursor",
         reconnectMs: 1000,
