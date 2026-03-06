@@ -13,6 +13,8 @@ const MAX_TRAIL_POINTS = 96
 const TRAIL_SLOT_COUNT = 2
 const MIN_POINT_DISTANCE_PX = 0.25
 const MIN_POINT_TIME_MS = 8
+const EXTERNAL_TRAIL_BREAK_JUMP_RATIO = 0.18
+const EXTERNAL_TRAIL_BREAK_MIN_PX = 220
 
 export function CursorTrailCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -68,6 +70,19 @@ export function CursorTrailCanvas() {
       clearHistorySlot(1)
     }
 
+    const resolveExternalTrailBreakDistancePx = () => {
+      const width = canvas.clientWidth
+      const height = canvas.clientHeight
+      const viewportMin = Math.min(
+        Number.isFinite(width) && width > 0 ? width : EXTERNAL_TRAIL_BREAK_MIN_PX,
+        Number.isFinite(height) && height > 0 ? height : EXTERNAL_TRAIL_BREAK_MIN_PX,
+      )
+      return Math.max(
+        EXTERNAL_TRAIL_BREAK_MIN_PX,
+        viewportMin * EXTERNAL_TRAIL_BREAK_JUMP_RATIO,
+      )
+    }
+
     const pushHistoryPoint = (slot: 0 | 1, x: number, y: number, timeMs: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(timeMs)) return
 
@@ -91,6 +106,22 @@ export function CursorTrailCanvas() {
       if (count < MAX_TRAIL_POINTS) {
         historyCount[slot] = count + 1
       }
+    }
+
+    const pushExternalHistoryPoint = (slot: 0 | 1, x: number, y: number, timeMs: number) => {
+      const count = historyCount[slot]
+      if (count > 0) {
+        const writeIndex = historyWriteIndex[slot]
+        const previousIndex = (writeIndex - 1 + MAX_TRAIL_POINTS) % MAX_TRAIL_POINTS
+        const dx = x - historyX[slot][previousIndex]
+        const dy = y - historyY[slot][previousIndex]
+        const dist = Math.hypot(dx, dy)
+        if (dist > resolveExternalTrailBreakDistancePx()) {
+          clearHistorySlot(slot)
+        }
+      }
+
+      pushHistoryPoint(slot, x, y, timeMs)
     }
 
     const pruneHistorySlot = (slot: 0 | 1, nowMs: number, maxAgeMs: number) => {
@@ -204,10 +235,14 @@ export function CursorTrailCanvas() {
 
       if (inputSource === 'external') {
         if (readCursorPointerRenderState(0, now, pointerRenderState0)) {
-          pushHistoryPoint(0, pointerRenderState0.x, pointerRenderState0.y, now)
+          pushExternalHistoryPoint(0, pointerRenderState0.x, pointerRenderState0.y, now)
+        } else {
+          clearHistorySlot(0)
         }
         if (readCursorPointerRenderState(1, now, pointerRenderState1)) {
-          pushHistoryPoint(1, pointerRenderState1.x, pointerRenderState1.y, now)
+          pushExternalHistoryPoint(1, pointerRenderState1.x, pointerRenderState1.y, now)
+        } else {
+          clearHistorySlot(1)
         }
       }
 
