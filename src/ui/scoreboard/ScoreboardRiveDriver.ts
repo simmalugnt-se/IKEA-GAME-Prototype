@@ -1,7 +1,6 @@
 import { Fit, Layout, Rive } from '@rive-app/canvas'
+import type { ScoreboardRiveFit } from '@/scoreboard/scoreBoardSettings.types'
 
-const SOURCE_WIDTH = 240
-const SOURCE_HEIGHT = 135
 const RIVE_SOURCE_PATH = '/rive/scoreboard.riv'
 const RIVE_LOAD_TIMEOUT_MS = 8000
 
@@ -15,9 +14,25 @@ export type ScoreboardRiveStatus = {
 
 type ScoreboardRiveStatusListener = (status: ScoreboardRiveStatus) => void
 
+export type ScoreboardRiveDriverOptions = {
+  sourceWidth: number
+  sourceHeight: number
+  riveFit: ScoreboardRiveFit
+  onStatus?: ScoreboardRiveStatusListener
+}
+
+function resolveRiveFit(fit: ScoreboardRiveFit): Fit {
+  if (fit === 'cover') return Fit.Cover
+  if (fit === 'fill') return Fit.Fill
+  return Fit.Contain
+}
+
 export class ScoreboardRiveDriver {
   private readonly sourceCanvas: HTMLCanvasElement
   private readonly sourceMountEl: HTMLDivElement
+  private readonly sourceWidth: number
+  private readonly sourceHeight: number
+  private readonly riveFit: ScoreboardRiveFit
   private readonly status: ScoreboardRiveStatus = {
     state: 'idle',
     artboardName: null,
@@ -30,19 +45,22 @@ export class ScoreboardRiveDriver {
   private disposed = false
   private loadTimeoutId: ReturnType<typeof setTimeout> | null = null
 
-  constructor(onStatus?: ScoreboardRiveStatusListener) {
-    this.onStatus = onStatus
+  constructor(options: ScoreboardRiveDriverOptions) {
+    this.onStatus = options.onStatus
+    this.sourceWidth = Math.max(1, Math.floor(options.sourceWidth))
+    this.sourceHeight = Math.max(1, Math.floor(options.sourceHeight))
+    this.riveFit = options.riveFit
     this.sourceMountEl = document.createElement('div')
     this.sourceCanvas = document.createElement('canvas')
-    this.sourceCanvas.width = SOURCE_WIDTH
-    this.sourceCanvas.height = SOURCE_HEIGHT
-    this.sourceCanvas.style.width = `${SOURCE_WIDTH}px`
-    this.sourceCanvas.style.height = `${SOURCE_HEIGHT}px`
+    this.sourceCanvas.width = this.sourceWidth
+    this.sourceCanvas.height = this.sourceHeight
+    this.sourceCanvas.style.width = `${this.sourceWidth}px`
+    this.sourceCanvas.style.height = `${this.sourceHeight}px`
     this.sourceMountEl.style.position = 'fixed'
     this.sourceMountEl.style.left = '-10000px'
     this.sourceMountEl.style.top = '-10000px'
-    this.sourceMountEl.style.width = `${SOURCE_WIDTH}px`
-    this.sourceMountEl.style.height = `${SOURCE_HEIGHT}px`
+    this.sourceMountEl.style.width = `${this.sourceWidth}px`
+    this.sourceMountEl.style.height = `${this.sourceHeight}px`
     this.sourceMountEl.style.opacity = '0'
     this.sourceMountEl.style.pointerEvents = 'none'
     this.sourceMountEl.style.overflow = 'hidden'
@@ -135,8 +153,8 @@ export class ScoreboardRiveDriver {
           return
         }
 
-        this.sourceCanvas.width = SOURCE_WIDTH
-        this.sourceCanvas.height = SOURCE_HEIGHT
+        this.sourceCanvas.width = this.sourceWidth
+        this.sourceCanvas.height = this.sourceHeight
 
         if (firstAnimation) {
           rive.reset({
@@ -184,7 +202,7 @@ export class ScoreboardRiveDriver {
     const rive = new Rive({
       canvas: this.sourceCanvas,
       src: RIVE_SOURCE_PATH,
-      layout: new Layout({ fit: Fit.Fill }),
+      layout: new Layout({ fit: resolveRiveFit(this.riveFit) }),
       autoplay: false,
       onLoad: () => {
         if (this.disposed || handled) return

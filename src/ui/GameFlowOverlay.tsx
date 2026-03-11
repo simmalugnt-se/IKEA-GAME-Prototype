@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { SETTINGS } from '@/settings/GameSettings'
+import { POPDOT_SHADOW_STYLE, POPDOT_STYLE_1, POPDOT_STYLE_2, POPDOT_STYLE_3 } from '@/ui/hudTypography'
 
 function formatScore(value: number): string {
   const truncated = Number.isFinite(value) ? Math.trunc(value) : 0
@@ -112,6 +113,7 @@ export function GameFlowOverlay() {
 
 const styles = {
   centerWrap: {
+    ...POPDOT_STYLE_3,
     position: 'absolute',
     inset: 0,
     zIndex: 31,
@@ -123,36 +125,27 @@ const styles = {
     gap: '0.4rem',
     color: '#ffffff',
     textAlign: 'center' as const,
-    fontFamily: '"Instrument Sans", sans-serif',
   },
   idlePrompt: {
-    fontSize: '1.2rem',
-    letterSpacing: '0.1em',
+    ...POPDOT_STYLE_1,
+    ...POPDOT_SHADOW_STYLE,
+    fontSize: '1.25rem',
     textTransform: 'uppercase' as const,
-    fontWeight: 600,
-    textShadow: '0 0 16px rgba(0, 0, 0, 0.45)',
   },
   highScoreTitle: {
+    ...POPDOT_STYLE_1,
     fontSize: '1.5rem',
-    letterSpacing: '0.12em',
     textTransform: 'uppercase' as const,
-    fontWeight: 700,
-    textShadow: '0 0 18px rgba(0, 0, 0, 0.5)',
   },
   countdown: {
+    ...POPDOT_STYLE_1,
     fontSize: '3.2rem',
-    fontWeight: 800,
-    letterSpacing: '0.08em',
-    lineHeight: 1,
-    textShadow: '0 0 22px rgba(0, 0, 0, 0.55)',
   },
   gameOverTitle: {
+    ...POPDOT_STYLE_1,
+    ...POPDOT_SHADOW_STYLE,
     fontSize: '2.2rem',
-    letterSpacing: '0.14em',
     textTransform: 'uppercase' as const,
-    fontWeight: 800,
-    textShadow: '0 0 22px rgba(0, 0, 0, 0.6)',
-    lineHeight: 1,
   },
   scoreRow: {
     display: 'flex',
@@ -161,26 +154,23 @@ const styles = {
     marginTop: '0.15rem',
   },
   scoreLabel: {
+    ...POPDOT_STYLE_2,
+    ...POPDOT_SHADOW_STYLE,
     fontSize: '0.85rem',
-    letterSpacing: '0.18em',
     textTransform: 'uppercase' as const,
     opacity: 0.9,
-    fontWeight: 700,
   },
   scoreValue: {
+    ...POPDOT_STYLE_1,
+    ...POPDOT_SHADOW_STYLE,
     fontSize: '2rem',
-    lineHeight: 1,
-    fontWeight: 700,
-    letterSpacing: '0.03em',
-    textShadow: '0 0 18px rgba(0, 0, 0, 0.55)',
   },
   highScoreEntry: {
+    ...POPDOT_STYLE_3,
+    ...POPDOT_SHADOW_STYLE,
     marginTop: '0.45rem',
     fontSize: '1rem',
-    letterSpacing: '0.12em',
     textTransform: 'uppercase' as const,
-    fontWeight: 700,
-    textShadow: '0 0 14px rgba(0, 0, 0, 0.5)',
   },
   timerWrap: {
     marginTop: '0.35rem',
@@ -197,15 +187,13 @@ const styles = {
     display: 'block',
   },
   timerLabel: {
+    ...POPDOT_STYLE_1,
+    ...POPDOT_SHADOW_STYLE,
     position: 'absolute' as const,
     inset: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '1.6rem',
-    lineHeight: 1,
-    fontWeight: 800,
-    letterSpacing: '0.08em',
-    textShadow: '0 0 16px rgba(0, 0, 0, 0.55)',
   },
 } as const

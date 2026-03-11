@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { subscribeToScorePops } from '@/input/scorePopEmitter'
+import { subscribeToScorePops, type ScorePopStyleKey } from '@/input/scorePopEmitter'
 import { applyEasing, clamp01 } from '@/utils/easing'
 
 const POP_DURATION_MS = 750
@@ -18,6 +18,8 @@ const BURST_START_END_FRAME = 5
 const BURST_END_END_FRAME = 8
 const BURST_LAST_FRAME = 10
 const BURST_DURATION_MS = BURST_LAST_FRAME * BURST_FRAME_MS
+const POP_SHADOW_COLOR = '#141414'
+const POP_SHADOW_STEPS = [0.5, 1, 1.5, 2] as const
 
 const mix = (a: number, b: number, t: number): number => a + (b - a) * t
 
@@ -26,7 +28,16 @@ type ScorePop = {
   x: number
   y: number
   burst: boolean
+  style: ScorePopStyleKey
   createdAt: number
+}
+
+const POP_DEFAULT_STYLE: ScorePopStyleKey = 'style3'
+const POP_FONT_BY_STYLE: Record<ScorePopStyleKey, string> = {
+  style1: `${FONT_SIZE}px "popdot-canvas-style1", "popdot", "Instrument Sans", sans-serif`,
+  style2: `${FONT_SIZE}px "popdot-canvas-style2", "popdot", "Instrument Sans", sans-serif`,
+  style3: `${FONT_SIZE}px "popdot-canvas-style3", "popdot", "Instrument Sans", sans-serif`,
+  style4: `${FONT_SIZE}px "popdot-canvas-style4", "popdot", "Instrument Sans", sans-serif`,
 }
 
 export function ScorePopCanvas() {
@@ -56,8 +67,15 @@ export function ScorePopCanvas() {
     const resizeObserver = new ResizeObserver(syncSize)
     resizeObserver.observe(canvas)
 
-    const unsubscribe = subscribeToScorePops(({ text, x, y, burst }) => {
-      pops.push({ text, x, y, burst: burst !== false, createdAt: performance.now() })
+    const unsubscribe = subscribeToScorePops(({ text, x, y, burst, style }) => {
+      pops.push({
+        text,
+        x,
+        y,
+        burst: burst !== false,
+        style: style ?? POP_DEFAULT_STYLE,
+        createdAt: performance.now(),
+      })
     })
 
     const frame = () => {
@@ -124,9 +142,15 @@ export function ScorePopCanvas() {
 
         ctx.save()
         ctx.globalAlpha = alpha
-        ctx.font = `${FONT_SIZE}px "Instrument Sans", sans-serif`
+        ctx.font = POP_FONT_BY_STYLE[pop.style] ?? POP_FONT_BY_STYLE[POP_DEFAULT_STYLE]
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
+
+        ctx.fillStyle = POP_SHADOW_COLOR
+        for (let shadowStepIndex = 0; shadowStepIndex < POP_SHADOW_STEPS.length; shadowStepIndex += 1) {
+          const shadowOffset = POP_SHADOW_STEPS[shadowStepIndex]
+          ctx.fillText(pop.text, pop.x + shadowOffset, floatY + shadowOffset)
+        }
 
         ctx.fillStyle = '#fff'
         ctx.fillText(pop.text, pop.x, floatY)

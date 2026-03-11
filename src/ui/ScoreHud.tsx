@@ -4,22 +4,27 @@ import { isAudioUnlocked, subscribeAudioUnlocked } from '@/audio/SoundManager'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { SETTINGS } from '@/settings/GameSettings'
 import { useSettingsVersion } from '@/settings/settingsStore'
+import { POPDOT_SHADOW_STYLE, POPDOT_STYLE_1, POPDOT_STYLE_2, POPDOT_STYLE_3, POPDOT_STYLE_4 } from '@/ui/hudTypography'
 
 function formatScore(value: number): string {
   const truncated = Number.isFinite(value) ? Math.trunc(value) : 0
   const sign = truncated < 0 ? '-' : ''
   const digits = Math.abs(truncated).toString()
-  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`
+  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
 }
 
 const LIFE_LOSS_BLINK_DURATION_MS = 820
+const SCORE_LERP_RESPONSE = 16
+const SCORE_LERP_MAX_DT_SEC = 0.05
+const HEART_LIGATURE = '#heart'
 
 export function ScoreHud() {
   useSettingsVersion()
   const uiWhite = '#fff'
+  const score = useGameplayStore((state) => state.score)
   const [audioUnlocked, setAudioUnlocked] = useState(() => isAudioUnlocked())
   const [blinkingLifeSlots, setBlinkingLifeSlots] = useState<number[]>([])
-  const score = useGameplayStore((state) => state.score)
+  const [displayScore, setDisplayScore] = useState(() => score)
   const lastRunScore = useGameplayStore((state) => state.lastRunScore)
   const sessionHighScore = useGameplayStore((state) => state.sessionHighScore)
   const lives = useGameplayStore((state) => state.lives)
@@ -34,13 +39,14 @@ export function ScoreHud() {
   const isAudioOn = AUDIO_SETTINGS.enabled === true && audioUnlocked
   const previousLivesRef = useRef(lives)
   const blinkTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
+  const displayScoreRef = useRef(score)
+  const targetScoreRef = useRef(score)
+  const scoreRafIdRef = useRef<number | null>(null)
+  const lastScoreFrameTimeRef = useRef<number | null>(null)
 
   const hudTextStyle: CSSProperties = {
-    fontFamily: '"Instrument Sans", sans-serif',
+    ...POPDOT_STYLE_3,
     fontSize,
-    lineHeight: 1,
-    fontWeight: '400',
-    letterSpacing: '0.01em',
     textTransform: 'uppercase',
   }
 
@@ -49,6 +55,68 @@ export function ScoreHud() {
       setAudioUnlocked(true)
     })
   }, [])
+
+  useEffect(() => {
+    targetScoreRef.current = score
+    const currentDisplay = displayScoreRef.current
+
+    if (score <= currentDisplay) {
+      if (scoreRafIdRef.current !== null) {
+        cancelAnimationFrame(scoreRafIdRef.current)
+        scoreRafIdRef.current = null
+      }
+      lastScoreFrameTimeRef.current = null
+      if (score !== currentDisplay) {
+        displayScoreRef.current = score
+        setDisplayScore(score)
+      }
+      return
+    }
+
+    if (scoreRafIdRef.current !== null) return
+
+    const frame = (now: number) => {
+      const previousFrameTime = lastScoreFrameTimeRef.current
+      if (previousFrameTime === null) {
+        lastScoreFrameTimeRef.current = now
+        scoreRafIdRef.current = requestAnimationFrame(frame)
+        return
+      }
+
+      const rawDt = (now - previousFrameTime) / 1000
+      const dtSec = Math.max(0, Math.min(SCORE_LERP_MAX_DT_SEC, rawDt))
+      lastScoreFrameTimeRef.current = now
+
+      const current = displayScoreRef.current
+      const target = targetScoreRef.current
+      const diff = target - current
+      if (diff <= 0) {
+        scoreRafIdRef.current = null
+        lastScoreFrameTimeRef.current = null
+        return
+      }
+
+      const alpha = 1 - Math.exp(-SCORE_LERP_RESPONSE * dtSec)
+      const step = Math.max(1, Math.floor(diff * alpha))
+      const next = Math.min(target, current + step)
+
+      if (next !== current) {
+        displayScoreRef.current = next
+        setDisplayScore(next)
+      }
+
+      if (next >= target) {
+        scoreRafIdRef.current = null
+        lastScoreFrameTimeRef.current = null
+        return
+      }
+
+      scoreRafIdRef.current = requestAnimationFrame(frame)
+    }
+
+    lastScoreFrameTimeRef.current = null
+    scoreRafIdRef.current = requestAnimationFrame(frame)
+  }, [score])
 
   useEffect(() => {
     const previousLives = previousLivesRef.current
@@ -96,6 +164,11 @@ export function ScoreHud() {
     return () => {
       blinkTimersRef.current.forEach((timer) => clearTimeout(timer))
       blinkTimersRef.current.clear()
+      if (scoreRafIdRef.current !== null) {
+        cancelAnimationFrame(scoreRafIdRef.current)
+        scoreRafIdRef.current = null
+      }
+      lastScoreFrameTimeRef.current = null
     }
   }, [])
 
@@ -113,29 +186,18 @@ export function ScoreHud() {
           ...hudTextStyle,
           display: 'flex',
           alignItems: 'start',
-          gap: '2ch',
-          maxWidth: 'min(70vw, 52ch)',
-          flexWrap: 'wrap',
+          gap: '.5rem',
+          padding: '0.25rem',
+          borderRadius: '0.75rem',
+          backgroundColor: secondaryColor,
           color: uiWhite,
           transform: topHudTransform,
           opacity: topHudOpacity,
           transition: 'transform 2s cubic-bezier(0.6, 0, 0, 1), opacity 2s cubic-bezier(0.6, 0, 0, 1)',
         }}
       >
-        <div style={{ display: 'flex', gap: '1em', minWidth: 'max(15ch, calc(100vw / 4))' }}>
-          <span>Score</span>
-          <span>{formatScore(score)}</span>
-        </div>
-        <div style={{ display: 'flex', gap: '1em', fontSize: '0.4em', fontWeight: '500', paddingTop: '0.25em', letterSpacing: '0.025em' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1em', minWidth: 'max(15ch, calc(100vw / 12))' }}>
-            <span>Prev.</span>
-            <span>{formatScore(lastRunScore)}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1em', minWidth: 'max(15ch, calc(100vw / 12))' }}>
-            <span>Best</span>
-            <span>{formatScore(sessionHighScore)}</span>
-          </div>
-        </div>
+        <span style={{ ...POPDOT_STYLE_4, display: 'flex', padding: '0.25rem 0.5rem', borderRadius: '.5rem' }}>Score</span>
+        <span style={{ ...POPDOT_STYLE_3, display: 'flex', padding: '0.25rem 0.5rem', borderRadius: '.5rem', backgroundColor: uiWhite, color: secondaryColor }}>{formatScore(displayScore)}</span>
       </div >
 
       {!isAudioOn && (
@@ -158,7 +220,9 @@ export function ScoreHud() {
             textWrap: 'balance',
           }}
         >
-          <span style={{ fontSize: '0.375em', fontWeight: '600', letterSpacing: '0.025em', maxWidth: '30ch' }}>Click anywhere to enable the soundtrack and SFX</span>
+          <span style={{ ...POPDOT_STYLE_3, ...POPDOT_SHADOW_STYLE, fontSize: '0.375em', lineHeight: '1em', maxWidth: '30ch' }}>
+            Click anywhere to enable the soundtrack and SFX
+          </span>
           <span
             style={{
               fontFamily: '"Material Symbols Outlined"',
@@ -185,46 +249,55 @@ export function ScoreHud() {
           pointerEvents: 'none',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.125em',
+          gap: '.5rem',
+          padding: '0.25rem',
+          borderRadius: '0.75rem',
+          backgroundColor: '#141414',
+          color: uiWhite,
           ...hudTextStyle,
           transform: topHudTransform,
           opacity: topHudOpacity,
           transition: 'transform 2s .15s cubic-bezier(0.6, 0, 0, 1), opacity 2s .15s cubic-bezier(0.6, 0, 0, 1)',
         }}
       >
-        {Array.from({ length: maxLives }, (_, slotIndex) => {
-          const isActiveLife = slotIndex < lives
-          if (isActiveLife) {
+        <span style={{ ...POPDOT_STYLE_4, display: 'flex', padding: '0.25rem 0.5rem', borderRadius: '.5rem' }}>Lives</span>
+        <span style={{ ...POPDOT_STYLE_3, display: 'flex', padding: '0.25rem 0.5rem', borderRadius: '.5rem', backgroundColor: '#ffffff', color: '#141414' }}>
+          {Array.from({ length: maxLives }, (_, slotIndex) => {
+            const isActiveLife = slotIndex < lives
+            if (isActiveLife) {
+              return (
+                <span
+                  key={`life-slot-${slotIndex}`}
+                  style={{
+                    ...POPDOT_STYLE_3,
+                    color: secondaryColor,
+                    fontSize: fontSize,
+                    textTransform: 'none',
+                  }}
+                >
+                  {HEART_LIGATURE}
+                </span>
+              )
+            }
+            const shouldBlink = blinkingLifeSlotSet.has(slotIndex)
             return (
               <span
                 key={`life-slot-${slotIndex}`}
-                className="material-icons"
+                className={shouldBlink ? 'life-loss-blink' : undefined}
                 style={{
-                  color: uiWhite,
+                  ...POPDOT_STYLE_3,
+                  color: secondaryColor,
+                  opacity: 0.25,
                   fontSize: fontSize,
-                  lineHeight: '1em',
-                }}
+                  textTransform: 'none',
+                  ['--life-loss-dark' as any]: secondaryColor,
+                } as CSSProperties}
               >
-                favorite
+                {HEART_LIGATURE}
               </span>
             )
-          }
-          const shouldBlink = blinkingLifeSlotSet.has(slotIndex)
-          return (
-            <span
-              key={`life-slot-${slotIndex}`}
-              className={shouldBlink ? 'material-icons life-loss-blink' : 'material-icons'}
-              style={{
-                color: secondaryColor,
-                fontSize: fontSize,
-                lineHeight: '1em',
-                ['--life-loss-dark' as any]: secondaryColor,
-              } as CSSProperties}
-            >
-              favorite
-            </span>
-          )
-        })}
+          })}
+        </span>
       </div>
     </>
   )

@@ -1,8 +1,11 @@
+export type ScorePopStyleKey = 'style1' | 'style2' | 'style3' | 'style4'
+
 export type ScorePopEvent = {
   text: string
   x: number
   y: number
   burst?: boolean
+  style?: ScorePopStyleKey
 }
 
 type Listener = (event: ScorePopEvent) => void

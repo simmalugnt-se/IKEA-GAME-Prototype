@@ -4,6 +4,41 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+@font-face {
+  font-family: "popdot";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+}
+
+/* Canvas-safe fixed style families so fillText gets exact VF axis values. */
+@font-face {
+  font-family: "popdot-canvas-style1";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-variation-settings: "wght" 350, "slnt" 100, "wdth" 0;
+}
+
+@font-face {
+  font-family: "popdot-canvas-style2";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-variation-settings: "wght" 200, "slnt" 100, "wdth" 100;
+}
+
+@font-face {
+  font-family: "popdot-canvas-style3";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-variation-settings: "wght" 200, "slnt" 0, "wdth" 0;
+}
+
+@font-face {
+  font-family: "popdot-canvas-style4";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-variation-settings: "wght" 150, "slnt" 0, "wdth" 0;
+}
+
 body,
 html,
 #root {

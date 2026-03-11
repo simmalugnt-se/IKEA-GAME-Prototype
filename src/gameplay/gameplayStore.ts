@@ -263,6 +263,7 @@ function flushPendingComboStrike(): void {
         text: scoreText,
         x: pop.x,
         y: pop.y,
+        style: 'style3',
       })
     }
   }
@@ -282,6 +283,7 @@ function flushPendingComboStrike(): void {
       x: sumX * invCount,
       y: sumY * invCount,
       burst: false,
+      style: 'style1',
     })
     playGameSound({ type: 'combo_triggered', multiplier: finalMultiplier })
     sendScoreboardEvent({
@@ -630,6 +632,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
           text: `+${baseScore}`,
           x: popEvent.x,
           y: popEvent.y,
+          style: 'style3',
         })
       }
       return
@@ -799,6 +802,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
           emitScorePop({
             text: `+${infectionScore}`,
             ...target.screenPos,
+            style: 'style3',
           })
         }
       }
