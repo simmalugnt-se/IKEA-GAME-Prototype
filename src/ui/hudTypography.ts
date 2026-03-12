@@ -1,38 +1,24 @@
 import type { CSSProperties } from 'react'
+import {
+  POPDOT_SHADOW_COLOR_FALLBACK,
+  POPDOT_STYLE_AXES,
+  POPDOT_TEXT_BASE,
+  resolveFontVariationSettings,
+  resolvePopdotShadowOffsets as resolvePopdotShadowOffsetsFromTokens,
+  type PopdotAxes,
+  type PopdotShadowSize,
+  type PopdotStyleKey,
+} from '@/ui/typography/popdotTokens'
 
-type PopdotAxes = {
-  wght: number
-  slnt: number
-  wdth: number
-}
-
-export type PopdotStyleKey = 'style1' | 'style2' | 'style3' | 'style4' | 'style5'
-export const POPDOT_SHADOW_COLOR = '#141414'
-export type PopdotShadowSize = 2 | 4 | 8 | 12 | 16
-
-const SHADOW_DENSITY_BY_SIZE: Record<PopdotShadowSize, number> = {
-  2: 0.5,
-  4: 0.5,
-  8: 1,
-  12: 2,
-  16: 2,
-}
+export type { PopdotShadowSize, PopdotStyleKey }
+export const POPDOT_SHADOW_COLOR = POPDOT_SHADOW_COLOR_FALLBACK
 
 const SHADOW_OFFSETS_BY_SIZE: Record<PopdotShadowSize, number[]> = {
-  2: [],
-  4: [],
-  8: [],
-  12: [],
-  16: [],
-}
-
-for (const rawSize of [2, 4, 8, 12, 16] as const) {
-  const size = rawSize as PopdotShadowSize
-  const density = SHADOW_DENSITY_BY_SIZE[size]
-  const offsets = SHADOW_OFFSETS_BY_SIZE[size]
-  for (let shadowOffset = density; shadowOffset <= size; shadowOffset += density) {
-    offsets.push(shadowOffset)
-  }
+  2: resolvePopdotShadowOffsetsFromTokens(2),
+  4: resolvePopdotShadowOffsetsFromTokens(4),
+  8: resolvePopdotShadowOffsetsFromTokens(8),
+  12: resolvePopdotShadowOffsetsFromTokens(12),
+  16: resolvePopdotShadowOffsetsFromTokens(16),
 }
 
 export function resolvePopdotShadowOffsets(size: PopdotShadowSize): number[] {
@@ -51,18 +37,14 @@ export function createPopdotShadowStyle(size: PopdotShadowSize): CSSProperties {
 export const POPDOT_SHADOW_STYLE = createPopdotShadowStyle(4)
 
 const POPDOT_BASE: CSSProperties = {
-  fontFamily: '"popdot", "Instrument Sans", sans-serif',
-  lineHeight: '0.75em',
-  letterSpacing: '0.08em',
+  fontFamily: POPDOT_TEXT_BASE.fontFamily,
+  lineHeight: POPDOT_TEXT_BASE.lineHeight,
+  letterSpacing: POPDOT_TEXT_BASE.letterSpacing,
 }
 
 export const POPDOT_LIGATURES_BASE: CSSProperties = {
-  fontVariantLigatures: 'common-ligatures discretionary-ligatures contextual',
-  fontFeatureSettings: '"liga" 1, "clig" 1, "calt" 1, "dlig" 1',
-}
-
-function resolveFontVariationSettings(axes: PopdotAxes): string {
-  return `"wght" ${axes.wght}, "slnt" ${axes.slnt}, "wdth" ${axes.wdth}`
+  fontVariantLigatures: POPDOT_TEXT_BASE.fontVariantLigatures,
+  fontFeatureSettings: POPDOT_TEXT_BASE.fontFeatureSettings,
 }
 
 function createPopdotStyle(axes: PopdotAxes): CSSProperties {
@@ -74,11 +56,11 @@ function createPopdotStyle(axes: PopdotAxes): CSSProperties {
   }
 }
 
-export const POPDOT_STYLE_1: CSSProperties = createPopdotStyle({ wght: 350, slnt: 100, wdth: 0 })
-export const POPDOT_STYLE_2: CSSProperties = createPopdotStyle({ wght: 200, slnt: 100, wdth: 100 })
-export const POPDOT_STYLE_3: CSSProperties = createPopdotStyle({ wght: 200, slnt: 0, wdth: 0 })
-export const POPDOT_STYLE_4: CSSProperties = createPopdotStyle({ wght: 150, slnt: 0, wdth: 0 })
-export const POPDOT_STYLE_5: CSSProperties = createPopdotStyle({ wght: 375, slnt: 100, wdth: 100 })
+export const POPDOT_STYLE_1: CSSProperties = createPopdotStyle(POPDOT_STYLE_AXES.style1)
+export const POPDOT_STYLE_2: CSSProperties = createPopdotStyle(POPDOT_STYLE_AXES.style2)
+export const POPDOT_STYLE_3: CSSProperties = createPopdotStyle(POPDOT_STYLE_AXES.style3)
+export const POPDOT_STYLE_4: CSSProperties = createPopdotStyle(POPDOT_STYLE_AXES.style4)
+export const POPDOT_STYLE_5: CSSProperties = createPopdotStyle(POPDOT_STYLE_AXES.style5)
 
 export const POPDOT_STYLE_BY_KEY: Record<PopdotStyleKey, CSSProperties> = {
   style1: POPDOT_STYLE_1,

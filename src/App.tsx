@@ -16,6 +16,7 @@ import { ScoreboardPage } from "@/ui/scoreboard/ScoreboardPage";
 import { GameSettingsPanel } from "@/ui/settings/GameSettingsPanel";
 import { ScoreHud } from "@/ui/ScoreHud";
 import { ScorePopCanvas } from "@/ui/ScorePopCanvas";
+import { UiStyleVarsRuntime } from "@/ui/UiStyleVarsRuntime";
 
 export default function App() {
   const isConverter = window.location.pathname === "/converter";
@@ -82,6 +83,7 @@ function GameApp() {
         cursor: "none",
       }}
     >
+      <UiStyleVarsRuntime />
       <ScoreHud />
       <GameFlowOverlay />
       <Canvas

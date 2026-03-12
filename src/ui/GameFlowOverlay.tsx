@@ -1,14 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { SETTINGS } from '@/settings/GameSettings'
-import { POPDOT_STYLE_1, POPDOT_STYLE_2, POPDOT_STYLE_3, POPDOT_STYLE_4, POPDOT_STYLE_5, createPopdotShadowStyle } from '@/ui/hudTypography'
-
-function formatScore(value: number): string {
-  const truncated = Number.isFinite(value) ? Math.trunc(value) : 0
-  const sign = truncated < 0 ? '-' : ''
-  const digits = Math.abs(truncated).toString()
-  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`
-}
+import { useSettingsVersion } from '@/settings/settingsStore'
+import { formatScore } from '@/ui/scoreFormat'
+import './GameFlowOverlay.css'
 
 function resolveCountdownSeconds(endsAtMs: number, nowMs: number): number {
   if (!(endsAtMs > 0)) return 0
@@ -24,20 +19,101 @@ function resolveRemainingRatio(endsAtMs: number, nowMs: number, durationMs: numb
   return Math.max(0, Math.min(1, remainingMs / durationMs))
 }
 
-const SHADOW_STYLE_2 = createPopdotShadowStyle(2)
-const SHADOW_STYLE_4 = createPopdotShadowStyle(4)
-const SHADOW_STYLE_8 = createPopdotShadowStyle(8)
-const SHADOW_STYLE_12 = createPopdotShadowStyle(12)
-const SHADOW_STYLE_16 = createPopdotShadowStyle(16)
+const GAME_OVER_SCORE_TICK_MS = 1000
+const GAME_OVER_PREVIEW_SCORE = 65300
+
+type GameOverPreviewMode = 'off' | 'state1' | 'state2'
 
 export function GameFlowOverlay() {
+  useSettingsVersion()
   const flowState = useGameplayStore((state) => state.flowState)
+  const debugEnabled = SETTINGS.debug.enabled === true
   const gameOverInputEndsAtMs = useGameplayStore((state) => state.gameOverInputEndsAtMs)
   const lastRunScore = useGameplayStore((state) => state.lastRunScore)
   const [nowMs, setNowMs] = useState(() => Date.now())
+  const [displayGameOverScore, setDisplayGameOverScore] = useState(0)
+  const scoreTickRafIdRef = useRef<number | null>(null)
+  const scoreTickStartMsRef = useRef<number | null>(null)
+  const scoreTickTargetRef = useRef(0)
+  const previousIsGameOverViewRef = useRef(false)
+  const previousPreviewModeRef = useRef<GameOverPreviewMode>('off')
+  const previousScoreTargetRef = useRef(0)
+
+  // TEMP_GAME_OVER_PREVIEW_START
+  const [previewMode, setPreviewMode] = useState<GameOverPreviewMode>('off')
+  const [previewInputEndsAtMs, setPreviewInputEndsAtMs] = useState(0)
+  // TEMP_GAME_OVER_PREVIEW_END
+
+  const effectiveFlowState =
+    previewMode === 'state1'
+      ? 'game_over_travel'
+      : previewMode === 'state2'
+        ? 'game_over_input'
+        : flowState
+  const effectiveInputEndsAtMs = previewMode === 'state2' ? previewInputEndsAtMs : gameOverInputEndsAtMs
+  const isGameOverView = effectiveFlowState === 'game_over_travel' || effectiveFlowState === 'game_over_input'
+  const resolvedScoreTarget = Math.max(
+    0,
+    Math.trunc(previewMode === 'off' ? lastRunScore : GAME_OVER_PREVIEW_SCORE),
+  )
+
+  // TEMP_GAME_OVER_PREVIEW_START
+  useEffect(() => {
+    if (!debugEnabled) {
+      setPreviewMode('off')
+      setPreviewInputEndsAtMs(0)
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return
+      const target = event.target as HTMLElement | null
+      if (target) {
+        const tagName = target.tagName
+        if (
+          target.isContentEditable
+          || tagName === 'INPUT'
+          || tagName === 'TEXTAREA'
+          || tagName === 'SELECT'
+        ) {
+          return
+        }
+      }
+
+      if (event.code === 'Digit8') {
+        event.preventDefault()
+        setPreviewMode('state1')
+        setPreviewInputEndsAtMs(0)
+        return
+      }
+
+      if (event.code === 'Digit9') {
+        event.preventDefault()
+        setPreviewMode('state2')
+        setPreviewInputEndsAtMs(Date.now() + Math.max(1, SETTINGS.gameplay.flow.gameOverInputDurationMs))
+        return
+      }
+
+      if (event.code === 'Digit0') {
+        event.preventDefault()
+        setPreviewMode('off')
+        setPreviewInputEndsAtMs(0)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [debugEnabled])
 
   useEffect(() => {
-    if (flowState !== 'game_over_input') return
+    if (previewMode !== 'state2') return
+    if (previewInputEndsAtMs > Date.now()) return
+    setPreviewInputEndsAtMs(Date.now() + Math.max(1, SETTINGS.gameplay.flow.gameOverInputDurationMs))
+  }, [previewMode, previewInputEndsAtMs])
+  // TEMP_GAME_OVER_PREVIEW_END
+
+  useEffect(() => {
+    if (effectiveFlowState !== 'game_over_input') return
     setNowMs(Date.now())
     const timer = setInterval(() => {
       setNowMs(Date.now())
@@ -45,70 +121,150 @@ export function GameFlowOverlay() {
     return () => {
       clearInterval(timer)
     }
-  }, [flowState, gameOverInputEndsAtMs])
+  }, [effectiveFlowState, effectiveInputEndsAtMs])
 
-  if (flowState === 'idle') {
+  useEffect(() => {
+    const wasGameOverView = previousIsGameOverViewRef.current
+    const enteredGameOverView = !wasGameOverView && isGameOverView
+    const previewModeChanged = previousPreviewModeRef.current !== previewMode
+    const scoreTargetChanged = previousScoreTargetRef.current !== resolvedScoreTarget
+
+    previousIsGameOverViewRef.current = isGameOverView
+    previousPreviewModeRef.current = previewMode
+    previousScoreTargetRef.current = resolvedScoreTarget
+
+    if (!isGameOverView) {
+      if (scoreTickRafIdRef.current !== null) {
+        cancelAnimationFrame(scoreTickRafIdRef.current)
+        scoreTickRafIdRef.current = null
+      }
+      scoreTickStartMsRef.current = null
+      scoreTickTargetRef.current = 0
+      setDisplayGameOverScore(0)
+      return
+    }
+
+    if (!enteredGameOverView && !previewModeChanged && !scoreTargetChanged) return
+
+    if (scoreTickRafIdRef.current !== null) {
+      cancelAnimationFrame(scoreTickRafIdRef.current)
+      scoreTickRafIdRef.current = null
+    }
+
+    setDisplayGameOverScore(0)
+    scoreTickStartMsRef.current = null
+    scoreTickTargetRef.current = resolvedScoreTarget
+
+    const step = (now: number) => {
+      if (scoreTickStartMsRef.current === null) {
+        scoreTickStartMsRef.current = now
+      }
+      const elapsedMs = now - scoreTickStartMsRef.current
+      const linearT = Math.max(0, Math.min(1, elapsedMs / GAME_OVER_SCORE_TICK_MS))
+      const easedT = 1 - Math.pow(1 - linearT, 3) // easeOutCubic
+      const rawScore = Math.floor(scoreTickTargetRef.current * easedT)
+      const clampedScore = Math.max(0, Math.min(scoreTickTargetRef.current, rawScore))
+
+      setDisplayGameOverScore((previousScore) => (
+        clampedScore > previousScore ? clampedScore : previousScore
+      ))
+
+      if (linearT >= 1 || clampedScore >= scoreTickTargetRef.current) {
+        setDisplayGameOverScore(scoreTickTargetRef.current)
+        scoreTickRafIdRef.current = null
+        return
+      }
+
+      scoreTickRafIdRef.current = requestAnimationFrame(step)
+    }
+
+    scoreTickRafIdRef.current = requestAnimationFrame(step)
+  }, [isGameOverView, previewMode, resolvedScoreTarget])
+
+  useEffect(() => {
+    return () => {
+      if (scoreTickRafIdRef.current !== null) {
+        cancelAnimationFrame(scoreTickRafIdRef.current)
+        scoreTickRafIdRef.current = null
+      }
+    }
+  }, [])
+
+  if (effectiveFlowState === 'idle') {
     return (
-      <div style={styles.centerWrap}>
-        <div style={styles.idlePrompt}>POP BALLOON TO START!</div>
+      <div className="gfo-center-wrap">
+        <div className="popdot-text-base popdot-style-1 popdot-shadow-8 gfo-idle-prompt">POP BALLOON TO START!</div>
       </div>
     )
   }
 
-  if (flowState === 'game_over_input') {
-    const countdown = resolveCountdownSeconds(gameOverInputEndsAtMs, nowMs)
+  if (effectiveFlowState === 'game_over_input') {
+    const countdown = resolveCountdownSeconds(effectiveInputEndsAtMs, nowMs)
     const timerDurationMs = Math.max(1, SETTINGS.gameplay.flow.gameOverInputDurationMs)
-    const remainingRatio = resolveRemainingRatio(gameOverInputEndsAtMs, nowMs, timerDurationMs)
-    const timerRadius = 34
-    const timerStroke = 4
+    const remainingRatio = resolveRemainingRatio(effectiveInputEndsAtMs, nowMs, timerDurationMs)
+    const timerRadius = 28
+    const timerStroke = 8
     const timerCircumference = 2 * Math.PI * timerRadius
     const timerDashOffset = timerCircumference * (1 - remainingRatio)
 
     return (
-      <div style={styles.centerWrap}>
-        <div style={styles.gameOverTitle}>GAME OVER!</div>
-        <div style={styles.scoreRow}>
-          <span style={styles.scoreLabel}>SCORE</span>
-          <span style={styles.scoreValue}>{formatScore(lastRunScore)}</span>
+      <div className="gfo-center-wrap">
+        <div className="gfo-score-row gfo-stack-center gfo-gap-2">
+          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label">TOTAL SCORE:</span>
+          <span className="popdot-text-base popdot-style-1 popdot-shadow-12 gfo-score-value-entry">{formatScore(displayGameOverScore)}</span>
         </div>
-        <div style={styles.highScoreEntry}>HIGH SCORE ENTRY: AAA</div>
-        <div style={styles.timerWrap}>
-          <svg width={80} height={80} viewBox="0 0 80 80" style={styles.timerSvg}>
+        <div className="gfo-high-score-entry-row gfo-stack-center gfo-gap-2">
+          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-high-score-entry-label">HIGH SCORE ENTRY:</span>
+          <div className="gfo-high-score-entry gfo-row-center">
+            <span className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-high-score-entry-letter gfo-high-score-entry-letter-active">A</span>
+            <span className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-high-score-entry-letter">A</span>
+            <span className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-high-score-entry-letter">A</span>
+          </div>
+        </div>
+        <div className="gfo-row-center gfo-gap-2">
+          <button disabled={true} className="popdot-button popdot-button-black popdot-text-base popdot-style-1 popdot-box-shadow-16">BACK</button>
+          <button className="popdot-button popdot-text-base popdot-style-1 popdot-box-shadow-16">NEXT!</button>
+        </div>
+        <div className="gfo-timer-wrap gfo-center-content">
+          <svg width={64} height={64} viewBox="0 0 64 64" className="gfo-timer-svg">
             <circle
-              cx="40"
-              cy="40"
+              cx="32"
+              cy="32"
               r={timerRadius}
               fill="none"
+              className="gfo-timer-track"
               stroke={SETTINGS.colors.shadow}
               strokeWidth={timerStroke}
-              opacity={0.85}
             />
             <circle
-              cx="40"
-              cy="40"
+              cx="32"
+              cy="32"
               r={timerRadius}
               fill="none"
+              className="gfo-timer-progress"
               stroke="#ffffff"
               strokeWidth={timerStroke}
               strokeDasharray={timerCircumference}
               strokeDashoffset={timerDashOffset}
               strokeLinecap="round"
-              transform="rotate(-90 40 40)"
+              transform="rotate(-90 32 32)"
             />
           </svg>
-          <div style={styles.timerLabel}>{countdown}</div>
+          <div className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-timer-label gfo-center-content">{countdown}</div>
         </div>
       </div>
     )
   }
 
-  if (flowState === 'game_over_travel') {
+  if (effectiveFlowState === 'game_over_travel') {
     return (
-      <div style={styles.centerWrap}>
-        <div style={styles.gameOverTitle}>GAME OVER</div>
-        <div style={styles.scoreRow}>
-          <span style={styles.scoreLabel}>SCORE</span>
-          <span style={styles.scoreValue}>{formatScore(lastRunScore)}</span>
+      <div className="gfo-center-wrap">
+        <div className="gfo-game-over-row gfo-stack-center gfo-gap-1_5">
+          <div className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-game-over-title">GAME OVER</div>
+        </div>
+        <div className="gfo-score-row gfo-stack-center gfo-gap-1_5">
+          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label">TOTAL SCORE:</span>
+          <span className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-score-value">{formatScore(displayGameOverScore)}</span>
         </div>
       </div>
     )
@@ -116,93 +272,3 @@ export function GameFlowOverlay() {
 
   return null
 }
-
-const styles = {
-  centerWrap: {
-    ...POPDOT_STYLE_3,
-    position: 'absolute',
-    inset: 0,
-    zIndex: 31,
-    pointerEvents: 'none' as const,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'column' as const,
-    gap: '0.4rem',
-    color: '#ffffff',
-    textAlign: 'center' as const,
-  },
-  idlePrompt: {
-    ...POPDOT_STYLE_1,
-    ...SHADOW_STYLE_8,
-    lineHeight: '.8em',
-    fontSize: '4rem',
-    textWrap: 'balance',
-    maxWidth: '20ch',
-    textTransform: 'uppercase' as const,
-  },
-  highScoreTitle: {
-    ...POPDOT_STYLE_1,
-    fontSize: '1.5rem',
-    textTransform: 'uppercase' as const,
-  },
-  countdown: {
-    ...POPDOT_STYLE_1,
-    fontSize: '3.2rem',
-  },
-  gameOverTitle: {
-    ...POPDOT_STYLE_1,
-    ...SHADOW_STYLE_16,
-    fontSize: '12rem',
-    textTransform: 'uppercase' as const,
-  },
-  scoreRow: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '0.8rem',
-    marginTop: '0.15rem',
-  },
-  scoreLabel: {
-    ...POPDOT_STYLE_2,
-    ...SHADOW_STYLE_2,
-    fontSize: '0.85rem',
-    textTransform: 'uppercase' as const,
-    opacity: 0.9,
-  },
-  scoreValue: {
-    ...POPDOT_STYLE_1,
-    ...SHADOW_STYLE_2,
-    fontSize: '2rem',
-  },
-  highScoreEntry: {
-    ...POPDOT_STYLE_3,
-    ...SHADOW_STYLE_2,
-    marginTop: '0.45rem',
-    fontSize: '1rem',
-    textTransform: 'uppercase' as const,
-  },
-  timerWrap: {
-    marginTop: '0.35rem',
-    width: '80px',
-    height: '80px',
-    position: 'relative' as const,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timerSvg: {
-    width: '80px',
-    height: '80px',
-    display: 'block',
-  },
-  timerLabel: {
-    ...POPDOT_STYLE_1,
-    ...SHADOW_STYLE_2,
-    position: 'absolute' as const,
-    inset: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '1.6rem',
-  },
-} as const

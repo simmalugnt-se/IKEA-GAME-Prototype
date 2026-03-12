@@ -1,0 +1,66 @@
+/* AUTO-GENERATED FILE: POPDOT utility mixins + classes
+ * Source: src/ui/typography/popdotTokens.ts
+ * Do not edit directly.
+ */
+
+
+@mixin popdot-text-base {
+  font-family: var(--popdot-font-family);
+  line-height: var(--popdot-line-height);
+  letter-spacing: var(--popdot-letter-spacing);
+  font-variant-ligatures: var(--popdot-font-variant-ligatures);
+  font-feature-settings: var(--popdot-font-feature-settings);
+}
+
+@mixin popdot-style($style-index) {
+  font-variation-settings: "wght" var(--popdot-style#{$style-index}-wght), "slnt" var(--popdot-style#{$style-index}-slnt), "wdth" var(--popdot-style#{$style-index}-wdth), "SQRE" var(--popdot-style#{$style-index}-sqre);
+  font-weight: var(--popdot-style#{$style-index}-wght);
+}
+
+@mixin popdot-shadow($size) {
+  text-shadow: var(--popdot-shadow-#{$size});
+}
+
+.popdot-text-base {
+  @include popdot-text-base;
+}
+
+.popdot-style-1 {
+  @include popdot-style(1);
+}
+
+.popdot-style-2 {
+  @include popdot-style(2);
+}
+
+.popdot-style-3 {
+  @include popdot-style(3);
+}
+
+.popdot-style-4 {
+  @include popdot-style(4);
+}
+
+.popdot-style-5 {
+  @include popdot-style(5);
+}
+
+.popdot-shadow-2 {
+  @include popdot-shadow(2);
+}
+
+.popdot-shadow-4 {
+  @include popdot-shadow(4);
+}
+
+.popdot-shadow-8 {
+  @include popdot-shadow(8);
+}
+
+.popdot-shadow-12 {
+  @include popdot-shadow(12);
+}
+
+.popdot-shadow-16 {
+  @include popdot-shadow(16);
+}

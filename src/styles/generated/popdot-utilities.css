@@ -1,0 +1,102 @@
+/* AUTO-GENERATED FILE: POPDOT utility classes
+ * Source: src/ui/typography/popdotTokens.ts
+ * Do not edit directly.
+ */
+
+
+.popdot-text-base {
+  font-family: var(--popdot-font-family);
+  line-height: var(--popdot-line-height);
+  letter-spacing: var(--popdot-letter-spacing);
+  font-variant-ligatures: var(--popdot-font-variant-ligatures);
+  font-feature-settings: var(--popdot-font-feature-settings);
+}
+
+.popdot-style-1 {
+  font-variation-settings: "wght" var(--popdot-style1-wght), "slnt" var(--popdot-style1-slnt), "wdth" var(--popdot-style1-wdth), "SQRE" var(--popdot-style1-sqre);
+  font-weight: var(--popdot-style1-wght);
+}
+
+.popdot-style-2 {
+  font-variation-settings: "wght" var(--popdot-style2-wght), "slnt" var(--popdot-style2-slnt), "wdth" var(--popdot-style2-wdth), "SQRE" var(--popdot-style2-sqre);
+  font-weight: var(--popdot-style2-wght);
+}
+
+.popdot-style-3 {
+  font-variation-settings: "wght" var(--popdot-style3-wght), "slnt" var(--popdot-style3-slnt), "wdth" var(--popdot-style3-wdth), "SQRE" var(--popdot-style3-sqre);
+  font-weight: var(--popdot-style3-wght);
+}
+
+.popdot-style-4 {
+  font-variation-settings: "wght" var(--popdot-style4-wght), "slnt" var(--popdot-style4-slnt), "wdth" var(--popdot-style4-wdth), "SQRE" var(--popdot-style4-sqre);
+  font-weight: var(--popdot-style4-wght);
+}
+
+.popdot-style-5 {
+  font-variation-settings: "wght" var(--popdot-style5-wght), "slnt" var(--popdot-style5-slnt), "wdth" var(--popdot-style5-wdth), "SQRE" var(--popdot-style5-sqre);
+  font-weight: var(--popdot-style5-wght);
+}
+
+.popdot-shadow-2 {
+  text-shadow: var(--popdot-shadow-2);
+}
+
+.popdot-shadow-4 {
+  text-shadow: var(--popdot-shadow-4);
+}
+
+.popdot-shadow-8 {
+  text-shadow: var(--popdot-shadow-8);
+}
+
+.popdot-shadow-12 {
+  text-shadow: var(--popdot-shadow-12);
+}
+
+.popdot-shadow-16 {
+  text-shadow: var(--popdot-shadow-16);
+}
+
+.popdot-box-shadow-2 {
+  box-shadow: var(--popdot-shadow-2);
+}
+
+.popdot-box-shadow-4 {
+  box-shadow: var(--popdot-shadow-4);
+}
+
+.popdot-box-shadow-8 {
+  box-shadow: var(--popdot-shadow-8);
+}
+
+.popdot-box-shadow-12 {
+  box-shadow: var(--popdot-shadow-12);
+}
+
+.popdot-box-shadow-16 {
+  box-shadow: var(--popdot-shadow-16);
+}
+
+.popdot-button {
+  outline: none;
+  font-size: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1ch;
+  padding: .75rem 1rem;
+  border-radius: 1.25rem;
+  border: none;
+  cursor: pointer;
+  background-color: var(--ui-white);
+  color: var(--ui-shadow-color);
+}
+
+.popdot-button-black {
+  background-color: var(--ui-shadow-color);
+  color: var(--ui-white);
+}
+
+.popdot-button:disabled {
+  display: none;
+}

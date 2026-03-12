@@ -1,0 +1,112 @@
+.score-hud-panel {
+  position: absolute;
+  z-index: 30;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
+}
+
+.score-hud-panel--score {
+  top: 1.5rem;
+  left: 1.5rem;
+  background-color: var(--hud-outline, #141414);
+  color: var(--hud-white, #ffffff);
+  transition: transform 2s cubic-bezier(0.6, 0, 0, 1);
+}
+
+.score-hud-panel--lives {
+  top: 1.5rem;
+  right: 1.5rem;
+  align-items: center;
+  background-color: var(--ui-shadow-color, #141414);
+  color: var(--hud-white, #ffffff);
+  transition: transform 2s 0.15s cubic-bezier(0.6, 0, 0, 1);
+}
+
+.score-hud-chip {
+  display: flex;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 2rem;
+  text-transform: uppercase;
+}
+
+.score-hud-chip--score-value {
+  background-color: var(--hud-white, #ffffff);
+  color: var(--hud-outline, #141414);
+}
+
+.score-hud-chip--lives-value {
+  background-color: #ffffff;
+  color: var(--ui-shadow-color, #141414);
+}
+
+.score-hud-audio-hint {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 30;
+  pointer-events: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1ch;
+  flex-wrap: wrap;
+  color: #ffffff;
+  text-align: right;
+  text-wrap: balance;
+}
+
+.score-hud-audio-hint__text {
+  font-size: 0.75rem;
+  line-height: 1em;
+  max-width: 30ch;
+  text-transform: none;
+}
+
+.score-hud-audio-hint__icon {
+  font-family: "Material Symbols Outlined";
+  font-weight: 400;
+  font-style: normal;
+  font-size: 1.5rem;
+  line-height: 1em;
+  letter-spacing: normal;
+  text-transform: none;
+  user-select: none;
+}
+
+.score-hud-life {
+  font-size: 2rem;
+  text-transform: none;
+  color: var(--hud-outline, #141414);
+}
+
+.score-hud-life--lost {
+  opacity: 0.25;
+}
+
+@keyframes life-loss-blink {
+  0%,
+  100% {
+    color: var(--life-loss-dark, #000000);
+  }
+  12.5%,
+  37.5%,
+  62.5%,
+  87.5% {
+    color: #ffffff;
+  }
+  25%,
+  50%,
+  75% {
+    color: var(--life-loss-dark, #000000);
+  }
+}
+
+.life-loss-blink {
+  animation: life-loss-blink 820ms steps(1, end) 1 both;
+}

@@ -1,50 +1,11 @@
+@import "./styles/generated/popdot-fontfaces.css";
+@import "./styles/generated/popdot-vars.css";
+@import "./styles/generated/popdot-utilities.css";
+
 * {
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@font-face {
-  font-family: "popdot";
-  src: url("/POPDOTVF.ttf") format("truetype");
-  font-display: swap;
-}
-
-/* Canvas-safe fixed style families so fillText gets exact VF axis values. */
-@font-face {
-  font-family: "popdot-canvas-style1";
-  src: url("/POPDOTVF.ttf") format("truetype");
-  font-display: swap;
-  font-variation-settings: "wght" 350, "slnt" 100, "wdth" 0;
-}
-
-@font-face {
-  font-family: "popdot-canvas-style2";
-  src: url("/POPDOTVF.ttf") format("truetype");
-  font-display: swap;
-  font-variation-settings: "wght" 200, "slnt" 100, "wdth" 100;
-}
-
-@font-face {
-  font-family: "popdot-canvas-style3";
-  src: url("/POPDOTVF.ttf") format("truetype");
-  font-display: swap;
-  font-variation-settings: "wght" 200, "slnt" 0, "wdth" 0;
-}
-
-@font-face {
-  font-family: "popdot-canvas-style4";
-  src: url("/POPDOTVF.ttf") format("truetype");
-  font-display: swap;
-  font-variation-settings: "wght" 150, "slnt" 0, "wdth" 0;
-}
-
-@font-face {
-  font-family: "popdot-canvas-style5";
-  src: url("/POPDOTVF.ttf") format("truetype");
-  font-display: swap;
-  font-weight: 100 600;
-  font-variation-settings: "slnt" 100, "wdth" 100;
 }
 
 body,
@@ -61,26 +22,4 @@ body {
   /* overflow: hidden; */
   overscroll-behavior: none;
   touch-action: none;
-}
-
-@keyframes life-loss-blink {
-  0%,
-  100% {
-    color: var(--life-loss-dark, #000000);
-  }
-  12.5%,
-  37.5%,
-  62.5%,
-  87.5% {
-    color: #ffffff;
-  }
-  25%,
-  50%,
-  75% {
-    color: var(--life-loss-dark, #000000);
-  }
-}
-
-.life-loss-blink {
-  animation: life-loss-blink 820ms steps(1, end) 1 both;
 }

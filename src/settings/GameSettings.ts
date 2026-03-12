@@ -50,11 +50,11 @@ export const SETTINGS: Settings = {
   // --- DEBUG ---
   debug: {
     enabled: false, // Master-toggle för allt debug
-    showColliders: true, // Visa fysik-kollisions-proxys (wireframe)
-    showStats: true, // Visa FPS / MS / MB
+    showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
+    showStats: false, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
     showCameraFrustum: false, // Visa kamerans synliga område projicerat på golvet
-    showDebugCamera: true, // PiP top-down view som visar default-kamerans FOV
+    showDebugCamera: false, // PiP top-down view som visar default-kamerans FOV
   },
 
   // --- FÄRGER ---
@@ -202,7 +202,7 @@ export const SETTINGS: Settings = {
     shadowMapSize: 4096, // 4096 = Skarpast skuggor
     shadowBias: 0, // Mycket liten bias (så skuggan sitter fast i objektet)
     shadowNormalBias: -0.001, // Denna fixar ränderna på bollen! (Prova 0.02 - 0.1)
-    shadowArea: 4, // Tight frustum runt spelaren (följer med)
+    shadowArea: 5, // Tight frustum runt spelaren (följer med)
   },
 
   // --- MATERIAL (Toon Shading) ---

@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "styles:generate": "node scripts/generate-popdot-styles.mjs",
+    "predev": "npm run styles:generate",
     "dev": "vite",
+    "prebuild": "npm run styles:generate",
     "build": "vite build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

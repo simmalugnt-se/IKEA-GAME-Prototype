@@ -1,0 +1,40 @@
+/* AUTO-GENERATED FILE: POPDOT CSS vars
+ * Source: src/ui/typography/popdotTokens.ts
+ * Do not edit directly.
+ */
+
+
+:root {
+  --ui-shadow-color: #141414;
+  --ui-white: #ffffff;
+  --popdot-font-family: "popdot", "Instrument Sans", sans-serif;
+  --popdot-line-height: 0.75em;
+  --popdot-letter-spacing: 0.08em;
+  --popdot-font-variant-ligatures: common-ligatures discretionary-ligatures contextual;
+  --popdot-font-feature-settings: "liga" 1, "clig" 1, "calt" 1, "dlig" 1;
+  --popdot-style1-wght: 350;
+  --popdot-style1-slnt: 100;
+  --popdot-style1-wdth: 0;
+  --popdot-style1-sqre: 0;
+  --popdot-style2-wght: 200;
+  --popdot-style2-slnt: 100;
+  --popdot-style2-wdth: 100;
+  --popdot-style2-sqre: 0;
+  --popdot-style3-wght: 200;
+  --popdot-style3-slnt: 0;
+  --popdot-style3-wdth: 0;
+  --popdot-style3-sqre: 0;
+  --popdot-style4-wght: 150;
+  --popdot-style4-slnt: 0;
+  --popdot-style4-wdth: 0;
+  --popdot-style4-sqre: 0;
+  --popdot-style5-wght: 375;
+  --popdot-style5-slnt: 100;
+  --popdot-style5-wdth: 100;
+  --popdot-style5-sqre: 0;
+  --popdot-shadow-2: 0.5px 0.5px 0 var(--ui-shadow-color, #141414), 1px 1px 0 var(--ui-shadow-color, #141414), 1.5px 1.5px 0 var(--ui-shadow-color, #141414), 2px 2px 0 var(--ui-shadow-color, #141414);
+  --popdot-shadow-4: 0.5px 0.5px 0 var(--ui-shadow-color, #141414), 1px 1px 0 var(--ui-shadow-color, #141414), 1.5px 1.5px 0 var(--ui-shadow-color, #141414), 2px 2px 0 var(--ui-shadow-color, #141414), 2.5px 2.5px 0 var(--ui-shadow-color, #141414), 3px 3px 0 var(--ui-shadow-color, #141414), 3.5px 3.5px 0 var(--ui-shadow-color, #141414), 4px 4px 0 var(--ui-shadow-color, #141414);
+  --popdot-shadow-8: 1px 1px 0 var(--ui-shadow-color, #141414), 2px 2px 0 var(--ui-shadow-color, #141414), 3px 3px 0 var(--ui-shadow-color, #141414), 4px 4px 0 var(--ui-shadow-color, #141414), 5px 5px 0 var(--ui-shadow-color, #141414), 6px 6px 0 var(--ui-shadow-color, #141414), 7px 7px 0 var(--ui-shadow-color, #141414), 8px 8px 0 var(--ui-shadow-color, #141414);
+  --popdot-shadow-12: 2px 2px 0 var(--ui-shadow-color, #141414), 4px 4px 0 var(--ui-shadow-color, #141414), 6px 6px 0 var(--ui-shadow-color, #141414), 8px 8px 0 var(--ui-shadow-color, #141414), 10px 10px 0 var(--ui-shadow-color, #141414), 12px 12px 0 var(--ui-shadow-color, #141414);
+  --popdot-shadow-16: 2px 2px 0 var(--ui-shadow-color, #141414), 4px 4px 0 var(--ui-shadow-color, #141414), 6px 6px 0 var(--ui-shadow-color, #141414), 8px 8px 0 var(--ui-shadow-color, #141414), 10px 10px 0 var(--ui-shadow-color, #141414), 12px 12px 0 var(--ui-shadow-color, #141414), 14px 14px 0 var(--ui-shadow-color, #141414), 16px 16px 0 var(--ui-shadow-color, #141414);
+}

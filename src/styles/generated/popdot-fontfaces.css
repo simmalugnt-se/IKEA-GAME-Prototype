@@ -1,0 +1,47 @@
+/* AUTO-GENERATED FILE: POPDOT font faces
+ * Source: src/ui/typography/popdotTokens.ts
+ * Do not edit directly.
+ */
+
+
+@font-face {
+  font-family: "popdot";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "popdot-canvas-style1";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-variation-settings: "wght" 350, "slnt" 100, "wdth" 0, "SQRE" 0;
+}
+
+@font-face {
+  font-family: "popdot-canvas-style2";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-variation-settings: "wght" 200, "slnt" 100, "wdth" 100, "SQRE" 0;
+}
+
+@font-face {
+  font-family: "popdot-canvas-style3";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-variation-settings: "wght" 200, "slnt" 0, "wdth" 0, "SQRE" 0;
+}
+
+@font-face {
+  font-family: "popdot-canvas-style4";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-variation-settings: "wght" 150, "slnt" 0, "wdth" 0, "SQRE" 0;
+}
+
+@font-face {
+  font-family: "popdot-canvas-style5";
+  src: url("/POPDOTVF.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 25 600;
+  font-variation-settings: "slnt" 100, "wdth" 100, "SQRE" 0;
+}

@@ -1,0 +1,139 @@
+.gfo-center-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 31;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6rem;
+  color: #ffffff;
+  text-align: center;
+}
+
+.gfo-stack-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gfo-gap-1_5 {
+  gap: 1.5rem;
+}
+
+.gfo-gap-2 {
+  gap: 2rem;
+}
+
+.gfo-row-center {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.gfo-center-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gfo-idle-prompt {
+  line-height: 0.8em;
+  font-size: 4rem;
+  text-wrap: balance;
+  max-width: 20ch;
+  text-transform: uppercase;
+}
+
+.gfo-game-over-row {
+  /* reserved for per-element override */
+}
+
+.gfo-game-over-title {
+  font-size: 12rem;
+  text-transform: uppercase;
+}
+
+.gfo-score-row {
+  /* reserved for per-element override */
+}
+
+.gfo-score-label {
+  font-size: 2rem;
+  text-transform: uppercase;
+}
+
+.gfo-score-value {
+  font-size: 24rem;
+}
+
+.gfo-score-value-entry {
+  font-size: 8rem;
+}
+
+.gfo-high-score-entry-row {
+  /* reserved for per-element override */
+}
+
+.gfo-high-score-entry-label {
+  font-size: 2rem;
+  text-transform: uppercase;
+}
+
+.gfo-high-score-entry {
+  /* reserved for per-element override */
+  gap: 2rem;
+}
+
+.gfo-high-score-entry-letter {
+  font-size: 24rem;
+  text-transform: uppercase;
+}
+
+.gfo-high-score-entry-letter-active {
+  animation: high-score-letter-wght-pulse 900ms ease-in-out infinite;
+  will-change: font-variation-settings, font-weight;
+}
+
+.gfo-timer-wrap {
+  width: 4rem;
+  height: 4rem;
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+}
+
+.gfo-timer-svg {
+  width: 4rem;
+  height: 4rem;
+  display: block;
+}
+
+.gfo-timer-track {
+  opacity: 1;
+}
+
+.gfo-timer-progress {
+  stroke-linecap: round;
+}
+
+.gfo-timer-label {
+  position: absolute;
+  inset: 0;
+  font-size: 2rem;
+}
+
+@keyframes high-score-letter-wght-pulse {
+
+  0%,
+  100% {
+    font-variation-settings: "wght" 100, "slnt" var(--popdot-style1-slnt), "wdth" var(--popdot-style1-wdth), "SQRE" var(--popdot-style1-sqre);
+    font-weight: 100;
+  }
+
+  50% {
+    font-variation-settings: "wght" 350, "slnt" var(--popdot-style1-slnt), "wdth" var(--popdot-style1-wdth), "SQRE" var(--popdot-style1-sqre);
+    font-weight: 350;
+  }
+}

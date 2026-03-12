@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { subscribeToScorePops, type ScorePopStyleKey } from '@/input/scorePopEmitter'
 import { POPDOT_SHADOW_COLOR, resolvePopdotShadowOffsets } from '@/ui/hudTypography'
 import { applyEasing, clamp01, type EasingName } from '@/utils/easing'
+import './ScorePopCanvas.css'
 
 const POP_DURATION_MS = 750
 const FLOAT_DISTANCE = 56
@@ -22,7 +23,6 @@ const BURST_DURATION_MS = BURST_LAST_FRAME * BURST_FRAME_MS
 const POP_MULTI_LINE_HEIGHT_EM = 0.8
 const POP_SPRITE_PADDING_PX = 4
 const POP_LETTER_SPACING_EM = 0.08
-const COMBO_POP_DURATION_MS = 1600
 
 const mix = (a: number, b: number, t: number): number => a + (b - a) * t
 
@@ -51,7 +51,7 @@ const POP_FONT_FAMILY_BY_STYLE: Record<ScorePopStyleKey, string> = {
 const POP_SHADOW_OFFSETS_BY_STYLE: Record<ScorePopStyleKey, number[]> = {
   style1: resolvePopdotShadowOffsets(8),
   style2: resolvePopdotShadowOffsets(4),
-  style3: resolvePopdotShadowOffsets(4),
+  style3: resolvePopdotShadowOffsets(2),
   style4: resolvePopdotShadowOffsets(4),
   style5: resolvePopdotShadowOffsets(4),
 }
@@ -95,13 +95,32 @@ type ComboWeightKeyframe = {
 }
 
 const COMBO_WEIGHT_TIMELINE: ComboWeightKeyframe[] = [
-  { startMs: 0, endMs: 300, from: 100, to: 375, easing: 'easeOutCubic' },
-  { startMs: 300, endMs: 550, from: 375, to: 150, easing: 'easeInOutCubic' },
-  { startMs: 550, endMs: 800, from: 150, to: 375, easing: 'easeInOutCubic' },
-  { startMs: 800, endMs: 1050, from: 375, to: 150, easing: 'easeInOutCubic' },
-  { startMs: 1050, endMs: 1300, from: 150, to: 375, easing: 'easeInOutCubic' },
-  { startMs: 1300, endMs: 1600, from: 375, to: 100, easing: 'easeInCubic' },
+  { startMs: 0, endMs: 250, from: 25, to: 375, easing: 'easeInOutCubic' },
+  { startMs: 250, endMs: 500, from: 375, to: 50, easing: 'easeInOutCubic' },
+  { startMs: 500, endMs: 750, from: 50, to: 375, easing: 'easeInOutCubic' },
+  { startMs: 750, endMs: 1000, from: 375, to: 50, easing: 'easeInOutCubic' },
+  { startMs: 1000, endMs: 1250, from: 50, to: 375, easing: 'easeInOutCubic' },
+  { startMs: 1250, endMs: 1500, from: 375, to: 25, easing: 'easeInOutCubic' },
 ]
+const COMBO_TIMELINE_END_MS =
+  COMBO_WEIGHT_TIMELINE.length > 0
+    ? (COMBO_WEIGHT_TIMELINE[COMBO_WEIGHT_TIMELINE.length - 1]?.endMs ?? 0)
+    : 0
+const COMBO_TIMELINE_START_WEIGHT = COMBO_WEIGHT_TIMELINE[0]?.from ?? 100
+const COMBO_TIMELINE_END_WEIGHT =
+  COMBO_WEIGHT_TIMELINE.length > 0
+    ? (COMBO_WEIGHT_TIMELINE[COMBO_WEIGHT_TIMELINE.length - 1]?.to ?? COMBO_TIMELINE_START_WEIGHT)
+    : COMBO_TIMELINE_START_WEIGHT
+const COMBO_WEIGHT_MIN = COMBO_WEIGHT_TIMELINE.reduce(
+  (minWeight, segment) => Math.min(minWeight, segment.from, segment.to),
+  Number.POSITIVE_INFINITY,
+)
+const COMBO_WEIGHT_MAX = COMBO_WEIGHT_TIMELINE.reduce(
+  (maxWeight, segment) => Math.max(maxWeight, segment.from, segment.to),
+  Number.NEGATIVE_INFINITY,
+)
+const COMBO_WEIGHT_CLAMP_MIN = Number.isFinite(COMBO_WEIGHT_MIN) ? COMBO_WEIGHT_MIN : COMBO_TIMELINE_START_WEIGHT
+const COMBO_WEIGHT_CLAMP_MAX = Number.isFinite(COMBO_WEIGHT_MAX) ? COMBO_WEIGHT_MAX : COMBO_TIMELINE_START_WEIGHT
 
 function resolveCanvasFont(style: ScorePopStyleKey, sizePx: number): string {
   const family = POP_FONT_FAMILY_BY_STYLE[style] ?? POP_FONT_FAMILY_BY_STYLE[POP_DEFAULT_STYLE]
@@ -113,7 +132,7 @@ function resolveCanvasFont(style: ScorePopStyleKey, sizePx: number): string {
 
 function resolveComboCanvasFont(sizePx: number, weight: number): string {
   const family = POP_FONT_FAMILY_BY_STYLE.style5
-  const clampedWeight = Math.max(100, Math.min(375, weight))
+  const clampedWeight = Math.max(COMBO_WEIGHT_CLAMP_MIN, Math.min(COMBO_WEIGHT_CLAMP_MAX, weight))
   return `${Math.round(clampedWeight)} ${sizePx}px ${family}`
 }
 
@@ -127,7 +146,7 @@ function resolveRootRemPx(): number {
 
 function resolveStyleLineSizePx(style: ScorePopStyleKey, lineIndex: number, rootRemPx: number): number {
   if (style !== 'style5') return FONT_SIZE
-  return (lineIndex === 0 ? 1.25 : 1.5) * rootRemPx
+  return (lineIndex === 0 ? 1.75 : 2) * rootRemPx
 }
 
 function resolveLineLetterSpacingPx(lineSizePx: number): number {
@@ -139,12 +158,13 @@ function resolveNativeLetterSpacingCss(): string {
 }
 
 function resolvePopDurationMs(style: ScorePopStyleKey): number {
-  return style === 'style5' ? COMBO_POP_DURATION_MS : POP_DURATION_MS
+  return style === 'style5' ? Math.max(1, COMBO_TIMELINE_END_MS) : POP_DURATION_MS
 }
 
 function resolveComboWeight(elapsedMs: number): number {
-  if (elapsedMs <= 0) return 100
-  if (elapsedMs >= COMBO_POP_DURATION_MS) return 100
+  if (COMBO_WEIGHT_TIMELINE.length === 0) return COMBO_TIMELINE_START_WEIGHT
+  if (elapsedMs <= 0) return COMBO_TIMELINE_START_WEIGHT
+  if (elapsedMs >= COMBO_TIMELINE_END_MS) return COMBO_TIMELINE_END_WEIGHT
   for (let segmentIndex = 0; segmentIndex < COMBO_WEIGHT_TIMELINE.length; segmentIndex += 1) {
     const segment = COMBO_WEIGHT_TIMELINE[segmentIndex]
     if (!segment) continue
@@ -154,7 +174,7 @@ function resolveComboWeight(elapsedMs: number): number {
     const easedT = applyEasing(localT, segment.easing)
     return mix(segment.from, segment.to, easedT)
   }
-  return 100
+  return COMBO_TIMELINE_END_WEIGHT
 }
 
 function resolvePopTextLayout(
@@ -559,13 +579,7 @@ export function ScorePopCanvas() {
   return (
     <canvas
       ref={canvasRef}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-      }}
+      className="score-pop-canvas"
     />
   )
 }

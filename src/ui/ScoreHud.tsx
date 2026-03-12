@@ -1,23 +1,16 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { AUDIO_SETTINGS } from '@/audio/AudioSettings'
 import { isAudioUnlocked, subscribeAudioUnlocked } from '@/audio/SoundManager'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { SETTINGS } from '@/settings/GameSettings'
 import { useSettingsVersion } from '@/settings/settingsStore'
-import { POPDOT_STYLE_3, POPDOT_STYLE_4, createPopdotShadowStyle } from '@/ui/hudTypography'
-
-function formatScore(value: number): string {
-  const truncated = Number.isFinite(value) ? Math.trunc(value) : 0
-  const sign = truncated < 0 ? '-' : ''
-  const digits = Math.abs(truncated).toString()
-  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
-}
+import { formatScore } from '@/ui/scoreFormat'
+import './ScoreHud.css'
 
 const LIFE_LOSS_BLINK_DURATION_MS = 820
 const SCORE_LERP_RESPONSE = 16
 const SCORE_LERP_MAX_DT_SEC = 0.05
 const HEART_LIGATURE = '#heart'
-const SHADOW_STYLE_2 = createPopdotShadowStyle(2)
 
 export function ScoreHud() {
   useSettingsVersion()
@@ -26,17 +19,13 @@ export function ScoreHud() {
   const [audioUnlocked, setAudioUnlocked] = useState(() => isAudioUnlocked())
   const [blinkingLifeSlots, setBlinkingLifeSlots] = useState<number[]>([])
   const [displayScore, setDisplayScore] = useState(() => score)
-  const lastRunScore = useGameplayStore((state) => state.lastRunScore)
-  const sessionHighScore = useGameplayStore((state) => state.sessionHighScore)
   const lives = useGameplayStore((state) => state.lives)
   const flowState = useGameplayStore((state) => state.flowState)
   const maxLives = Math.max(0, Math.trunc(SETTINGS.gameplay.lives.initial))
   const secondaryColor = SETTINGS.colors.outline
-  const fontSize = '2rem'
   const margin = '1.5rem'
   const isTopHudHidden = flowState !== 'run'
   const topHudTransform = isTopHudHidden ? 'translateY(calc(-100% - ' + margin + '))' : 'translateY(0%)'
-  const topHudOpacity = isTopHudHidden ? 0 : 1
   const isAudioOn = AUDIO_SETTINGS.enabled === true && audioUnlocked
   const previousLivesRef = useRef(lives)
   const blinkTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
@@ -44,11 +33,16 @@ export function ScoreHud() {
   const targetScoreRef = useRef(score)
   const scoreRafIdRef = useRef<number | null>(null)
   const lastScoreFrameTimeRef = useRef<number | null>(null)
-
-  const hudTextStyle: CSSProperties = {
-    ...POPDOT_STYLE_3,
-    fontSize,
-    textTransform: 'uppercase',
+  const scorePanelStyle: CSSProperties = {
+    transform: topHudTransform,
+    ['--hud-outline' as any]: secondaryColor,
+    ['--hud-white' as any]: uiWhite,
+  }
+  const livesPanelStyle: CSSProperties = {
+    transform: topHudTransform,
+    ['--hud-outline' as any]: secondaryColor,
+    ['--hud-white' as any]: uiWhite,
+    ['--life-loss-dark' as any]: secondaryColor,
   }
 
   useEffect(() => {
@@ -178,103 +172,37 @@ export function ScoreHud() {
   return (
     <>
       <div
-        style={{
-          position: 'absolute',
-          top: margin,
-          left: margin,
-          zIndex: 30,
-          pointerEvents: 'none',
-          ...hudTextStyle,
-          display: 'flex',
-          alignItems: 'start',
-          gap: '.5rem',
-          padding: '0.25rem',
-          borderRadius: '0.75rem',
-          backgroundColor: secondaryColor,
-          color: uiWhite,
-          transform: topHudTransform,
-          opacity: topHudOpacity,
-          transition: 'transform 2s cubic-bezier(0.6, 0, 0, 1), opacity 2s cubic-bezier(0.6, 0, 0, 1)',
-        }}
+        className="score-hud-panel score-hud-panel--score popdot-text-base popdot-style-3"
+        style={scorePanelStyle}
       >
-        <span style={{ ...POPDOT_STYLE_4, display: 'flex', padding: '0.25rem 0.5rem', borderRadius: '.5rem' }}>Score</span>
-        <span style={{ ...POPDOT_STYLE_3, display: 'flex', padding: '0.25rem 0.5rem', borderRadius: '.5rem', backgroundColor: uiWhite, color: secondaryColor }}>{formatScore(displayScore)}</span>
-      </div >
+        <span className="score-hud-chip popdot-text-base popdot-style-4 score-hud-chip--label">Score</span>
+        <span className="score-hud-chip popdot-text-base popdot-style-3 score-hud-chip--score-value">{formatScore(displayScore)}</span>
+      </div>
 
       {!isAudioOn && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: margin,
-            right: margin,
-            zIndex: 30,
-            pointerEvents: 'none',
-            ...hudTextStyle,
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: '1ch',
-            flexWrap: 'wrap',
-            color: uiWhite,
-            textAlign: 'right',
-            textWrap: 'balance',
-          }}
-        >
-          <span style={{ ...POPDOT_STYLE_3, ...SHADOW_STYLE_2, fontSize: '0.375em', lineHeight: '1em', maxWidth: '30ch' }}>
+        <div className="score-hud-audio-hint">
+          <span className="score-hud-audio-hint__text popdot-text-base popdot-style-3 popdot-shadow-2">
             Click anywhere to enable the soundtrack and SFX
           </span>
-          <span
-            style={{
-              fontFamily: '"Material Symbols Outlined"',
-              fontWeight: 400,
-              fontStyle: 'normal',
-              fontSize: '0.75em',
-              lineHeight: '1em',
-              letterSpacing: 'normal',
-              textTransform: 'none',
-              userSelect: 'none',
-            }}
-          >
+          <span className="score-hud-audio-hint__icon">
             volume_off
           </span>
         </div>
       )}
 
       <div
-        style={{
-          position: 'absolute',
-          top: margin,
-          right: margin,
-          zIndex: 30,
-          pointerEvents: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '.5rem',
-          padding: '0.25rem',
-          borderRadius: '0.75rem',
-          backgroundColor: '#141414',
-          color: uiWhite,
-          ...hudTextStyle,
-          transform: topHudTransform,
-          opacity: topHudOpacity,
-          transition: 'transform 2s .15s cubic-bezier(0.6, 0, 0, 1), opacity 2s .15s cubic-bezier(0.6, 0, 0, 1)',
-        }}
+        className="score-hud-panel score-hud-panel--lives popdot-text-base popdot-style-3"
+        style={livesPanelStyle}
       >
-        <span style={{ ...POPDOT_STYLE_4, display: 'flex', padding: '0.25rem 0.5rem', borderRadius: '.5rem' }}>Lives</span>
-        <span style={{ ...POPDOT_STYLE_3, display: 'flex', padding: '0.25rem 0.5rem', borderRadius: '.5rem', backgroundColor: '#ffffff', color: '#141414' }}>
+        <span className="score-hud-chip popdot-text-base popdot-style-4 score-hud-chip--label">Lives</span>
+        <span className="score-hud-chip popdot-text-base popdot-style-3 score-hud-chip--lives-value">
           {Array.from({ length: maxLives }, (_, slotIndex) => {
             const isActiveLife = slotIndex < lives
             if (isActiveLife) {
               return (
                 <span
                   key={`life-slot-${slotIndex}`}
-                  style={{
-                    ...POPDOT_STYLE_3,
-                    color: secondaryColor,
-                    fontSize: fontSize,
-                    textTransform: 'none',
-                  }}
+                  className="score-hud-life popdot-text-base popdot-style-3"
                 >
                   {HEART_LIGATURE}
                 </span>
@@ -284,15 +212,13 @@ export function ScoreHud() {
             return (
               <span
                 key={`life-slot-${slotIndex}`}
-                className={shouldBlink ? 'life-loss-blink' : undefined}
-                style={{
-                  ...POPDOT_STYLE_3,
-                  color: secondaryColor,
-                  opacity: 0.25,
-                  fontSize: fontSize,
-                  textTransform: 'none',
-                  ['--life-loss-dark' as any]: secondaryColor,
-                } as CSSProperties}
+                className={[
+                  'score-hud-life',
+                  'popdot-text-base',
+                  'popdot-style-3',
+                  'score-hud-life--lost',
+                  shouldBlink ? 'life-loss-blink' : '',
+                ].join(' ').trim()}
               >
                 {HEART_LIGATURE}
               </span>
