@@ -63,18 +63,14 @@
 
 .score-hud-audio-hint__text {
   font-size: 0.75rem;
-  line-height: 1em;
+  line-height: 1em !important;
   max-width: 30ch;
   text-transform: none;
 }
 
 .score-hud-audio-hint__icon {
-  font-family: "Material Symbols Outlined";
-  font-weight: 400;
-  font-style: normal;
   font-size: 1.5rem;
   line-height: 1em;
-  letter-spacing: normal;
   text-transform: none;
   user-select: none;
 }
@@ -90,16 +86,19 @@
 }
 
 @keyframes life-loss-blink {
+
   0%,
   100% {
     color: var(--life-loss-dark, #000000);
   }
+
   12.5%,
   37.5%,
   62.5%,
   87.5% {
     color: #ffffff;
   }
+
   25%,
   50%,
   75% {

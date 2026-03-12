@@ -184,9 +184,7 @@ export function ScoreHud() {
           <span className="score-hud-audio-hint__text popdot-text-base popdot-style-3 popdot-shadow-2">
             Click anywhere to enable the soundtrack and SFX
           </span>
-          <span className="score-hud-audio-hint__icon">
-            volume_off
-          </span>
+          <span className="score-hud-audio-hint__icon popdot-text-base popdot-style-3 popdot-shadow-2">#SOUNDOFF</span>
         </div>
       )}
 
