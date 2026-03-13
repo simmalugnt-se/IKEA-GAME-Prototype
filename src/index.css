@@ -2,6 +2,7 @@
 @import "./styles/generated/popdot-vars.css";
 @import "./styles/generated/popdot-utilities.css";
 @import "./styles/popdot-components.css";
+@import "./ui/viewTransitions/overlayFlowViewTransition.css";
 
 * {
   box-sizing: border-box;
@@ -16,11 +17,9 @@ html,
   height: 100%;
   margin: 0;
   padding: 0;
+  overscroll-behavior: none;
 }
 
 body {
   background-color: #ffffff;
-  /* overflow: hidden; */
-  overscroll-behavior: none;
-  touch-action: none;
 }

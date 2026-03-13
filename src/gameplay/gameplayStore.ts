@@ -525,7 +525,6 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         ...state,
         flowState: 'game_over_input',
         flowEpoch: state.flowEpoch + 1,
-        gameOverInitials: getDefaultGameOverInitials(),
         gameOverInputEndsAtMs: 0,
       }
     })
@@ -585,7 +584,6 @@ export const useGameplayStore = create<GameplayState>((set, get) => ({
         ...state,
         flowState: 'idle',
         flowEpoch: state.flowEpoch + 1,
-        gameOverInitials: getDefaultGameOverInitials(),
         gameOverInputEndsAtMs: 0,
         gameOverTravelTargetZ: null,
       }

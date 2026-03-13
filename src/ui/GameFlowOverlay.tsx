@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import {
   getLatestCursorSweepSeq,
@@ -14,13 +14,14 @@ import {
   shiftHighScoreLetter,
 } from '@/ui/highScoreEntry/highScoreEntryAlphabet'
 import {
-  isQualifiedSwipe,
-  segmentIntersectsRect,
+  isEdgeTransitionPass,
+  resolveRectPassThroughMetrics,
+  type RectEdge,
   toScreenRect,
   type ScreenRect,
-  type SwipeThresholdConfig,
 } from '@/ui/highScoreEntry/highScoreEntrySwipe'
 import { formatScore } from '@/ui/scoreFormat'
+import { runOverlayFlowTransition } from '@/ui/viewTransitions/overlayFlowViewTransition'
 import './GameFlowOverlay.css'
 
 function resolveCountdownSeconds(endsAtMs: number, nowMs: number): number {
@@ -43,6 +44,7 @@ const HIGH_SCORE_INITIALS_LENGTH = 3
 const BUTTON_DWELL_HOLD_CLASS = 'gfo-button-dwell-hold'
 
 type GameOverPreviewMode = 'off' | 'state1' | 'state2'
+type FlowScenarioOverride = `flow:${string}`
 
 type HitZones = {
   letters: Array<ScreenRect | null>
@@ -58,6 +60,15 @@ type ButtonDwellState = {
 }
 
 type ButtonDwellBySlot = [ButtonDwellState, ButtonDwellState]
+
+type LetterPassState = {
+  inside: boolean
+  entryEdge: RectEdge | null
+  insideDistancePx: number
+  maxVelocityPx: number
+}
+
+type LetterPassBySlot = [LetterPassState, LetterPassState]
 
 function createButtonDwellState(): ButtonDwellState {
   return {
@@ -78,6 +89,27 @@ function resetButtonDwellState(state: ButtonDwellState): void {
 function resetButtonDwellBySlot(states: ButtonDwellBySlot): void {
   resetButtonDwellState(states[0])
   resetButtonDwellState(states[1])
+}
+
+function createLetterPassState(): LetterPassState {
+  return {
+    inside: false,
+    entryEdge: null,
+    insideDistancePx: 0,
+    maxVelocityPx: 0,
+  }
+}
+
+function resetLetterPassState(state: LetterPassState): void {
+  state.inside = false
+  state.entryEdge = null
+  state.insideDistancePx = 0
+  state.maxVelocityPx = 0
+}
+
+function resetLetterPassBySlot(states: LetterPassBySlot): void {
+  resetLetterPassState(states[0])
+  resetLetterPassState(states[1])
 }
 
 function pointInScreenRect(x: number, y: number, rect: ScreenRect): boolean {
@@ -151,7 +183,6 @@ export function GameFlowOverlay() {
   const registerGameOverInputInteraction = useGameplayStore((state) => state.registerGameOverInputInteraction)
   const submitGameOverInitials = useGameplayStore((state) => state.submitGameOverInitials)
 
-  const debugEnabled = SETTINGS.debug.enabled === true
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [displayGameOverScore, setDisplayGameOverScore] = useState(0)
   const [activeLetterIndex, setActiveLetterIndex] = useState(0)
@@ -160,7 +191,6 @@ export function GameFlowOverlay() {
   const scoreTickStartMsRef = useRef<number | null>(null)
   const scoreTickTargetRef = useRef(0)
   const previousIsGameOverViewRef = useRef(false)
-  const previousPreviewModeRef = useRef<GameOverPreviewMode>('off')
   const previousScoreTargetRef = useRef(0)
 
   const overlayRootRef = useRef<HTMLDivElement | null>(null)
@@ -192,6 +222,10 @@ export function GameFlowOverlay() {
     { slot: 1, active: false, x: 0, y: 0, velocityPx: 0 },
   ])
   const lastLetterActionAtMsRef = useRef(Number.NEGATIVE_INFINITY)
+  const letterPassBySlotRef = useRef<LetterPassBySlot>([
+    createLetterPassState(),
+    createLetterPassState(),
+  ])
   const backDwellBySlotRef = useRef<ButtonDwellBySlot>([
     createButtonDwellState(),
     createButtonDwellState(),
@@ -207,10 +241,13 @@ export function GameFlowOverlay() {
   const setGameOverInitialsRef = useRef(setGameOverInitials)
   const registerGameOverInputInteractionRef = useRef(registerGameOverInputInteraction)
   const submitGameOverInitialsRef = useRef(submitGameOverInitials)
+  const pendingFlowScenarioOverrideRef = useRef<FlowScenarioOverride | null>(null)
+  const previewChainRafIdRef = useRef<number | null>(null)
 
   // TEMP_GAME_OVER_PREVIEW_START
   const [previewMode, setPreviewMode] = useState<GameOverPreviewMode>('off')
   const [previewInputEndsAtMs, setPreviewInputEndsAtMs] = useState(0)
+  const previewModeRef = useRef<GameOverPreviewMode>(previewMode)
   // TEMP_GAME_OVER_PREVIEW_END
 
   const effectiveFlowState =
@@ -221,6 +258,9 @@ export function GameFlowOverlay() {
         : flowState
   const effectiveInputEndsAtMs = previewMode === 'state2' ? previewInputEndsAtMs : gameOverInputEndsAtMs
   const isGameOverView = effectiveFlowState === 'game_over_travel' || effectiveFlowState === 'game_over_input'
+  const [visualFlowState, setVisualFlowState] = useState(effectiveFlowState)
+  const lastCommittedFlowRef = useRef(effectiveFlowState)
+  const activeTransitionSeqRef = useRef(0)
   const resolvedScoreTarget = Math.max(
     0,
     Math.trunc(previewMode === 'off' ? lastRunScore : GAME_OVER_PREVIEW_SCORE),
@@ -255,19 +295,79 @@ export function GameFlowOverlay() {
   }, [gameOverInitials])
 
   useEffect(() => {
+    previewModeRef.current = previewMode
+  }, [previewMode])
+
+  useEffect(() => {
     setGameOverInitialsRef.current = setGameOverInitials
     registerGameOverInputInteractionRef.current = registerGameOverInputInteraction
     submitGameOverInitialsRef.current = submitGameOverInitials
   }, [registerGameOverInputInteraction, setGameOverInitials, submitGameOverInitials])
 
-  // TEMP_GAME_OVER_PREVIEW_START
-  useEffect(() => {
-    if (!debugEnabled) {
-      setPreviewMode('off')
-      setPreviewInputEndsAtMs(0)
+  function transitionActiveLetterIndex(nextIndex: number): void {
+    const from = activeLetterIndexRef.current
+    if (from === nextIndex) return
+
+    resetLetterPassBySlot(letterPassBySlotRef.current)
+    activeTransitionSeqRef.current += 1
+    const transitionSeq = activeTransitionSeqRef.current
+    runOverlayFlowTransition({
+      scope: 'step',
+      from,
+      to: nextIndex,
+      kind: 'pair',
+      seq: transitionSeq,
+      commit: () => {
+        activeLetterIndexRef.current = nextIndex
+        setActiveLetterIndex((previous) => (previous === nextIndex ? previous : nextIndex))
+      },
+    })
+  }
+
+  function setPreviewFlowState(
+    nextMode: GameOverPreviewMode,
+    nextInputEndsAtMs: number,
+    scenarioOverride?: FlowScenarioOverride,
+  ): void {
+    pendingFlowScenarioOverrideRef.current = scenarioOverride ?? null
+    setPreviewMode(nextMode)
+    setPreviewInputEndsAtMs(nextInputEndsAtMs)
+  }
+
+  function clearPreviewFlowChainRaf(): void {
+    if (previewChainRafIdRef.current === null) return
+    cancelAnimationFrame(previewChainRafIdRef.current)
+    previewChainRafIdRef.current = null
+  }
+
+  useLayoutEffect(() => {
+    const from = lastCommittedFlowRef.current
+    const to = effectiveFlowState
+    const scenarioOverride = pendingFlowScenarioOverrideRef.current
+    pendingFlowScenarioOverrideRef.current = null
+
+    if (from === to) {
+      setVisualFlowState((previous) => (previous === to ? previous : to))
       return
     }
 
+    activeTransitionSeqRef.current += 1
+    const transitionSeq = activeTransitionSeqRef.current
+    runOverlayFlowTransition({
+      scope: 'flow',
+      from,
+      to,
+      scenarioOverride: scenarioOverride ?? undefined,
+      seq: transitionSeq,
+      commit: () => {
+        lastCommittedFlowRef.current = to
+        setVisualFlowState((previous) => (previous === to ? previous : to))
+      },
+    })
+  }, [effectiveFlowState])
+
+  // TEMP_GAME_OVER_PREVIEW_START
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return
       const target = event.target as HTMLElement | null
@@ -285,28 +385,54 @@ export function GameFlowOverlay() {
 
       if (event.code === 'Digit8') {
         event.preventDefault()
-        setPreviewMode('state1')
-        setPreviewInputEndsAtMs(0)
+        clearPreviewFlowChainRaf()
+        if (previewModeRef.current === 'state2') {
+          setPreviewFlowState('state1', 0, 'flow:game_over_input>game_over_travel')
+          return
+        }
+        if (previewModeRef.current === 'state1') return
+        setPreviewFlowState('state1', 0, 'flow:run>game_over_travel')
         return
       }
 
       if (event.code === 'Digit9') {
         event.preventDefault()
-        setPreviewMode('state2')
-        setPreviewInputEndsAtMs(Date.now() + timerDurationMs)
+        clearPreviewFlowChainRaf()
+        if (previewModeRef.current === 'state2') return
+        if (previewModeRef.current === 'state1') {
+          setPreviewFlowState('state2', Date.now() + timerDurationMs, 'flow:game_over_travel>game_over_input')
+          return
+        }
+
+        setPreviewFlowState('state1', 0, 'flow:run>game_over_travel')
+        previewChainRafIdRef.current = requestAnimationFrame(() => {
+          previewChainRafIdRef.current = null
+          setPreviewFlowState('state2', Date.now() + timerDurationMs, 'flow:game_over_travel>game_over_input')
+        })
         return
       }
 
       if (event.code === 'Digit0') {
         event.preventDefault()
-        setPreviewMode('off')
-        setPreviewInputEndsAtMs(0)
+        clearPreviewFlowChainRaf()
+        if (previewModeRef.current === 'state2') {
+          setPreviewFlowState('off', 0, 'flow:game_over_input>idle')
+          return
+        }
+        if (previewModeRef.current === 'state1') {
+          setPreviewFlowState('off', 0, 'flow:game_over_travel>idle')
+          return
+        }
+        setPreviewFlowState('off', 0)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [debugEnabled, timerDurationMs])
+    return () => {
+      clearPreviewFlowChainRaf()
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [timerDurationMs])
 
   useEffect(() => {
     if (previewMode !== 'state2') return
@@ -316,10 +442,11 @@ export function GameFlowOverlay() {
   // TEMP_GAME_OVER_PREVIEW_END
 
   useEffect(() => {
-    const enteredInput = effectiveFlowState === 'game_over_input'
+    const enteredInput = visualFlowState === 'game_over_input'
     if (!enteredInput) {
       setActiveLetterIndex(0)
       activeLetterIndexRef.current = 0
+      resetLetterPassBySlot(letterPassBySlotRef.current)
       resetButtonDwellBySlot(backDwellBySlotRef.current)
       resetButtonDwellBySlot(nextDwellBySlotRef.current)
       setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
@@ -330,12 +457,13 @@ export function GameFlowOverlay() {
     setActiveLetterIndex(0)
     activeLetterIndexRef.current = 0
     lastLetterActionAtMsRef.current = Number.NEGATIVE_INFINITY
+    resetLetterPassBySlot(letterPassBySlotRef.current)
     resetButtonDwellBySlot(backDwellBySlotRef.current)
     resetButtonDwellBySlot(nextDwellBySlotRef.current)
     setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
     setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, false)
     lastSweepSeqRef.current = getLatestCursorSweepSeq()
-  }, [effectiveFlowState])
+  }, [visualFlowState])
 
   useEffect(() => {
     const shouldTickTime = effectiveFlowState === 'game_over_input' && effectiveInputEndsAtMs > 0
@@ -354,11 +482,9 @@ export function GameFlowOverlay() {
   useEffect(() => {
     const wasGameOverView = previousIsGameOverViewRef.current
     const enteredGameOverView = !wasGameOverView && isGameOverView
-    const previewModeChanged = previousPreviewModeRef.current !== previewMode
     const scoreTargetChanged = previousScoreTargetRef.current !== resolvedScoreTarget
 
     previousIsGameOverViewRef.current = isGameOverView
-    previousPreviewModeRef.current = previewMode
     previousScoreTargetRef.current = resolvedScoreTarget
 
     if (!isGameOverView) {
@@ -372,7 +498,7 @@ export function GameFlowOverlay() {
       return
     }
 
-    if (!enteredGameOverView && !previewModeChanged && !scoreTargetChanged) return
+    if (!enteredGameOverView && !scoreTargetChanged) return
 
     if (scoreTickRafIdRef.current !== null) {
       cancelAnimationFrame(scoreTickRafIdRef.current)
@@ -407,7 +533,7 @@ export function GameFlowOverlay() {
     }
 
     scoreTickRafIdRef.current = requestAnimationFrame(step)
-  }, [isGameOverView, previewMode, resolvedScoreTarget])
+  }, [isGameOverView, resolvedScoreTarget])
 
   useEffect(() => {
     return () => {
@@ -463,10 +589,6 @@ export function GameFlowOverlay() {
     if (previewMode !== 'off') return
 
     let disposed = false
-    const letterSwipeThreshold: SwipeThresholdConfig = {
-      minVelocityPx: letterMinVelocityPx,
-      minDistancePx: letterMinDistancePx,
-    }
 
     const frame = () => {
       if (disposed) return
@@ -486,32 +608,83 @@ export function GameFlowOverlay() {
           const zones = hitZonesRef.current
           const activeIndex = activeLetterIndexRef.current
           const activeLetterZone = zones.letters[activeIndex] ?? null
-          const touchesActiveLetter = activeLetterZone !== null
-            ? segmentIntersectsRect(
-              sweepSegment.x0,
-              sweepSegment.y0,
-              sweepSegment.x1,
-              sweepSegment.y1,
-              activeLetterZone,
-            )
-            : false
+          const pointerSlot = sweepSegment.pointerSlot as 0 | 1
+          const passState = letterPassBySlotRef.current[pointerSlot]
+          if (activeLetterZone === null) {
+            resetLetterPassState(passState)
+            continue
+          }
 
-          if (
-            touchesActiveLetter
-            && isQualifiedSwipe(sweepSegment, letterSwipeThreshold)
-            && timeMs - lastLetterActionAtMsRef.current >= letterCooldownMs
-          ) {
-            lastLetterActionAtMsRef.current = timeMs
+          const passMetrics = resolveRectPassThroughMetrics(
+            sweepSegment.x0,
+            sweepSegment.y0,
+            sweepSegment.x1,
+            sweepSegment.y1,
+            activeLetterZone,
+          )
 
-            const initials = initialsRef.current
-            const letters = Array.from(initials)
-            const currentLetter = letters[activeIndex] ?? 'A'
-            letters[activeIndex] = shiftHighScoreLetter(currentLetter, 1)
+          if (!passMetrics) {
+            if (passState.inside) {
+              resetLetterPassState(passState)
+            }
+            continue
+          }
 
-            const nextInitials = normalizeHighScoreInitials(letters.join(''), HIGH_SCORE_INITIALS_LENGTH)
-            initialsRef.current = nextInitials
-            setGameOverInitialsRef.current(nextInitials)
-            registerGameOverInputInteractionRef.current()
+          if (passMetrics.entryEdge !== null) {
+            if (!passState.inside) {
+              passState.inside = true
+              passState.entryEdge = passMetrics.entryEdge
+              passState.insideDistancePx = 0
+              passState.maxVelocityPx = 0
+            } else if (passState.entryEdge === null) {
+              passState.entryEdge = passMetrics.entryEdge
+            }
+          } else if (passMetrics.startsInside && !passState.inside) {
+            passState.inside = true
+            passState.entryEdge = null
+            passState.insideDistancePx = 0
+            passState.maxVelocityPx = 0
+          }
+
+          if (passState.inside) {
+            passState.insideDistancePx += passMetrics.insideDistancePx
+            if (sweepSegment.velocityPx > passState.maxVelocityPx) {
+              passState.maxVelocityPx = sweepSegment.velocityPx
+            }
+          }
+
+          if (passMetrics.exitEdge !== null && passState.inside) {
+            const zoneWidth = Math.max(0, activeLetterZone.right - activeLetterZone.left)
+            const zoneHeight = Math.max(0, activeLetterZone.bottom - activeLetterZone.top)
+            const requiredInsidePx = Math.max(letterMinDistancePx, Math.min(zoneWidth, zoneHeight) * 0.55)
+            const hasValidPassThrough = isEdgeTransitionPass(passState.entryEdge, passMetrics.exitEdge)
+            const hasVelocity = passState.maxVelocityPx >= letterMinVelocityPx
+            const isCooledDown = timeMs - lastLetterActionAtMsRef.current >= letterCooldownMs
+
+            if (
+              hasValidPassThrough
+              && passState.insideDistancePx >= requiredInsidePx
+              && hasVelocity
+              && isCooledDown
+            ) {
+              lastLetterActionAtMsRef.current = timeMs
+
+              const initials = initialsRef.current
+              const letters = Array.from(initials)
+              const currentLetter = letters[activeIndex] ?? 'A'
+              letters[activeIndex] = shiftHighScoreLetter(currentLetter, 1)
+
+              const nextInitials = normalizeHighScoreInitials(letters.join(''), HIGH_SCORE_INITIALS_LENGTH)
+              initialsRef.current = nextInitials
+              setGameOverInitialsRef.current(nextInitials)
+              registerGameOverInputInteractionRef.current()
+            }
+            resetLetterPassState(passState)
+            continue
+          }
+
+          if (!passMetrics.endsInside && passState.inside) {
+            resetLetterPassState(passState)
           }
         }
 
@@ -562,8 +735,7 @@ export function GameFlowOverlay() {
           registerGameOverInputInteractionRef.current()
           if (resolvedLetterIndex > 0) {
             resolvedLetterIndex -= 1
-            activeLetterIndexRef.current = resolvedLetterIndex
-            setActiveLetterIndex(resolvedLetterIndex)
+            transitionActiveLetterIndex(resolvedLetterIndex)
           }
         }
 
@@ -574,8 +746,7 @@ export function GameFlowOverlay() {
           }
 
           resolvedLetterIndex += 1
-          activeLetterIndexRef.current = resolvedLetterIndex
-          setActiveLetterIndex(resolvedLetterIndex)
+          transitionActiveLetterIndex(resolvedLetterIndex)
           registerGameOverInputInteractionRef.current()
         }
 
@@ -599,6 +770,7 @@ export function GameFlowOverlay() {
         cancelAnimationFrame(gestureRafIdRef.current)
         gestureRafIdRef.current = null
       }
+      resetLetterPassBySlot(letterPassBySlotRef.current)
       resetButtonDwellBySlot(backDwellBySlotRef.current)
       resetButtonDwellBySlot(nextDwellBySlotRef.current)
       setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
@@ -614,15 +786,15 @@ export function GameFlowOverlay() {
     previewMode,
   ])
 
-  if (effectiveFlowState === 'idle') {
+  if (visualFlowState === 'idle') {
     return (
       <div className="gfo-center-wrap">
-        <div className="popdot-text-base popdot-style-1 popdot-shadow-8 gfo-idle-prompt">POP BALLOON TO START!</div>
+        <div className="popdot-text-base popdot-style-1 popdot-shadow-8 gfo-idle-prompt gfo-vt-idle-prompt">POP BALLOON TO START!</div>
       </div>
     )
   }
 
-  if (effectiveFlowState === 'game_over_input') {
+  if (visualFlowState === 'game_over_input') {
     const countdown = resolveCountdownSeconds(effectiveInputEndsAtMs, nowMs)
     const remainingRatio = resolveRemainingRatio(effectiveInputEndsAtMs, nowMs, timerDurationMs)
     const timerRadius = 28
@@ -634,12 +806,12 @@ export function GameFlowOverlay() {
     return (
       <div ref={overlayRootRef} className="gfo-center-wrap">
         <div className="gfo-score-row gfo-stack-center gfo-gap-2">
-          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label">TOTAL SCORE:</span>
-          <span className="popdot-text-base popdot-style-1 popdot-shadow-12 gfo-score-value-entry">{formatScore(displayGameOverScore)}</span>
+          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label gfo-vt-score-label">TOTAL SCORE:</span>
+          <span className="popdot-text-base popdot-style-1 popdot-shadow-12 gfo-score-value-entry gfo-vt-score-value">{formatScore(displayGameOverScore)}</span>
         </div>
 
         <div className="gfo-high-score-entry-row gfo-stack-center gfo-gap-2">
-          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-high-score-entry-label">HIGH SCORE ENTRY:</span>
+          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-high-score-entry-label gfo-vt-entry-label">HIGH SCORE ENTRY:</span>
           <div className="gfo-high-score-entry gfo-row-center">
             <span
               ref={(node) => { letterSlotRefs.current[0] = node }}
@@ -648,6 +820,7 @@ export function GameFlowOverlay() {
                 'popdot-style-1',
                 'popdot-shadow-16',
                 'gfo-high-score-entry-letter',
+                'gfo-vt-entry-letter-0',
                 activeLetterIndex === 0 ? 'gfo-high-score-entry-letter-active' : '',
               ].filter(Boolean).join(' ')}
             >
@@ -660,6 +833,7 @@ export function GameFlowOverlay() {
                 'popdot-style-1',
                 'popdot-shadow-16',
                 'gfo-high-score-entry-letter',
+                'gfo-vt-entry-letter-1',
                 activeLetterIndex === 1 ? 'gfo-high-score-entry-letter-active' : '',
               ].filter(Boolean).join(' ')}
             >
@@ -672,6 +846,7 @@ export function GameFlowOverlay() {
                 'popdot-style-1',
                 'popdot-shadow-16',
                 'gfo-high-score-entry-letter',
+                'gfo-vt-entry-letter-2',
                 activeLetterIndex === 2 ? 'gfo-high-score-entry-letter-active' : '',
               ].filter(Boolean).join(' ')}
             >
@@ -684,14 +859,14 @@ export function GameFlowOverlay() {
           <button
             ref={backButtonRef}
             disabled={backDisabled}
-            className="popdot-button popdot-button-black popdot-text-base popdot-style-1 popdot-box-shadow-16 gfo-button-dwellable"
+            className="popdot-button popdot-button-black popdot-text-base popdot-style-1 popdot-box-shadow-16 gfo-button-dwellable gfo-vt-entry-back"
             style={buttonDwellStyle}
           >
             <span className="gfo-button-dwell-label">BACK</span>
           </button>
           <button
             ref={nextButtonRef}
-            className="popdot-button popdot-text-base popdot-style-1 popdot-box-shadow-16 gfo-button-dwellable"
+            className="popdot-button popdot-text-base popdot-style-1 popdot-box-shadow-16 gfo-button-dwellable gfo-entry-next-stable gfo-vt-entry-next"
             style={buttonDwellStyle}
           >
             <span className="gfo-button-dwell-label">{nextLabel}</span>
@@ -731,15 +906,15 @@ export function GameFlowOverlay() {
     )
   }
 
-  if (effectiveFlowState === 'game_over_travel') {
+  if (visualFlowState === 'game_over_travel') {
     return (
       <div className="gfo-center-wrap">
         <div className="gfo-game-over-row gfo-stack-center gfo-gap-1_5">
-          <div className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-game-over-title">GAME OVER</div>
+          <div className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-game-over-title gfo-vt-game-over-title">GAME OVER</div>
         </div>
         <div className="gfo-score-row gfo-stack-center gfo-gap-1_5">
-          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label">TOTAL SCORE:</span>
-          <span className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-score-value">{formatScore(displayGameOverScore)}</span>
+          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label gfo-vt-score-label">TOTAL SCORE:</span>
+          <span className="popdot-text-base popdot-style-1 popdot-shadow-16 gfo-score-value gfo-vt-score-value">{formatScore(displayGameOverScore)}</span>
         </div>
       </div>
     )

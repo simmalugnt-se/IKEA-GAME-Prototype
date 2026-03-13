@@ -122,6 +122,13 @@
   z-index: 1;
 }
 
+.gfo-entry-next-stable {
+  /* Tweak this if the label feels cramped in your current type style. */
+  --gfo-entry-next-inline-size: 15ch;
+  inline-size: var(--gfo-entry-next-inline-size);
+  min-inline-size: var(--gfo-entry-next-inline-size);
+}
+
 .gfo-button-dwell-hold::before {
   transition: transform var(--gfo-button-dwell-ms, 1s) linear;
   transform: translateX(0);
