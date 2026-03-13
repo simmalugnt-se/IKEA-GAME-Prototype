@@ -238,9 +238,9 @@ export const SETTINGS: Settings = {
       mode: "time",
       timeLimitMs: 120000,
       comboTimeBonusStepMs: 5000,
-      timeBonusLerpMs: 600,
-      pulseSlowStartMs: 15000,
-      pulseFastStartMs: 3000,
+      timeBonusLerpMs: 500,
+      pulseSlowStartMs: 10000,
+      pulseFastStartMs: 5000,
     },
     highScore: {
       storageMode: "local_storage",

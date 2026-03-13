@@ -118,19 +118,31 @@
 }
 
 @keyframes score-hud-time-pulse {
+
   0%,
   100% {
-    font-variation-settings: "wght" 50;
+    font-variation-settings:
+      "wght" 150,
+      "slnt" var(--popdot-style3-slnt),
+      "wdth" var(--popdot-style3-wdth),
+      "SQRE" var(--popdot-style3-sqre);
+    font-weight: 150;
   }
+
   50% {
-    font-variation-settings: "wght" 200;
+    font-variation-settings:
+      "wght" 250,
+      "slnt" var(--popdot-style3-slnt),
+      "wdth" var(--popdot-style3-wdth),
+      "SQRE" var(--popdot-style3-sqre);
+    font-weight: 250;
   }
 }
 
 .score-hud-time--pulse-slow {
-  animation: score-hud-time-pulse 1s ease-in-out infinite;
+  animation: score-hud-time-pulse 0.5s ease-in-out infinite;
 }
 
 .score-hud-time--pulse-fast {
-  animation: score-hud-time-pulse 0.5s ease-in-out infinite;
+  animation: score-hud-time-pulse 0.25s ease-in-out infinite;
 }
