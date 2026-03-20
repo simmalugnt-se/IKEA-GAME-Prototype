@@ -305,10 +305,13 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
           const x1Local = sweepSegment.x1 - canvasRect.left
           const y1Local = sweepSegment.y1 - canvasRect.top
 
-          const segmentMinX = x0Local < x1Local ? x0Local : x1Local
-          const segmentMaxX = x0Local > x1Local ? x0Local : x1Local
-          const segmentMinY = y0Local < y1Local ? y0Local : y1Local
-          const segmentMaxY = y0Local > y1Local ? y0Local : y1Local
+          const hitPadRaw = SETTINGS.cursor.pointerRadiusPx
+          const hitPad = Number.isFinite(hitPadRaw) ? Math.max(0, hitPadRaw) : 0
+
+          const segmentMinX = (x0Local < x1Local ? x0Local : x1Local) - hitPad
+          const segmentMaxX = (x0Local > x1Local ? x0Local : x1Local) + hitPad
+          const segmentMinY = (y0Local < y1Local ? y0Local : y1Local) - hitPad
+          const segmentMaxY = (y0Local > y1Local ? y0Local : y1Local) + hitPad
           if (
             segmentMaxX < 0
             || segmentMinX > canvasWidth
@@ -352,8 +355,8 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
                 y1Local,
                 centerX,
                 centerY,
-                radiusPxX * 1.01,
-                radiusPxY * 1.01,
+                radiusPxX * 1.01 + hitPad,
+                radiusPxY * 1.01 + hitPad,
               )
             ) {
               popQueue.push(entry.target)

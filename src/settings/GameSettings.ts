@@ -334,13 +334,15 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "mouse", // "mouse" or "external"
+    inputSource: "external", // "mouse" or "external"
     minPopVelocity: 300,
+    pointerRadiusPx: 12,
     external: {
-      enabled: false,
+      enabled: true,
       websocket: {
         // url: "ws://127.0.0.1:5173/ws/cursor",
-        url: "ws://localhost:5173/ws/cursor",
+        // url: "ws://localhost:5173/ws/cursor",
+        url: "ws://127.0.0.1:9001/cursor",
         reconnectMs: 1000,
       },
       staleTimeoutMs: 120,

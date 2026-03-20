@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import {
   beginExternalCursorInputSession,
   endExternalCursorInputSession,
+  submitEmptyExternalCursorFrame,
   submitExternalCursorFrameSample,
   type ExternalCursorPointerSample,
 } from '@/input/CursorInputRouter'
@@ -183,7 +184,18 @@ export function ExternalCursorBridge() {
         const sentEpochMs = asFiniteNumber(packet.sentEpochMs)
 
         const rawPointers = packet.pointers
-        if (!Array.isArray(rawPointers) || rawPointers.length === 0) return
+        if (!Array.isArray(rawPointers) || rawPointers.length === 0) {
+          submitEmptyExternalCursorFrame(sourceTimeMs)
+          if (sourceId && frameSeq !== null && sentEpochMs !== null && isTelemetryActive(sourceId)) {
+            frameAckPayload.sourceId = sourceId
+            frameAckPayload.seq = frameSeq
+            frameAckPayload.sentEpochMs = sentEpochMs
+            frameAckPayload.receiverEpochMs = Date.now()
+            frameAckPayload.receiverPerfMs = performance.now()
+            trySendJson(frameAckPayload)
+          }
+          return
+        }
 
         const width = window.innerWidth
         const height = window.innerHeight

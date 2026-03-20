@@ -3,6 +3,7 @@ import {
   beginExternalCursorSession,
   endExternalCursorSession,
   submitCursorSample,
+  submitEmptyExternalCursorFrame as applyEmptyExternalCursorFrame,
   submitExternalCursorFrame,
   type ExternalCursorPointerSample,
 } from '@/input/cursorVelocity'
@@ -23,6 +24,11 @@ export function submitExternalCursorFrameSample(
 ): void {
   if (!acceptsSource('external')) return
   submitExternalCursorFrame(sourceTimeMs, pointers, pointerCount)
+}
+
+export function submitEmptyExternalCursorFrame(sourceTimeMs: number): void {
+  if (!acceptsSource('external')) return
+  applyEmptyExternalCursorFrame(sourceTimeMs)
 }
 
 export function beginExternalCursorInputSession(): void {

@@ -347,6 +347,28 @@ export function submitExternalCursorFrame(
   }
 }
 
+export function submitEmptyExternalCursorFrame(sourceTimeMs: number): void {
+  if (!Number.isFinite(sourceTimeMs)) return
+
+  const now = performance.now()
+  updateStaleExternalPointers(now)
+
+  const rawOffsetMs = now - sourceTimeMs
+  if (!externalOffsetReady || !Number.isFinite(externalOffsetMs)) {
+    externalOffsetMs = rawOffsetMs
+    externalOffsetReady = true
+  } else {
+    externalOffsetMs += (rawOffsetMs - externalOffsetMs) * EXTERNAL_TIME_OFFSET_BLEND
+  }
+
+  for (let i = 0; i < POINTER_SLOT_COUNT; i += 1) {
+    const slot = pointerSlots[i]
+    if (!slot) continue
+    if (slot.id === MOUSE_POINTER_ID) continue
+    resetSlot(slot)
+  }
+}
+
 export function getCursorScreenPos(): { x: number; y: number } {
   const slot0 = pointerSlots[0]
   if (slot0?.active) {

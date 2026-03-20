@@ -227,6 +227,23 @@ export function CursorTrailCanvas() {
       if (inputSource === 'external') {
         drawHistorySlot(1, smoothing, color, lineWidth)
       }
+
+      const pointerRadiusPx = SETTINGS.cursor.pointerRadiusPx
+      const headRadius = Number.isFinite(pointerRadiusPx) ? Math.max(0, pointerRadiusPx) : 0
+      if (headRadius > 0) {
+        ctx.fillStyle = color
+        ctx.globalAlpha = 1
+        const drawHead = (slot: 0 | 1, out: CursorPointerRenderState) => {
+          if (!readCursorPointerRenderState(slot, now, out)) return
+          ctx.beginPath()
+          ctx.arc(out.x, out.y, headRadius, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        drawHead(0, pointerRenderState0)
+        if (inputSource === 'external') {
+          drawHead(1, pointerRenderState1)
+        }
+      }
     }
 
     rafId = requestAnimationFrame(frame)

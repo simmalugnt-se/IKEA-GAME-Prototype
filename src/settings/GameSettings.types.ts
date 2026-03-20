@@ -239,6 +239,12 @@ export type Settings = {
     inputSource: CursorInputSource
     /** Minimum cursor speed in px/s required to pop a balloon on hover */
     minPopVelocity: number
+    /**
+     * Screen-space radius of the cursor head (filled circle) in CSS pixels.
+     * Trail thickness is controlled separately by `trail.lineWidth`.
+     * Balloon pop tests expand the target ellipse by this amount in screen space.
+     */
+    pointerRadiusPx: number
     external: {
       enabled: boolean
       websocket: {
