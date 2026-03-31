@@ -34,6 +34,9 @@ export type {
   WebSocketChannelSettings,
 } from "@/settings/GameSettings.types";
 
+const EXTERNAL_CURSOR_WS_URL =
+  import.meta.env.VITE_CURSOR_WS_URL?.trim() || "ws://127.0.0.1:9001/cursor";
+
 export const SETTINGS: Settings = {
   // --- RENDER STYLE ---
   render: {
@@ -53,9 +56,9 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: false, // Master-toggle för allt debug
+    enabled: true, // Master-toggle för allt debug
     showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
-    showStats: false, // Visa FPS / MS / MB
+    showStats: true, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
     showCameraFrustum: false, // Visa kamerans synliga område projicerat på golvet
     showDebugCamera: false, // PiP top-down view som visar default-kamerans FOV
@@ -236,8 +239,8 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 120000,
-      comboTimeBonusStepMs: 5000,
+      timeLimitMs: 45000,
+      comboTimeBonusStepMs: 3000,
       timeBonusLerpMs: 500,
       pulseSlowStartMs: 10000,
       pulseFastStartMs: 5000,
@@ -270,14 +273,14 @@ export const SETTINGS: Settings = {
       },
       popRelease: {
         linearSpeedMin: 0.02,
-        linearSpeedMax: 2.8,
-        linearSpeedVelocityRangeMaxPx: 9500,
+        linearSpeedMax: 3.8,
+        linearSpeedVelocityRangeMaxPx: 7500,
         curve: "exponential",
       },
       combo: {
         enabled: true,
-        strikeWindowMs: 100,
-        chainWindowMs: 800,
+        strikeWindowMs: 400,
+        chainWindowMs: 1000,
         chainBonusCap: 2,
       },
     },
@@ -289,8 +292,14 @@ export const SETTINGS: Settings = {
     gridClonerSpawnChunkSize: 32, // Physics bodies registered per frame (0 = all at once)
     tiling: {
       enabled: true,
+      // runFiles: ["test-dynamic.json"],
+      // idleFiles: ["test-dynamic.json"],
+      // runFiles: ["test.json"],
+      // idleFiles: ["test.json"],
       runFiles: ["default.json"],
       idleFiles: ["default.json"],
+      // runFiles: ["sl-comps.json"],
+      // idleFiles: ["sl-comps.json"],
       gameOverFiles: ["gameover.json"],
       lookAheadDistance: 15,
       cullBehindDistance: 3,
@@ -323,11 +332,11 @@ export const SETTINGS: Settings = {
   // --- MOTION ACCELERATION ---
   motionAcceleration: {
     cameraTracker: {
-      timeScaleAcceleration: 0.003,
+      timeScaleAcceleration: 0.002,
       timeScaleAccelerationCurve: "exponential",
     },
     balloons: {
-      timeScaleAcceleration: 0.003,
+      timeScaleAcceleration: 0.002,
       timeScaleAccelerationCurve: "exponential",
     },
   },
@@ -342,17 +351,18 @@ export const SETTINGS: Settings = {
       websocket: {
         // url: "ws://127.0.0.1:5173/ws/cursor",
         // url: "ws://localhost:5173/ws/cursor",
-        url: "ws://127.0.0.1:9001/cursor",
+        url: EXTERNAL_CURSOR_WS_URL,
         reconnectMs: 1000,
       },
       staleTimeoutMs: 120,
       maxPointers: 2,
     },
     trail: {
-      maxAge: 0.2,
+      maxAge: 0.25,
       color: "#ffffff",
       lineWidth: 3,
-      smoothing: 0.75,
+      followSmoothing: 0.6,
+      smoothing: 0.25,
     },
   },
 };

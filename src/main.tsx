@@ -10,8 +10,13 @@ if (!rootElement) {
   throw new Error('Missing #root element in index.html')
 }
 
-ReactDOM.createRoot(rootElement).render(
+const strictModeEnabled = import.meta.env.VITE_REACT_STRICT_MODE === 'true'
+const app = strictModeEnabled ? (
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
+  </React.StrictMode>
+) : (
+  <App />
 )
+
+ReactDOM.createRoot(rootElement).render(app)

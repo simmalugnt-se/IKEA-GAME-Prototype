@@ -293,15 +293,18 @@ const GRID_RUNTIME_CONTEXT = createContext<GridRuntimeContextValue>({
   physicsOverride: null,
   seedPathSalt: 0,
 })
+const GRID_CLONER_DEBUG_TIMING = import.meta.env.DEV
 
 type CloneTransform = {
   key: string
   index: number
+  selectedChildIndex: number
   localPosition: Vec3
   position: Vec3
   rotation: Vec3
   scale: Vec3
   excluded: boolean
+  mountCost: number
   color?: number
   materialColors?: Record<string, number>
 }
@@ -310,6 +313,7 @@ type TemplateCloneChild = {
   element: ReactElement<Record<string, unknown>>
   props: Record<string, unknown>
   baseColor: number
+  estimatedBodyCost: number
   contagionCarrier: boolean
   contagionInfectable: boolean
   inferredCollider: {
@@ -1199,6 +1203,18 @@ function isContainerType(type: unknown): boolean {
   return type === GridCloner || type === Fracture || type === TransformMotion || type === 'group'
 }
 
+function estimateElementBodyCost(element: ReactElement<Record<string, unknown>>): number {
+  if (!isContainerType(element.type)) return 1
+  const props = (element.props ?? {}) as Record<string, unknown>
+  const nested = splitTemplateChildren(props.children as ReactNode).objectChildren
+  if (nested.length === 0) return 1
+  let total = 0
+  for (let i = 0; i < nested.length; i += 1) {
+    total += estimateElementBodyCost(nested[i] as ReactElement<Record<string, unknown>>)
+  }
+  return Math.max(1, total)
+}
+
 function resolveChildBaseColorIndex(
   child: ReactElement<Record<string, unknown>> | null,
 ): number {
@@ -1597,6 +1613,17 @@ function cloneTransformState(transform: CloneTransform): CloneTransform {
     scale: [...transform.scale] as Vec3,
     materialColors: transform.materialColors ? { ...transform.materialColors } : undefined,
   }
+}
+
+function logTimed<T>(label: string, run: () => T): T {
+  if (!GRID_CLONER_DEBUG_TIMING) return run()
+  const startedAt = performance.now()
+  const result = run()
+  const elapsedMs = performance.now() - startedAt
+  if (elapsedMs >= 4) {
+    console.info(label, { elapsedMs: Number(elapsedMs.toFixed(2)) })
+  }
+  return result
 }
 
 type NonPushGridEffector = Exclude<GridEffector, PushApartEffectorConfig>
@@ -2387,6 +2414,7 @@ export function GridCloner({
         element,
         props,
         baseColor: resolveChildBaseColorIndex(element),
+        estimatedBodyCost: estimateElementBodyCost(element),
         contagionCarrier: props.contagionCarrier === true,
         contagionInfectable: props.contagionInfectable !== false,
         inferredCollider: resolveAutoColliderFromChild(element, transformMode, localPosition),
@@ -2492,7 +2520,7 @@ export function GridCloner({
     [childRandomSeed, resolvedMountSeed, resolvedSeedPathSalt],
   )
   const pushApartOffsets = useMemo<Vec3[]>(
-    () => computePushApartOffsetsAtMount({
+    () => logTimed('[GridCloner] computePushApartOffsetsAtMount', () => computePushApartOffsetsAtMount({
       count: normalizedCount,
       spacing: scaledSpacing,
       offset: scaledOffset,
@@ -2509,7 +2537,7 @@ export function GridCloner({
       transformMode,
       mountSeed: resolvedMountSeed,
       seedPathSalt: resolvedSeedPathSalt,
-    }),
+    })),
     [
       normalizedCount,
       scaledSpacing,
@@ -2577,7 +2605,7 @@ export function GridCloner({
     })
   }, [])
 
-  const transforms = useMemo<CloneTransform[]>(() => {
+  const transforms = useMemo<CloneTransform[]>(() => logTimed('[GridCloner] build clone transforms', () => {
     const [cx, cy, cz] = normalizedCount
     const [sx, sy, sz] = scaledSpacing
     const [ox, oy, oz] = scaledOffset
@@ -2592,6 +2620,14 @@ export function GridCloner({
     for (let y = 0; y < cy; y++) {
       for (let z = 0; z < cz; z++) {
         for (let x = 0; x < cx; x++) {
+          const selectedChildIndex = templateChildren.length <= 1
+            ? 0
+            : resolveDistributedChildIndex(
+              resolvedChildDistribution,
+              resolvedChildRandomSeed,
+              flatIndex,
+              templateChildren.length,
+            )
           const localPosition: Vec3 = [
             startX + (x * sx) + ox,
             startY + (y * sy) + oy,
@@ -2614,11 +2650,15 @@ export function GridCloner({
           const computedClone: CloneTransform = {
             key: `${x}-${y}-${z}`,
             index: flatIndex,
+            selectedChildIndex,
             localPosition,
             position: addVec3(evaluated.position, pushOffset),
             rotation: evaluated.rotation,
             scale: evaluated.scale,
             excluded: evaluated.excluded,
+            mountCost: effectivePhysics
+              ? Math.max(1, templateChildren[selectedChildIndex]?.estimatedBodyCost ?? 1)
+              : 1,
             color: evaluated.color,
             materialColors: evaluated.materialColors,
           }
@@ -2634,7 +2674,7 @@ export function GridCloner({
       }
     }
     return result
-  }, [
+  }), [
     normalizedCount,
     scaledSpacing,
     scaledOffset,
@@ -2658,24 +2698,102 @@ export function GridCloner({
     return Math.max(0, Math.floor(raw))
   }, [spawnChunkSize])
 
-  const initialVisibleCount = effectiveChunkSize > 0 ? effectiveChunkSize : transforms.length
-  const [visibleCount, setVisibleCount] = useState(initialVisibleCount)
+  const totalMountCost = useMemo(
+    () => transforms.reduce((sum, transform) => (
+      transform.excluded ? sum : sum + Math.max(1, transform.mountCost)
+    ), 0),
+    [transforms],
+  )
+  const loggedTransformBoundsRef = useRef<string | null>(null)
+  const initialVisibleBudget = effectiveChunkSize > 0 ? effectiveChunkSize : totalMountCost
+  const [visibleBudget, setVisibleBudget] = useState(initialVisibleBudget)
 
   useEffect(() => {
-    setVisibleCount(effectiveChunkSize > 0 ? effectiveChunkSize : transforms.length)
-  }, [effectiveChunkSize, transforms.length])
+    setVisibleBudget(effectiveChunkSize > 0 ? effectiveChunkSize : totalMountCost)
+  }, [effectiveChunkSize, totalMountCost])
 
   useFrame(() => {
     if (effectiveChunkSize <= 0) return
-    setVisibleCount((prev) => {
-      if (prev >= transforms.length) return prev
-      return Math.min(prev + effectiveChunkSize, transforms.length)
+    setVisibleBudget((prev) => {
+      if (prev >= totalMountCost) return prev
+      return Math.min(prev + effectiveChunkSize, totalMountCost)
     })
   })
 
-  const visibleTransforms = visibleCount >= transforms.length
+  const visibleIndexCount = useMemo(() => {
+    if (visibleBudget >= totalMountCost) return transforms.length
+    let spent = 0
+    for (let i = 0; i < transforms.length; i += 1) {
+      const transform = transforms[i]
+      if (!transform) continue
+      if (!transform.excluded) {
+        spent += Math.max(1, transform.mountCost)
+      }
+      if (spent > visibleBudget) {
+        return i
+      }
+    }
+    return transforms.length
+  }, [totalMountCost, transforms, visibleBudget])
+
+  const visibleTransforms = visibleIndexCount >= transforms.length
     ? transforms
-    : transforms.slice(0, visibleCount)
+    : transforms.slice(0, visibleIndexCount)
+
+  useEffect(() => {
+    if (!GRID_CLONER_DEBUG_TIMING) return
+    if (transforms.length === 0) return
+    const logKey = `${resolvedEntityPrefix ?? 'grid'}:${transforms.length}:${totalMountCost}`
+    if (loggedTransformBoundsRef.current === logKey) return
+
+    let localMinZ = Number.POSITIVE_INFINITY
+    let localMaxZ = Number.NEGATIVE_INFINITY
+    let worldMinZ = Number.POSITIVE_INFINITY
+    let worldMaxZ = Number.NEGATIVE_INFINITY
+    let excludedCount = 0
+
+    for (let i = 0; i < transforms.length; i += 1) {
+      const transform = transforms[i]
+      if (!transform) continue
+      if (transform.excluded) {
+        excludedCount += 1
+        continue
+      }
+      const localZ = transform.position[2]
+      const worldZ = position[2] + transform.position[2]
+      if (localZ < localMinZ) localMinZ = localZ
+      if (localZ > localMaxZ) localMaxZ = localZ
+      if (worldZ < worldMinZ) worldMinZ = worldZ
+      if (worldZ > worldMaxZ) worldMaxZ = worldZ
+    }
+
+    loggedTransformBoundsRef.current = logKey
+    console.info('[GridCloner] Transform bounds', {
+      entityPrefix: resolvedEntityPrefix ?? null,
+      totalTransforms: transforms.length,
+      excludedCount,
+      visibleIndexCount,
+      effectiveChunkSize,
+      totalMountCost,
+      localMinZ: Number.isFinite(localMinZ) ? Number(localMinZ.toFixed(2)) : null,
+      localMaxZ: Number.isFinite(localMaxZ) ? Number(localMaxZ.toFixed(2)) : null,
+      localDepth: Number.isFinite(localMinZ) && Number.isFinite(localMaxZ)
+        ? Number((localMaxZ - localMinZ).toFixed(2))
+        : null,
+      worldMinZ: Number.isFinite(worldMinZ) ? Number(worldMinZ.toFixed(2)) : null,
+      worldMaxZ: Number.isFinite(worldMaxZ) ? Number(worldMaxZ.toFixed(2)) : null,
+      worldDepth: Number.isFinite(worldMinZ) && Number.isFinite(worldMaxZ)
+        ? Number((worldMaxZ - worldMinZ).toFixed(2))
+        : null,
+    })
+  }, [
+    effectiveChunkSize,
+    position,
+    resolvedEntityPrefix,
+    totalMountCost,
+    transforms,
+    visibleIndexCount,
+  ])
 
   if (!enabled) {
     const passthroughContextValue: GridRuntimeContextValue = {
@@ -2698,12 +2816,7 @@ export function GridCloner({
       {visibleTransforms.map((clone) => {
         if (clone.excluded) return null
         if (templateChildren.length === 0) return null
-        const selectedChildIndex = resolveDistributedChildIndex(
-          resolvedChildDistribution,
-          resolvedChildRandomSeed,
-          clone.index,
-          templateChildren.length,
-        )
+        const selectedChildIndex = clone.selectedChildIndex
         const selectedTemplateChild = templateChildren[selectedChildIndex]
         const cloneEntityPrefix = resolveCloneEntityPrefix(resolvedEntityPrefix, clone.key)
         const cloneBaseColor = clone.color
@@ -3199,7 +3312,7 @@ export function Fracture({
     ]
   }, [templateChildren])
 
-  const transforms = useMemo<FractureChildTransform[]>(() => {
+  const transforms = useMemo<FractureChildTransform[]>(() => logTimed('[Fracture] build child transforms', () => {
     const totalChildren = templateChildren.length
 
     return templateChildren.map((child, index) => {
@@ -3233,7 +3346,7 @@ export function Fracture({
       }
       return computedTransform
     })
-  }, [
+  }), [
     collisionActivatedChildren,
     collisionActivatedPhysics,
     frameTime,

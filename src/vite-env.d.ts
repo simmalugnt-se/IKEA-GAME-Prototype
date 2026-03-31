@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_CURSOR_WS_URL?: string
+}
+
 declare module '*.glb?url' {
   const src: string
   export default src

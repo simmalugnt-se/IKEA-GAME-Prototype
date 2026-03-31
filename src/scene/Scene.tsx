@@ -204,7 +204,7 @@ export function Scene() {
       </Physics>
 
       {/* Debug: FPS / MS / MB overlay */}
-      {isDebug && SETTINGS.debug.showStats && <Stats />}
+      {isDebug && SETTINGS.debug.showStats && <Stats className="debug-stats" />}
     </>
   );
 }

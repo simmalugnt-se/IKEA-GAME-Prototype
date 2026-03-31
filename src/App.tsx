@@ -88,7 +88,7 @@ function GameApp() {
       <GameFlowOverlay />
       <Canvas
         shadows={{ type: THREE.BasicShadowMap }}
-        dpr={[1, 2]}
+        dpr={[1, 1]}
         gl={{
           antialias: false,
           stencil: false,

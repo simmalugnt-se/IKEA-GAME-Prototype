@@ -678,6 +678,7 @@ export const settingsSections: SectionDescriptor[] = [
             { type: 'number', label: 'trail.maxAge', get: () => SETTINGS.cursor.trail.maxAge, set: (v) => { SETTINGS.cursor.trail.maxAge = v; bump() }, min: 0, max: 2, step: 0.01 },
             { type: 'color', label: 'trail.color', get: () => SETTINGS.cursor.trail.color, set: (v) => { SETTINGS.cursor.trail.color = v; bump() } },
             { type: 'number', label: 'trail.lineWidth', get: () => SETTINGS.cursor.trail.lineWidth, set: (v) => { SETTINGS.cursor.trail.lineWidth = v; bump() }, min: 0, max: 20, step: 0.5 },
+            { type: 'number', label: 'trail.followSmoothing', get: () => SETTINGS.cursor.trail.followSmoothing, set: (v) => { SETTINGS.cursor.trail.followSmoothing = v; bump() }, min: 0, max: 1, step: 0.01 },
             { type: 'number', label: 'trail.smoothing', get: () => SETTINGS.cursor.trail.smoothing, set: (v) => { SETTINGS.cursor.trail.smoothing = v; bump() }, min: 0, max: 1, step: 0.01 },
         ],
     },

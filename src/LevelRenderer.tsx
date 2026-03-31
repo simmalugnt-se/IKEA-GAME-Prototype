@@ -48,6 +48,11 @@ function multiplyVec3(a: Vec3, b: Vec3): Vec3 {
   return [a[0] * b[0], a[1] * b[1], a[2] * b[2]]
 }
 
+function scopeEntityId(scopePrefix: string | undefined, id: string): string {
+  if (!scopePrefix) return id
+  return `${scopePrefix}:${id}`
+}
+
 function resolveNodeScale(node: LevelNode): Vec3 {
   return isVec3(node.scale) ? node.scale : IDENTITY_SCALE
 }
@@ -105,6 +110,7 @@ function isNodeHiddenInBuilder(node: LevelNode): boolean {
 function renderObjectNode(
   node: LevelNode,
   asClonerTemplate: boolean,
+  scopePrefix?: string,
 ) {
   const entry = COMPONENT_REGISTRY[node.type]
   if (!entry) {
@@ -123,7 +129,7 @@ function renderObjectNode(
 
   if (!asClonerTemplate) {
     if (CONTAGION_CAPABLE_OBJECT_TYPES.has(node.type)) {
-      nextProps.entityId = node.id
+      nextProps.entityId = scopeEntityId(scopePrefix, node.id)
       nextProps.contagionCarrier = nodeProps.contagionCarrier === true
       if (nodeProps.contagionInfectable === false) {
         nextProps.contagionInfectable = false
@@ -153,6 +159,7 @@ function renderEffectorNode(node: LevelNode) {
 function renderNullNode(
   node: LevelNode,
   asClonerTemplate: boolean,
+  scopePrefix?: string,
 ) {
   const children = (node.children ?? []).filter((child) => child.nodeType === 'object')
   const rotation: Vec3 = node.rotation ? toRadians(node.rotation) : [0, 0, 0]
@@ -166,9 +173,9 @@ function renderNullNode(
         position={node.position}
         rotation={node.rotation}
         scale={resolveNodeScale(node)}
-        entityPrefix={node.id}
+        entityPrefix={scopeEntityId(scopePrefix, node.id)}
       >
-        {children.map((child) => renderNode(child, true))}
+        {children.map((child) => renderNode(child, true, scopePrefix))}
       </Fracture>
     )
   }
@@ -180,7 +187,7 @@ function renderNullNode(
       rotation={rotation}
       scale={resolveNodeScale(node)}
     >
-      {children.map((child) => renderNode(child, asClonerTemplate))}
+      {children.map((child) => renderNode(child, asClonerTemplate, scopePrefix))}
     </group>
   )
 }
@@ -188,6 +195,7 @@ function renderNullNode(
 function renderTransformMotionNode(
   node: LevelNode,
   asClonerTemplate: boolean,
+  scopePrefix?: string,
 ) {
   const children = (node.children ?? []).filter((child) => child.nodeType === 'object')
   const rotation: Vec3 = node.rotation ? toRadians(node.rotation) : [0, 0, 0]
@@ -201,12 +209,12 @@ function renderTransformMotionNode(
       scale={resolveNodeScale(node)}
       {...motionProps}
     >
-      {children.map((child) => renderNode(child, asClonerTemplate))}
+      {children.map((child) => renderNode(child, asClonerTemplate, scopePrefix))}
     </TransformMotion>
   )
 }
 
-function renderGridClonerNode(node: LevelNode) {
+function renderGridClonerNode(node: LevelNode, scopePrefix?: string) {
   const children = node.children ?? []
   const { position, rotation, ...restProps } = node.props as Record<string, unknown>
   const nodeScale = resolveNodeScale(node)
@@ -217,15 +225,15 @@ function renderGridClonerNode(node: LevelNode) {
         {...restProps}
         position={node.position}
         rotation={node.rotation}
-        entityPrefix={node.id}
+        entityPrefix={scopeEntityId(scopePrefix, node.id)}
       >
-        {children.map((child) => renderNode(child, true))}
+        {children.map((child) => renderNode(child, true, scopePrefix))}
       </GridCloner>
     </group>
   )
 }
 
-function renderFractureNode(node: LevelNode) {
+function renderFractureNode(node: LevelNode, scopePrefix?: string) {
   const children = node.children ?? []
   const { position, rotation, ...restProps } = node.props as Record<string, unknown>
 
@@ -236,9 +244,9 @@ function renderFractureNode(node: LevelNode) {
       position={node.position}
       rotation={node.rotation}
       scale={resolveNodeScale(node)}
-      entityPrefix={node.id}
+      entityPrefix={scopeEntityId(scopePrefix, node.id)}
     >
-      {children.map((child) => renderNode(child, false))}
+      {children.map((child) => renderNode(child, false, scopePrefix))}
     </Fracture>
   )
 }
@@ -246,6 +254,7 @@ function renderFractureNode(node: LevelNode) {
 export function renderNode(
   node: LevelNode,
   asClonerTemplate = false,
+  scopePrefix?: string,
 ) {
   if (isNodeHiddenInBuilder(node)) {
     return null
@@ -256,22 +265,22 @@ export function renderNode(
   }
 
   if (node.type === 'Null') {
-    return renderNullNode(node, asClonerTemplate)
+    return renderNullNode(node, asClonerTemplate, scopePrefix)
   }
 
   if (node.type === 'TransformMotion') {
-    return renderTransformMotionNode(node, asClonerTemplate)
+    return renderTransformMotionNode(node, asClonerTemplate, scopePrefix)
   }
 
   if (node.type === 'GridCloner') {
-    return renderGridClonerNode(node)
+    return renderGridClonerNode(node, scopePrefix)
   }
 
   if (node.type === 'Fracture') {
-    return renderFractureNode(node)
+    return renderFractureNode(node, scopePrefix)
   }
 
-  return renderObjectNode(node, asClonerTemplate)
+  return renderObjectNode(node, asClonerTemplate, scopePrefix)
 }
 
 export function LevelRenderer() {

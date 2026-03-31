@@ -35,6 +35,11 @@ export type GameRigidBodyProps = Omit<RigidBodyProps, 'type' | 'onCollisionEnter
   contagion?: GameRigidBodyContagion
 }
 
+type ActivationMotion = {
+  linearVelocity?: { x: number; y: number; z: number }
+  angularVelocity?: { x: number; y: number; z: number }
+}
+
 function isColliderElement(node: ReactNode): node is ReactElement<Record<string, unknown>> {
   if (!isValidElement(node)) return false
   const elementType = node.type as { displayName?: string; name?: string }
@@ -102,19 +107,15 @@ export function GameRigidBody({
 }: GameRigidBodyProps) {
   const { rapier } = useRapier()
   const { camera, size } = useThree()
-  const cameraRef = useRef(camera)
-  const sizeRef = useRef(size)
-  cameraRef.current = camera
-  sizeRef.current = size
   const bodyRef = useRef<RapierRigidBody | null>(null)
   const collisionActivated = isCollisionActivatedPhysicsType(type)
   const noneActivated = isNoneActivatedPhysicsType(type)
   const solidNoneActivated = isSolidNoneActivatedPhysicsType(type)
   const [activated, setActivated] = useState(false)
-  const activationFiredRef = useRef(false)
+  const [pendingActivationMotion, setPendingActivationMotion] = useState<ActivationMotion | null>(null)
   const enqueueContagionPair = useGameplayStore((state) => state.enqueueCollisionPair)
   const contagionEnabled = SETTINGS.gameplay.contagion.enabled
-  const autoContagionEntityIdRef = useRef<string>(createAutoContagionEntityId())
+  const [autoContagionEntityId] = useState(createAutoContagionEntityId)
   const childArray = useMemo(() => Children.toArray(children), [children])
   const hasExplicitColliderChildren = useMemo(
     () => childArray.some((child) => isColliderElement(child)),
@@ -135,34 +136,25 @@ export function GameRigidBody({
     const baseEntityId = typeof baseUserData.entityId === 'string'
       ? baseUserData.entityId.trim()
       : ''
-    return explicitEntityId || baseEntityId || autoContagionEntityIdRef.current
-  }, [contagion?.entityId, userData])
+    return explicitEntityId || baseEntityId || autoContagionEntityId
+  }, [contagion, userData, autoContagionEntityId])
 
   useEntityRegistration(resolvedEntityId, 'rigid_body')
 
-  const mergedUserDataRef = useRef<Record<string, unknown>>({})
-  useEffect(() => {
+  const mergedUserData = useMemo<Record<string, unknown>>(() => {
     const baseUserData = (userData && typeof userData === 'object')
       ? userData as Record<string, unknown>
       : {}
-    const target = mergedUserDataRef.current
-    for (const key of Object.keys(target)) {
-      if (!(key in baseUserData)) delete target[key]
-    }
-    Object.assign(target, baseUserData)
+    const nextUserData: Record<string, unknown> = { ...baseUserData }
 
     if (contagion && resolvedEntityId) {
-      target.entityId = resolvedEntityId
-      target.contagionCarrier = contagion.carrier === true
-      target.contagionInfectable = contagion.infectable !== false
-      target.contagionColorIndex = contagion.colorIndex ?? 0
+      nextUserData.entityId = resolvedEntityId
+      nextUserData.contagionCarrier = contagion.carrier === true
+      nextUserData.contagionInfectable = contagion.infectable !== false
+      nextUserData.contagionColorIndex = contagion.colorIndex ?? 0
     }
-  }, [userData, resolvedEntityId, contagion?.carrier, contagion?.infectable, contagion?.colorIndex])
-
-  useEffect(() => {
-    activationFiredRef.current = false
-    setActivated(false)
-  }, [type])
+    return nextUserData
+  }, [userData, resolvedEntityId, contagion])
 
   const resolvedType = useMemo(
     () => (activated ? 'dynamic' : resolvePreCollisionBodyType(type)),
@@ -210,46 +202,70 @@ export function GameRigidBody({
     nextBody.setAdditionalMass(additionalMass, true)
   }, [mass])
 
+  const applyActivationMotion = useCallback((nextBody: RapierRigidBody | null, motion: ActivationMotion | null) => {
+    if (!nextBody || !motion) return
+    if (motion.linearVelocity) {
+      nextBody.setLinvel(motion.linearVelocity, true)
+    }
+    if (motion.angularVelocity) {
+      nextBody.setAngvel(motion.angularVelocity, true)
+    }
+  }, [])
+
   const setBodyRef = useCallback((nextBody: RapierRigidBody | null) => {
     bodyRef.current = nextBody
     applyAdditionalMass(nextBody)
   }, [applyAdditionalMass])
 
-  const promoteToDynamicImmediately = useCallback(() => {
+  const captureActivationMotion = useCallback((payload: CollisionEnterPayload | IntersectionEnterPayload): ActivationMotion | null => {
+    const otherBody = payload.other.rigidBody
+    if (!otherBody) {
+      return null
+    }
+
+    const otherLinearVelocity = otherBody.linvel()
+    const linearScale = 0.35
+
+    return {
+      linearVelocity: {
+        x: otherLinearVelocity.x * linearScale,
+        y: otherLinearVelocity.y * linearScale,
+        z: otherLinearVelocity.z * linearScale,
+      },
+    }
+  }, [])
+
+  const wakeActivatedBody = useCallback(() => {
     const body = bodyRef.current
     if (!body) return
-    applyBodyType('dynamic')
-    applyAdditionalMass(body)
+    applyActivationMotion(body, pendingActivationMotion)
     body.wakeUp()
-  }, [applyBodyType, applyAdditionalMass])
+  }, [applyActivationMotion, pendingActivationMotion])
 
   useEffect(() => {
-    if (collisionActivated && activationFiredRef.current && !activated) return
     applyBodyType(resolvedType)
-  }, [resolvedType, applyBodyType, collisionActivated, activated])
+  }, [resolvedType, applyBodyType])
 
   useEffect(() => {
     applyAdditionalMass(bodyRef.current)
   }, [applyAdditionalMass])
 
   useEffect(() => {
-    if (collisionActivated && activationFiredRef.current && !activated) return
     if (!sensorPreCollision) return
     setAttachedCollidersSensor(!activated)
-  }, [sensorPreCollision, activated, setAttachedCollidersSensor, collisionActivated])
+  }, [sensorPreCollision, activated, setAttachedCollidersSensor])
+
+  useEffect(() => {
+    if (!activated) return
+    wakeActivatedBody()
+  }, [activated, wakeActivatedBody])
 
   const activate = useCallback((payload: CollisionEnterPayload | IntersectionEnterPayload) => {
-    if (!collisionActivated || activationFiredRef.current) return
-    activationFiredRef.current = true
-    if (sensorPreCollision) {
-      // Switch colliders out of sensor mode immediately on first trigger.
-      setAttachedCollidersSensor(false)
-    }
-    // Avoid a frame of lag where body type/sensor state can desync under heavy motion.
-    promoteToDynamicImmediately()
+    if (!collisionActivated || activated) return
+    setPendingActivationMotion(captureActivationMotion(payload))
     setActivated(true)
     onCollisionActivated?.(payload)
-  }, [collisionActivated, onCollisionActivated, sensorPreCollision, setAttachedCollidersSensor, promoteToDynamicImmediately])
+  }, [collisionActivated, activated, onCollisionActivated, captureActivationMotion])
 
   const dispatchCollisionEnter = useCallback((payload: CollisionEnterPayload) => {
     if (contagionEnabled) {
@@ -257,16 +273,16 @@ export function GameRigidBody({
       const otherEntity = resolveCollisionEntity(payload, 'other')
       if (targetEntity) {
         const obj = payload.target.rigidBodyObject
-        if (obj) targetEntity.screenPos = projectToScreen(obj, cameraRef.current, sizeRef.current.width, sizeRef.current.height)
+        if (obj) targetEntity.screenPos = projectToScreen(obj, camera, size.width, size.height)
       }
       if (otherEntity) {
         const obj = payload.other.rigidBodyObject
-        if (obj) otherEntity.screenPos = projectToScreen(obj, cameraRef.current, sizeRef.current.width, sizeRef.current.height)
+        if (obj) otherEntity.screenPos = projectToScreen(obj, camera, size.width, size.height)
       }
       enqueueContagionPair(targetEntity, otherEntity)
     }
     onCollisionEnter?.(payload)
-  }, [contagionEnabled, enqueueContagionPair, onCollisionEnter])
+  }, [contagionEnabled, enqueueContagionPair, onCollisionEnter, camera, size.width, size.height])
 
   const handleCollisionEnter = useCallback((payload: CollisionEnterPayload) => {
     activate(payload)
@@ -294,20 +310,28 @@ export function GameRigidBody({
         onCollisionEnter: noneActivated
           ? undefined
           : (payload: CollisionEnterPayload) => {
-            activate(payload)
+            if (collisionActivated) {
+              setPendingActivationMotion(captureActivationMotion(payload))
+              setActivated(true)
+              onCollisionActivated?.(payload)
+            }
             dispatchCollisionEnter(payload)
             childOnCollisionEnter?.(payload)
           },
         onIntersectionEnter: noneActivated
           ? (payload: IntersectionEnterPayload) => {
-            activate(payload)
+            if (collisionActivated) {
+              setPendingActivationMotion(captureActivationMotion(payload))
+              setActivated(true)
+              onCollisionActivated?.(payload)
+            }
             onIntersectionEnter?.(payload)
             childOnIntersectionEnter?.(payload)
           }
           : childOnIntersectionEnter,
       })
     })
-  }, [canBodylessArm, activated, childArray, activate, onIntersectionEnter, dispatchCollisionEnter, noneActivated])
+  }, [canBodylessArm, activated, childArray, onIntersectionEnter, dispatchCollisionEnter, noneActivated, collisionActivated, captureActivationMotion, onCollisionActivated])
 
   if (canBodylessArm && !activated) {
     return (
@@ -332,7 +356,7 @@ export function GameRigidBody({
       {...(rotation !== undefined ? { rotation } : {})}
       {...(quaternion !== undefined ? { quaternion } : {})}
       {...(scale !== undefined ? { scale } : {})}
-      userData={mergedUserDataRef.current}
+      userData={mergedUserData}
       sensor={sensor}
       onCollisionEnter={handleCollisionEnter}
       onIntersectionEnter={handleIntersectionEnter}

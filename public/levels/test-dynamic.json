@@ -1,0 +1,2122 @@
+{
+  "version": 6,
+  "nodes": [
+    {
+      "id": "b53285d8-e61a-4a72-bebc-7572d8666460",
+      "nodeType": "object",
+      "type": "GridCloner",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "props": {
+        "count": [
+          11,
+          1,
+          14
+        ],
+        "spacing": [
+          5.75,
+          1,
+          8.5
+        ],
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "rotationOffset": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "transformMode": "cloner",
+        "childDistribution": "random",
+        "gridUnit": "md",
+        "enabled": true,
+        "contagionCarrier": false,
+        "contagionInfectable": true,
+        "physics": "dynamic",
+        "anchor": {
+          "x": "center",
+          "y": "center",
+          "z": "center"
+        }
+      },
+      "children": [
+        {
+          "id": "e0f32e95-060f-425a-ac3d-0d6235825c8a",
+          "name": "EXCLUDE Random Effector",
+          "builder": {
+            "hiddenInBuilder": false
+          },
+          "nodeType": "effector",
+          "type": "RandomEffector",
+          "props": {
+            "enabled": true,
+            "strength": 1,
+            "enableRemap": true,
+            "innerOffset": 0,
+            "remapMin": 0,
+            "remapMax": 1,
+            "clampMin": true,
+            "clampMax": true,
+            "contourMode": "none",
+            "contourSteps": 6,
+            "contourMultiplier": 1,
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              0,
+              0,
+              0
+            ],
+            "signedPosition": false,
+            "signedRotation": false,
+            "signedScale": false,
+            "exclude": true,
+            "excludeProbability": 0.65
+          }
+        },
+        {
+          "id": "51e79c4f-805a-4d6e-b244-6c4290a3ec03",
+          "name": "ROTATION Random Effector",
+          "builder": {
+            "hiddenInBuilder": false
+          },
+          "nodeType": "effector",
+          "type": "RandomEffector",
+          "props": {
+            "enabled": true,
+            "strength": 1,
+            "enableRemap": true,
+            "innerOffset": 0,
+            "remapMin": 0,
+            "remapMax": 1,
+            "clampMin": true,
+            "clampMax": true,
+            "contourMode": "quantize",
+            "contourSteps": 3,
+            "contourMultiplier": 1,
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              180,
+              0
+            ],
+            "scale": [
+              0,
+              0,
+              0
+            ],
+            "signedPosition": false,
+            "signedRotation": true,
+            "signedScale": false,
+            "exclude": false,
+            "excludeProbability": 0
+          }
+        },
+        {
+          "id": "479eebb7-9d66-4369-9c59-b53e3afef1fe",
+          "name": "POSITION Random Effector",
+          "builder": {
+            "hiddenInBuilder": false
+          },
+          "nodeType": "effector",
+          "type": "RandomEffector",
+          "props": {
+            "enabled": true,
+            "strength": 1,
+            "enableRemap": true,
+            "innerOffset": 0,
+            "remapMin": 0,
+            "remapMax": 1,
+            "clampMin": true,
+            "clampMax": true,
+            "contourMode": "quantize",
+            "contourSteps": 5,
+            "contourMultiplier": 1,
+            "position": [
+              6,
+              0,
+              9
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              0,
+              0,
+              0
+            ],
+            "signedPosition": true,
+            "signedRotation": false,
+            "signedScale": false,
+            "exclude": false,
+            "excludeProbability": 0
+          }
+        },
+        {
+          "id": "dabe6ec4-a8f4-4da8-8459-ad96b4252f2b",
+          "builder": {
+            "hiddenInBuilder": false
+          },
+          "nodeType": "effector",
+          "type": "PushApartEffector",
+          "props": {
+            "enabled": false,
+            "radiusOffset": 2.5
+          }
+        },
+        {
+          "id": "bc4b3574-7b48-4723-9b1d-1774bf497730",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "34eab34f-7b98-4860-8415-6c0aa5454ea6",
+              "nodeType": "object",
+              "type": "TriangleBlockElement",
+              "position": [
+                -0.1,
+                0.2,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "bc583019-7dca-4ee8-86de-7220ea5efbc8",
+              "nodeType": "object",
+              "type": "TriangleBlockElement",
+              "position": [
+                0.1,
+                0.2,
+                0
+              ],
+              "rotation": [
+                -180,
+                0,
+                -180
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "9474a1cb-5dcd-4662-89d9-cf4d4c906007",
+              "nodeType": "object",
+              "type": "BridgeBlockElement",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "plane": "x",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "0dd19a0f-cd9b-4202-bbdb-b515df86d9a5",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "2d6ae762-a8b0-4012-bc14-a3f998453aa4",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "f511467c-2bd3-4baa-b573-611bc41d0b5d",
+              "nodeType": "object",
+              "type": "BridgeBlockElement",
+              "position": [
+                0,
+                0.4086,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "plane": "x",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "8c954889-661f-4821-be6e-135fcc2b0215",
+              "nodeType": "object",
+              "type": "TriangleBlockElement",
+              "position": [
+                -0.1,
+                0.6,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "x",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "9c3bbf12-2741-4219-a9ac-b1c47123b417",
+              "nodeType": "object",
+              "type": "TriangleBlockElement",
+              "position": [
+                0.1,
+                0.6,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "x",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "5cb3a287-c89a-48ec-92f9-6bd1e7800a57",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                -0.2,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "39107e6e-5c18-4489-8d98-49236da3c9f1",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0.2,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "0bba8ec5-cdad-4c94-b054-18a7d3f11f39",
+              "builder": {
+                "hiddenInBuilder": false
+              },
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "5683ab79-7f9e-4727-8b14-b89cada72a37",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "47800f98-002a-4bf1-9980-6c126cd19d94",
+              "nodeType": "object",
+              "type": "TriangleBlockElement",
+              "position": [
+                0,
+                0.4,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "md",
+                "plane": "x",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "f142dcbb-4805-4ad1-9103-8086c9f79aac",
+              "nodeType": "object",
+              "type": "CylinderBlockElement",
+              "position": [
+                0.1,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "d85e40c8-7a8e-416b-b963-a4c576c71bcf",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                -0.1,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "3b2cb31a-551b-45d5-a2d2-9fe5b0173bf4",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "ccfea84b-620d-44e4-a68c-baa5b3780bdc",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "a0df4b3f-de6a-4983-ba4a-6dd035d6f6fa",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0,
+                0.15,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "lg",
+                "plane": "x",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "a15f55d0-5877-4c58-ac5d-0ffce6a9842d",
+              "nodeType": "object",
+              "type": "HalfCylinderBlockElement",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "plane": "y",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "a972ca33-37f0-4251-8b2e-3cd622632b9d",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "277f4bb8-c6f2-400e-be27-2471b6cf1f59",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "e456d1fd-bd04-4aa0-bd8f-3fd898e0c761",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "x",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "043e3e0a-62e3-4e35-9610-7c4d40d71486",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0,
+                0.5,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "x",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "a3821a4e-993c-41c4-b04b-aa2b29e6ecdc",
+              "nodeType": "object",
+              "type": "CylinderBlockElement",
+              "position": [
+                0,
+                0.1,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 2,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "1b446fae-bc24-4965-a6e0-9b2df2f03c46",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                -0.4,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "x",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "8521eb67-3a01-457c-aae0-cc5e5f76d748",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                -0.4,
+                0.5,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "x",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "5a82115b-3930-45db-a591-5586d869c4f0",
+              "nodeType": "object",
+              "type": "CylinderBlockElement",
+              "position": [
+                -0.4,
+                0.1,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 2,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "030076eb-1a30-48e2-a797-2d085962779e",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0.4,
+                0.5,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "x",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "f5976d9d-c513-41fb-bc2b-2a006b38a8a0",
+              "nodeType": "object",
+              "type": "CylinderBlockElement",
+              "position": [
+                0.4,
+                0.1,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "6b53ecf9-fac4-4e18-a5a9-500e4c8f21d0",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0.4,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "x",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "e98dba5a-2eb5-4e37-aff3-e0036a933c9b",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "37bfdd3e-e1d6-4d14-8e98-6a67695d0ab4",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "f77cb87d-2803-4306-ab46-7f39cd903085",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "lg",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "8df760cc-d59c-47a1-8871-ac0777c9b8fa",
+              "nodeType": "object",
+              "type": "HalfCylinderBlockElement",
+              "position": [
+                0,
+                0.6,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "plane": "y",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "bd7ba5ea-69d3-4b4b-a5b8-7988bdab0073",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "304f0ab1-2a33-42ee-9020-7726d422c0c3",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "3b9c28ad-9a0b-44fd-bc65-9f2774f5c3ba",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                -0.2,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "lg",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "c784c4f7-094a-4d35-b5f0-84e0ea288fdc",
+              "nodeType": "object",
+              "type": "BridgeBlockElement",
+              "position": [
+                0,
+                0.6,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "plane": "x",
+                "color": 2,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "3d9517f2-63ee-4852-8bfe-bcd3dacce12c",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0.2,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "lg",
+                "plane": "y",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "982b8397-870d-43c1-98e7-fa30b20499c6",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                90,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "md",
+                "plane": "y",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "0379e2a3-a7d0-45e0-8b29-d3fc876f176f",
+              "nodeType": "object",
+              "type": "TriangleBlockElement",
+              "position": [
+                -0.0026,
+                0,
+                -0.15
+              ],
+              "rotation": [
+                0,
+                -90,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 2,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "1f3d8de2-a071-4d30-aaae-c0ecf52dc17d",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "d82180aa-482c-41ce-8a2b-2398ee911a1a",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "1419606b-b568-47ab-9368-3e8baa7cb794",
+              "nodeType": "object",
+              "type": "TriangleBlockElement",
+              "position": [
+                0,
+                0.4,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "b4ace2ad-d392-4989-8572-e6bb2f55ad27",
+              "nodeType": "object",
+              "type": "CylinderBlockElement",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "e66117cb-85a1-4bc3-bde8-7dbee1843b75",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0,
+                0.2,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "3fa5a4b0-a60f-48c1-b970-89e674177b1f",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "089c2aac-61ee-4615-87ef-a4afd34829cc",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0.2
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "0c09f5d2-3cd4-49e3-8746-2dc5dd252683",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": "54f99d4b-6f23-4e27-b540-66c445d0c001",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0.2,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "5b25066c-0eff-493a-a803-120dc6d0f237",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                -0.2,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "419e5b16-7e60-41f0-b1b4-8e89abcf7a0a",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0,
+                0.2,
+                0
+              ],
+              "rotation": [
+                0,
+                90,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "lg",
+                "plane": "z",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "bc4b9851-968b-4224-af29-b3e55af6df05",
+              "nodeType": "object",
+              "type": "BlockElement",
+              "position": [
+                0,
+                0.6,
+                0
+              ],
+              "rotation": [
+                0,
+                90,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "md",
+                "heightPreset": "lg",
+                "plane": "z",
+                "color": 1,
+                "singleTone": false,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "ea44c50b-03b9-4842-a826-49c032c91d98",
+              "nodeType": "object",
+              "type": "CylinderBlockElement",
+              "position": [
+                0.3,
+                0.4,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "a7a43eb1-be54-41be-97ce-4cfbf9800f78",
+              "nodeType": "object",
+              "type": "CylinderBlockElement",
+              "position": [
+                -0.3,
+                0.4,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "b3d037c3-75d0-4971-b28c-1a28381d17f9",
+          "nodeType": "object",
+          "type": "Fracture",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "props": {
+            "enabled": true,
+            "gridUnit": "md"
+          },
+          "children": [
+            {
+              "id": "feef2b0b-c392-4b9d-a84f-8e1cdb83f5a4",
+              "nodeType": "effector",
+              "type": "RandomEffector",
+              "props": {
+                "enabled": true,
+                "strength": 1,
+                "enableRemap": true,
+                "innerOffset": 0,
+                "remapMin": 0,
+                "remapMax": 1,
+                "clampMin": true,
+                "clampMax": true,
+                "contourMode": "none",
+                "contourSteps": 6,
+                "contourMultiplier": 1,
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  0,
+                  0,
+                  0
+                ],
+                "signedPosition": false,
+                "signedRotation": false,
+                "signedScale": false,
+                "exclude": false,
+                "excludeProbability": 0,
+                "color": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": "364fa7f9-adcb-41a0-af34-ef830bd5bd8c",
+              "nodeType": "object",
+              "type": "CylinderBlockElement",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "sizePreset": "lg",
+                "heightPreset": "sm",
+                "plane": "y",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            },
+            {
+              "id": "f6b23ff3-bb72-446d-93b5-4b1330312535",
+              "nodeType": "object",
+              "type": "BridgeBlockElement",
+              "position": [
+                0,
+                0.2,
+                0
+              ],
+              "rotation": [
+                180,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "plane": "x",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true,
+                "align": {
+                  "y": 100
+                }
+              }
+            },
+            {
+              "id": "12b44dba-d7ab-49f7-a091-1c9306b470bb",
+              "nodeType": "object",
+              "type": "BridgeBlockElement",
+              "position": [
+                0,
+                0.4,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "props": {
+                "plane": "x",
+                "color": 1,
+                "singleTone": true,
+                "hidden": false,
+                "contagionCarrier": false,
+                "contagionInfectable": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "unitSize": 0.1,
+  "gridSize": [
+    128,
+    128
+  ],
+  "builderSettings": {
+    "palette": {
+      "source": "override",
+      "override": "green"
+    }
+  },
+  "sceneMetrics": {
+    "highestVertexY": null
+  }
+}

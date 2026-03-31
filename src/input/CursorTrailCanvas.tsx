@@ -13,6 +13,23 @@ const MAX_TRAIL_POINTS = 96
 const TRAIL_SLOT_COUNT = 2
 const MIN_POINT_DISTANCE_PX = 0.25
 const MIN_POINT_TIME_MS = 8
+const TRAIL_FOLLOW_MIN_ALPHA = 0.08
+const TRAIL_FOLLOW_REFERENCE_FPS = 60
+
+function clamp01(value: number): number {
+  if (value <= 0) return 0
+  if (value >= 1) return 1
+  return value
+}
+
+function resolveTrailFollowAlpha(deltaSec: number, smoothingStrength: number): number {
+  const strength = clamp01(smoothingStrength)
+  if (strength <= 0) return 1
+
+  const referenceAlpha = 1 - strength * (1 - TRAIL_FOLLOW_MIN_ALPHA)
+  const referenceFrames = Math.max(1, deltaSec * TRAIL_FOLLOW_REFERENCE_FPS)
+  return 1 - ((1 - referenceAlpha) ** referenceFrames)
+}
 
 export function CursorTrailCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -38,6 +55,9 @@ export function CursorTrailCanvas() {
     ]
     const historyWriteIndex = new Int32Array(TRAIL_SLOT_COUNT)
     const historyCount = new Int32Array(TRAIL_SLOT_COUNT)
+    const trailFollowerX = new Float32Array(TRAIL_SLOT_COUNT)
+    const trailFollowerY = new Float32Array(TRAIL_SLOT_COUNT)
+    const trailFollowerActive = new Uint8Array(TRAIL_SLOT_COUNT)
 
     let rafId = 0
     let lastFrameTime = performance.now()
@@ -61,6 +81,9 @@ export function CursorTrailCanvas() {
     const clearHistorySlot = (slot: 0 | 1) => {
       historyWriteIndex[slot] = 0
       historyCount[slot] = 0
+      trailFollowerActive[slot] = 0
+      trailFollowerX[slot] = 0
+      trailFollowerY[slot] = 0
     }
 
     const clearAllHistory = () => {
@@ -103,9 +126,17 @@ export function CursorTrailCanvas() {
       historyCount[slot] = count
     }
 
-    const drawHistorySlot = (slot: 0 | 1, smoothing: number, color: string, lineWidth: number) => {
+    const drawHistorySlot = (
+      slot: 0 | 1,
+      smoothing: number,
+      color: string,
+      lineWidth: number,
+      headX: number,
+      headY: number,
+      attachToHead: boolean,
+    ) => {
       const count = historyCount[slot]
-      if (count < 2) return
+      if (count < 1) return
 
       const oldestIndex = (historyWriteIndex[slot] - count + MAX_TRAIL_POINTS) % MAX_TRAIL_POINTS
       let index = oldestIndex
@@ -128,13 +159,46 @@ export function CursorTrailCanvas() {
         previousY = currentY
       }
 
-      ctx.lineTo(previousX, previousY)
+      if (attachToHead) {
+        const midX = (previousX + headX) * 0.5
+        const midY = (previousY + headY) * 0.5
+        const cpX = midX + (previousX - midX) * smoothing
+        const cpY = midY + (previousY - midY) * smoothing
+        ctx.quadraticCurveTo(cpX, cpY, midX, midY)
+        ctx.lineTo(headX, headY)
+      } else {
+        ctx.lineTo(previousX, previousY)
+      }
+
       ctx.strokeStyle = color
       ctx.lineWidth = lineWidth
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
       ctx.globalAlpha = 0.9
       ctx.stroke()
+    }
+
+    const pushSmoothedTrailPoint = (
+      slot: 0 | 1,
+      x: number,
+      y: number,
+      timeMs: number,
+      deltaSec: number,
+      smoothingStrength: number,
+    ) => {
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(timeMs)) return
+
+      if (trailFollowerActive[slot] === 0) {
+        trailFollowerActive[slot] = 1
+        trailFollowerX[slot] = x
+        trailFollowerY[slot] = y
+      } else {
+        const alpha = resolveTrailFollowAlpha(deltaSec, smoothingStrength)
+        trailFollowerX[slot] += (x - trailFollowerX[slot]) * alpha
+        trailFollowerY[slot] += (y - trailFollowerY[slot]) * alpha
+      }
+
+      pushHistoryPoint(slot, trailFollowerX[slot], trailFollowerY[slot], timeMs)
     }
 
     const syncSize = () => {
@@ -202,12 +266,20 @@ export function CursorTrailCanvas() {
         previousInputSource = inputSource
       }
 
+      const pointer0Active = readCursorPointerRenderState(0, now, pointerRenderState0)
+      const pointer1Active = readCursorPointerRenderState(1, now, pointerRenderState1)
+
       if (inputSource === 'external') {
-        if (readCursorPointerRenderState(0, now, pointerRenderState0)) {
-          pushHistoryPoint(0, pointerRenderState0.x, pointerRenderState0.y, now)
+        const followSmoothing = SETTINGS.cursor.trail.followSmoothing ?? 0
+        if (pointer0Active) {
+          pushSmoothedTrailPoint(0, pointerRenderState0.x, pointerRenderState0.y, now, delta, followSmoothing)
+        } else {
+          trailFollowerActive[0] = 0
         }
-        if (readCursorPointerRenderState(1, now, pointerRenderState1)) {
-          pushHistoryPoint(1, pointerRenderState1.x, pointerRenderState1.y, now)
+        if (pointer1Active) {
+          pushSmoothedTrailPoint(1, pointerRenderState1.x, pointerRenderState1.y, now, delta, followSmoothing)
+        } else {
+          trailFollowerActive[1] = 0
         }
       }
 
@@ -223,9 +295,25 @@ export function CursorTrailCanvas() {
       const lineWidth = SETTINGS.cursor.trail.lineWidth ?? 4
       const color = SETTINGS.cursor.trail.color
 
-      drawHistorySlot(0, smoothing, color, lineWidth)
+      drawHistorySlot(
+        0,
+        smoothing,
+        color,
+        lineWidth,
+        pointerRenderState0.x,
+        pointerRenderState0.y,
+        pointer0Active,
+      )
       if (inputSource === 'external') {
-        drawHistorySlot(1, smoothing, color, lineWidth)
+        drawHistorySlot(
+          1,
+          smoothing,
+          color,
+          lineWidth,
+          pointerRenderState1.x,
+          pointerRenderState1.y,
+          pointer1Active,
+        )
       }
 
       const pointerRadiusPx = SETTINGS.cursor.pointerRadiusPx
@@ -234,7 +322,7 @@ export function CursorTrailCanvas() {
         ctx.fillStyle = color
         ctx.globalAlpha = 1
         const drawHead = (slot: 0 | 1, out: CursorPointerRenderState) => {
-          if (!readCursorPointerRenderState(slot, now, out)) return
+          if ((slot === 0 && !pointer0Active) || (slot === 1 && !pointer1Active)) return
           ctx.beginPath()
           ctx.arc(out.x, out.y, headRadius, 0, Math.PI * 2)
           ctx.fill()

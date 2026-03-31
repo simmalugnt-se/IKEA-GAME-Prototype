@@ -23,3 +23,8 @@ html,
 body {
   background-color: #ffffff;
 }
+
+.debug-stats {
+  transform: scale(2);
+  transform-origin: top left;
+}

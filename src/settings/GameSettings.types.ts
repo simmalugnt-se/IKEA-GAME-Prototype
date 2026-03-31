@@ -260,6 +260,8 @@ export type Settings = {
       color: string
       /** Line width in pixels */
       lineWidth: number
+      /** Visual trail follow smoothing: 0 = raw head positions, 1 = strongest lagged trail */
+      followSmoothing: number
       /** Curve smoothing: 0 = tight polyline, 1 = fully smoothed quadratic curve */
       smoothing: number
     }
