@@ -3,6 +3,11 @@ import { triggerEventSequence } from '@/audio/BackgroundMusicManager'
 import { playGameSound } from '@/audio/GameAudioRouter'
 import { resetGameRunClock, setGameRunClockRunning } from '@/game/GameRunClock'
 import { useLevelTilingStore } from '@/levels/levelTilingStore'
+import {
+  buildQueuedSpawnRequestsForSpawnEvent,
+  getSpawnEventRules,
+  type QueuedSpawnRequest,
+} from '@/gameplay/spawnItemSettings'
 import { SETTINGS, resolveMaterialColorIndex } from '@/settings/GameSettings'
 import type { GameRunMode } from '@/settings/GameSettings.types'
 import { onEntityUnregister } from '@/entities/entityStore'
@@ -54,7 +59,15 @@ export type BalloonPopForComboEvent = {
   timeMs: number
 }
 
-export type RunTimeBonusReason = 'combo' | 'unknown'
+export type SpawnItemHitEffectEvent = {
+  scoreDelta: number
+  timeDeltaMs: number
+  x: number
+  y: number
+  feedbackText?: string
+}
+
+export type RunTimeBonusReason = 'combo' | 'spawn_item' | 'unknown'
 
 type NormalizedCollisionEntity = {
   entityId: string
@@ -98,6 +111,7 @@ type GameplayState = {
   setGameOverTravelTargetZ: (targetZ: number | null) => void
   addScore: (delta: number, source?: ScoreboardEventSource) => void
   addRunTimeMs: (deltaMs: number, reason?: RunTimeBonusReason) => void
+  applySpawnItemHitEffect: (event: SpawnItemHitEffectEvent) => void
   loseLife: (reason?: ScoreboardLifeLossReason) => void
   loseLives: (delta: number, reason?: ScoreboardLifeLossReason) => void
   removeEntities: (ids: string[]) => void
@@ -112,6 +126,11 @@ type GameplayState = {
 function normalizeNonNegativeInt(value: number, fallback = 0): number {
   if (!Number.isFinite(value)) return fallback
   return Math.max(0, Math.trunc(value))
+}
+
+function normalizeInt(value: number, fallback = 0): number {
+  if (!Number.isFinite(value)) return fallback
+  return Math.trunc(value)
 }
 
 function getInitialLives(): number {
@@ -217,6 +236,14 @@ type ComboRuntimeState = {
   lastMultiStrikeTimeMs: number
 }
 
+type CursorSizeBoostRuntimeState = {
+  activatedAtMs: number
+  endsAtMs: number
+  scaleMultiplier: number
+  easeInMs: number
+  easeOutMs: number
+}
+
 function createContagionMaps(): ContagionMaps {
   return {
     records: new Map(),
@@ -233,12 +260,24 @@ function createComboRuntimeState(): ComboRuntimeState {
   }
 }
 
+function createCursorSizeBoostRuntimeState(): CursorSizeBoostRuntimeState {
+  return {
+    activatedAtMs: 0,
+    endsAtMs: 0,
+    scaleMultiplier: 1,
+    easeInMs: 0,
+    easeOutMs: 0,
+  }
+}
+
 let maps = createContagionMaps()
 let comboRuntime = createComboRuntimeState()
+let cursorSizeBoostRuntime = createCursorSizeBoostRuntimeState()
 let gameOverInputInactivityTimer: ReturnType<typeof setTimeout> | null = null
 let gameOverInputCountdownTimer: ReturnType<typeof setTimeout> | null = null
 let runEndTimer: ReturnType<typeof setTimeout> | null = null
 let timeBonusPauseTimer: ReturnType<typeof setTimeout> | null = null
+const spawnEventCooldownsByRuleId = new Map<string, number>()
 
 function clearComboFlushTimer(): void {
   if (comboRuntime.flushTimer === null) return
@@ -285,6 +324,148 @@ function clearTimeBonusPauseTimer(): void {
 function clearRunModeTimers(): void {
   clearRunEndTimer()
   clearTimeBonusPauseTimer()
+}
+
+function resetSpawnEventCooldowns(): void {
+  spawnEventCooldownsByRuleId.clear()
+}
+
+function resolveHighResNowMs(): number {
+  if (typeof performance !== 'undefined' && Number.isFinite(performance.now())) {
+    return performance.now()
+  }
+  return Date.now()
+}
+
+function easeInOutSine01(t: number): number {
+  const clamped = Math.min(1, Math.max(0, t))
+  return -(Math.cos(Math.PI * clamped) - 1) * 0.5
+}
+
+function resetCursorSizeBoostRuntime(): void {
+  cursorSizeBoostRuntime = createCursorSizeBoostRuntimeState()
+}
+
+function activateCursorSizeBoost(
+  action: {
+    scaleMultiplier: number
+    durationMs: number
+    easeInMs: number
+    easeOutMs: number
+    feedbackText?: string
+  },
+  origin?: ScreenPos,
+): void {
+  const nowMs = resolveHighResNowMs()
+  const durationMs = Math.max(1, normalizeNonNegativeInt(action.durationMs, 0))
+  cursorSizeBoostRuntime = {
+    activatedAtMs: nowMs,
+    endsAtMs: nowMs + durationMs,
+    scaleMultiplier: Math.max(1, action.scaleMultiplier),
+    easeInMs: normalizeNonNegativeInt(action.easeInMs, 0),
+    easeOutMs: normalizeNonNegativeInt(action.easeOutMs, 0),
+  }
+
+  if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
+    emitScorePop({
+      text: action.feedbackText.trim(),
+      x: origin.x,
+      y: origin.y,
+      burst: false,
+      style: 'style5',
+    })
+  }
+}
+
+export function getCursorSizeBoostScale(nowMs = resolveHighResNowMs()): number {
+  const {
+    activatedAtMs,
+    endsAtMs,
+    scaleMultiplier,
+    easeInMs,
+    easeOutMs,
+  } = cursorSizeBoostRuntime
+
+  if (!(endsAtMs > activatedAtMs) || !(scaleMultiplier > 1)) return 1
+  if (nowMs <= activatedAtMs || nowMs >= endsAtMs) return 1
+
+  const totalDurationMs = endsAtMs - activatedAtMs
+  const introDurationMs = Math.max(0, Math.min(easeInMs, totalDurationMs))
+  const outroDurationMs = Math.max(0, Math.min(easeOutMs, totalDurationMs))
+  const plateauStartMs = activatedAtMs + introDurationMs
+  const plateauEndMs = endsAtMs - outroDurationMs
+
+  if (introDurationMs > 0 && nowMs < plateauStartMs) {
+    const t = (nowMs - activatedAtMs) / introDurationMs
+    return 1 + (scaleMultiplier - 1) * easeInOutSine01(t)
+  }
+
+  if (outroDurationMs > 0 && nowMs > plateauEndMs) {
+    const t = (nowMs - plateauEndMs) / outroDurationMs
+    return 1 + (scaleMultiplier - 1) * (1 - easeInOutSine01(t))
+  }
+
+  return scaleMultiplier
+}
+
+function formatTimeDeltaLabel(deltaMs: number): string {
+  const absMs = Math.abs(deltaMs)
+  if (absMs <= 0) return ''
+  const seconds = absMs / 1000
+  const rounded = Number.isInteger(seconds) ? `${seconds}` : seconds.toFixed(1)
+  const prefix = deltaMs >= 0 ? '+' : '-'
+  return `${prefix}${rounded}S`
+}
+
+function buildSpawnItemEffectLabel(scoreDelta: number, timeDeltaMs: number, feedbackText?: string): string {
+  const lines: string[] = []
+  if (typeof feedbackText === 'string' && feedbackText.trim().length > 0) {
+    lines.push(feedbackText.trim())
+  }
+  if (scoreDelta !== 0) lines.push(`${scoreDelta > 0 ? '+' : ''}${scoreDelta}`)
+  if (timeDeltaMs !== 0) lines.push(formatTimeDeltaLabel(timeDeltaMs))
+  return lines.join('\n')
+}
+
+function maybeTriggerSpawnEventsForComboMultiplier(
+  multiplier: number,
+  origin?: ScreenPos,
+): void {
+  if (!(multiplier >= 2)) return
+
+  const nowMs = Date.now()
+  const queuedRequests: QueuedSpawnRequest[] = []
+
+  const rules = getSpawnEventRules()
+  for (let i = 0; i < rules.length; i += 1) {
+    const rule = rules[i]
+    if (!rule || rule.enabled !== true) continue
+    const ruleId = typeof rule.id === 'string' ? rule.id.trim() : ''
+    if (!ruleId) continue
+    if (rule.trigger.type !== 'combo_multiplier') continue
+    if (multiplier < Math.max(2, Math.trunc(rule.trigger.minMultiplier))) continue
+
+    const cooldownMs = normalizeNonNegativeInt(rule.trigger.cooldownMs, 0)
+    const nextAllowedAtMs = spawnEventCooldownsByRuleId.get(ruleId) ?? 0
+    if (nowMs < nextAllowedAtMs) continue
+
+    spawnEventCooldownsByRuleId.set(ruleId, nowMs + cooldownMs)
+
+    if (rule.action.type === 'spawn_burst') {
+      const requests = buildQueuedSpawnRequestsForSpawnEvent(rule)
+      if (requests.length <= 0) continue
+      queuedRequests.push(...requests)
+      continue
+    }
+
+    if (rule.action.type === 'cursor_size_boost') {
+      activateCursorSizeBoost(rule.action, origin)
+    }
+  }
+
+  if (queuedRequests.length > 0) {
+    useSpawnerStore.getState().enqueueSpawns(queuedRequests)
+  }
 }
 
 function scheduleGameOverInputInactivityTimer(): void {
@@ -421,6 +602,10 @@ function flushPendingComboStrike(): void {
       totalPoints: totalStrikeScore,
       totalScore: totalScoreAfterStrike,
     })
+    maybeTriggerSpawnEventsForComboMultiplier(finalMultiplier, {
+      x: sumX * invCount,
+      y: sumY * invCount,
+    })
   }
 
   const comboTimeBonusStepMs = resolveComboTimeBonusStepMs()
@@ -547,6 +732,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     if (!didTransition) return
 
     resetComboRuntimeState()
+    resetSpawnEventCooldowns()
+    resetCursorSizeBoostRuntime()
     clearGameOverInputTimers()
     advanceRunTimerScope()
 
@@ -600,6 +787,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
   bootstrapIdle: () => {
     maps = createContagionMaps()
     resetComboRuntimeState()
+    resetSpawnEventCooldowns()
+    resetCursorSizeBoostRuntime()
     clearGameOverInputTimers()
     advanceRunTimerScope()
 
@@ -643,6 +832,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
 
     maps = createContagionMaps()
     resetComboRuntimeState()
+    resetSpawnEventCooldowns()
+    resetCursorSizeBoostRuntime()
     clearGameOverInputTimers()
     const runScopeToken = advanceRunTimerScope()
 
@@ -771,6 +962,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     if (!didTransition) return
 
     clearGameOverInputTimers()
+    resetCursorSizeBoostRuntime()
     advanceRunTimerScope()
     setGameRunClockRunning(false)
     resetGameRunClock()
@@ -815,15 +1007,18 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
   },
 
   addScore: (delta, source = 'unknown') => {
-    const normalizedDelta = normalizeNonNegativeInt(delta, 0)
+    const normalizedDelta = normalizeInt(delta, 0)
     if (normalizedDelta === 0) return
 
     let nextTotal = 0
+    let appliedDelta = 0
     let accepted = false
     set((state) => {
       if (state.flowState !== 'run') return state
+      nextTotal = Math.max(0, state.score + normalizedDelta)
+      appliedDelta = nextTotal - state.score
+      if (appliedDelta === 0) return state
       accepted = true
-      nextTotal = state.score + normalizedDelta
       return { score: nextTotal }
     })
 
@@ -833,7 +1028,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       type: 'points_received',
       timestamp: Date.now(),
       runId: getRunId(),
-      points: normalizedDelta,
+      points: appliedDelta,
       generatedBy: source,
       totalScore: nextTotal,
     })
@@ -841,8 +1036,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
 
   addRunTimeMs: (deltaMs, _reason = 'unknown') => {
     void _reason
-    const normalizedDeltaMs = normalizeNonNegativeInt(deltaMs, 0)
-    if (normalizedDeltaMs <= 0) return
+    const normalizedDeltaMs = normalizeInt(deltaMs, 0)
+    if (normalizedDeltaMs === 0) return
     const stateBefore = get()
     if (stateBefore.flowState !== 'run' || stateBefore.runMode !== 'time') return
 
@@ -856,7 +1051,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     set((state) => {
       if (state.flowState !== 'run' || state.runMode !== 'time') return state
       const currentRemainingMs = resolveCurrentRemainingTimeMs(state, nowMs)
-      const targetRemainingMs = currentRemainingMs + normalizedDeltaMs
+      const targetRemainingMs = Math.max(0, currentRemainingMs + normalizedDeltaMs)
       accepted = true
 
       if (lerpMs <= 0) {
@@ -887,6 +1082,44 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       return
     }
     scheduleRunTimePauseResume(scopeToken, nextPauseEndsAtMs)
+  },
+
+  applySpawnItemHitEffect: (event) => {
+    if (get().flowState !== 'run') return
+
+    const requestedScoreDelta = normalizeInt(event.scoreDelta, 0)
+    const timeDeltaMs = normalizeInt(event.timeDeltaMs, 0)
+    if (requestedScoreDelta === 0 && timeDeltaMs === 0) return
+
+    const isPenaltyEffect = requestedScoreDelta < 0 || timeDeltaMs < 0
+    if (isPenaltyEffect) {
+      resetComboRuntimeState()
+    }
+
+    let appliedScoreDelta = 0
+
+    if (requestedScoreDelta !== 0) {
+      const scoreBefore = get().score
+      get().addScore(
+        requestedScoreDelta,
+        requestedScoreDelta > 0 ? 'spawn_item_bonus' : 'spawn_item_penalty',
+      )
+      appliedScoreDelta = get().score - scoreBefore
+    }
+    if (timeDeltaMs !== 0) {
+      get().addRunTimeMs(timeDeltaMs, 'spawn_item')
+    }
+
+    const text = buildSpawnItemEffectLabel(appliedScoreDelta, timeDeltaMs, event.feedbackText)
+    if (!text) return
+
+    emitScorePop({
+      text,
+      x: event.x,
+      y: event.y,
+      burst: false,
+      style: appliedScoreDelta < 0 || timeDeltaMs < 0 ? 'style5' : 'style2',
+    })
   },
 
   loseLife: (reason = 'unknown') => {

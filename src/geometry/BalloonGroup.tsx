@@ -21,8 +21,10 @@ import {
   type TransformMotionProps,
 } from "@/scene/TransformMotion";
 import {
+  HAZARD_BALLOON_COLOR_HEX,
   SETTINGS,
   getActivePalette,
+  type BalloonDropType,
   type MaterialColorIndex,
   type Vec3,
 } from "@/settings/GameSettings";
@@ -38,7 +40,6 @@ type BalloonDetailLevel =
   | "veryLow"
   | "minimal";
 
-type BalloonDropType = "block" | "ball";
 type BalloonFlowRole = "idle_start" | "run_spawn";
 const AUTO_POP_CLEANUP_DELAY_MS = 180;
 let activeAutoPopWaveSignal = Number.NaN;
@@ -63,6 +64,14 @@ export type BalloonPopReleaseTuning = {
   linearDamping?: number;
   angularDamping?: number;
 };
+
+export type SpawnItemHitCallbackEvent = {
+  x: number;
+  y: number;
+  timeMs: number;
+};
+
+type BalloonItemMarker = "none" | "hazard";
 
 const POP_RELEASE_CURVE_NAMES = [
   "power_1_25",
@@ -90,8 +99,9 @@ type ResolvedBalloonPopReleaseTuning = {
 type BalloonGroupProps = Omit<TransformMotionProps, "ref" | "children"> & {
   detailLevel?: BalloonDetailLevel;
   color?: MaterialColorIndex;
-  randomize?: boolean;
-  /** Payload type when `randomize` is false. `randomize=true` overrides this to random block/ball per instance. */
+  randomizeColor?: boolean;
+  randomizeDropType?: boolean;
+  /** Payload type when `randomizeDropType` is false. */
   dropType?: BalloonDropType;
   onPopped?: () => void;
   onMissed?: () => void;
@@ -102,6 +112,9 @@ type BalloonGroupProps = Omit<TransformMotionProps, "ref" | "children"> & {
   onRegisterCullZ?: (getter: () => number | undefined) => () => void;
   popReleaseTuning?: BalloonPopReleaseTuning;
   flowRole?: BalloonFlowRole;
+  onSpawnItemHit?: (event: SpawnItemHitCallbackEvent) => void;
+  lifeLossEnabled?: boolean;
+  itemMarker?: BalloonItemMarker;
 };
 
 const BALLOONS = {
@@ -278,6 +291,19 @@ const POP_HIT_DEBUG_MATERIAL = new THREE.MeshBasicMaterial({
   opacity: 0.9,
   depthWrite: false,
 });
+const RESERVED_RANDOM_BALLOON_COLORS = new Set([
+  HAZARD_BALLOON_COLOR_HEX.trim().toLowerCase(),
+  "#e1d4bd",
+  "#d9b5a3",
+]);
+const HAZARD_MARKER_POINTS_A: [number, number, number][] = [
+  [-0.06, 0.21, 0.055],
+  [0.06, 0.09, 0.055],
+];
+const HAZARD_MARKER_POINTS_B: [number, number, number][] = [
+  [0.06, 0.21, 0.055],
+  [-0.06, 0.09, 0.055],
+];
 
 type PopRelease = {
   linearVelocity: Vec3;
@@ -418,12 +444,18 @@ function resolvePopReleaseTuning(
 function pickRandomBalloonColorIndex(
   fallback: MaterialColorIndex,
 ): MaterialColorIndex {
-  const paletteSize = getActivePalette().colors.length;
+  const palette = getActivePalette();
+  const paletteSize = palette.colors.length;
   if (paletteSize <= 0) return fallback;
 
   const candidates: number[] = [];
   for (let i = 0; i < paletteSize; i += 1) {
-    if (!BALLOON_GROUP_SETTINGS.randomize.excludedColorIndices.includes(i)) {
+    const entry = palette.colors[i];
+    const normalizedBase = entry?.base?.trim().toLowerCase() ?? "";
+    if (
+      !BALLOON_GROUP_SETTINGS.randomize.excludedColorIndices.includes(i)
+      && !RESERVED_RANDOM_BALLOON_COLORS.has(normalizedBase)
+    ) {
       candidates.push(i);
     }
   }
@@ -440,8 +472,10 @@ function pickRandomBalloonColorIndex(
 export function BalloonGroup({
   detailLevel = "ultra",
   color = 8,
-  randomize = false,
+  randomizeColor = false,
+  randomizeDropType = false,
   dropType = "block",
+  lifeLossEnabled,
   paused = false,
   flowRole = "run_spawn",
   onPopped,
@@ -451,6 +485,8 @@ export function BalloonGroup({
   autoPopStaggerMs = 0,
   onRegisterCullZ,
   popReleaseTuning,
+  onSpawnItemHit,
+  itemMarker = "none",
   positionVelocity,
   randomPositionVelocity,
   positionRange,
@@ -472,15 +508,19 @@ export function BalloonGroup({
   const BalloonComponent = BALLOONS[detailLevel];
   const { camera } = useThree();
   const [popped, setPopped] = useState(false);
+  const [suppressPayload, setSuppressPayload] = useState(false);
+  const [popRelease, setPopRelease] = useState<PopRelease | null>(null);
+  const [initialRandomColor] = useState<MaterialColorIndex>(
+    () => pickRandomBalloonColorIndex(color),
+  );
+  const [initialRandomDropType] = useState<BalloonDropType>(
+    () => (Math.random() < 0.5 ? "block" : "ball"),
+  );
   const poppedRef = useRef(false);
   const motionRef = useRef<TransformMotionHandle | null>(null);
   const probeRef = useRef<THREE.Group | null>(null);
   const payloadRef = useRef<PositionTargetHandle | null>(null);
-  const popReleaseRef = useRef<PopRelease | null>(null);
-  const suppressPayloadRef = useRef(false);
   const feltPlayedRef = useRef(false);
-  const randomColorRef = useRef<MaterialColorIndex | null>(null);
-  const randomDropTypeRef = useRef<BalloonDropType | null>(null);
   const autoPopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAutoPopSignalRef = useRef(0);
@@ -498,26 +538,25 @@ export function BalloonGroup({
     : flowState !== "idle";
   const motionPaused = paused || popped || flowPaused;
   const showPopHitDebug = SETTINGS.debug.enabled;
-  if (randomize && randomColorRef.current === null) {
-    randomColorRef.current = pickRandomBalloonColorIndex(color);
-  }
-  if (randomize && randomDropTypeRef.current === null) {
-    randomDropTypeRef.current = Math.random() < 0.5 ? "block" : "ball";
-  }
-  const resolvedColor = randomize ? (randomColorRef.current ?? color) : color;
-  const resolvedDropType = randomize
-    ? (randomDropTypeRef.current ?? "block")
-    : dropType;
+  const configuredColor = color;
+  const configuredRandomizeColor = randomizeColor;
+  const configuredRandomizeDropType = randomizeDropType;
+  const configuredDropType = dropType;
+  const resolvedLifeLossEnabled = lifeLossEnabled ?? (flowRole === "run_spawn");
+  const resolvedColor = configuredRandomizeColor ? initialRandomColor : configuredColor;
+  const resolvedDropType = configuredRandomizeDropType
+    ? initialRandomDropType
+    : configuredDropType;
   const wrapConnectorY =
     resolvedDropType === "ball"
       ? BALL_WRAP_TOP_Y
       : BLOCK_WRAP_TOP_Y;
   const resolvedPositionVelocity = positionVelocity
-    ?? (randomize
+    ?? (configuredRandomizeColor
       ? { z: BALLOON_GROUP_SETTINGS.randomize.positionVelocityZBase }
       : { z: BALLOON_GROUP_SETTINGS.motion.positionVelocityZ });
   const resolvedRandomPositionVelocity = randomPositionVelocity
-    ?? (randomize ? { z: BALLOON_GROUP_SETTINGS.randomize.positionVelocityZAmplitude } : undefined);
+    ?? (configuredRandomizeColor ? { z: BALLOON_GROUP_SETTINGS.randomize.positionVelocityZAmplitude } : undefined);
 
   const getWorldXZ = useCallback(() => {
     if (poppedRef.current) {
@@ -551,8 +590,8 @@ export function BalloonGroup({
 
   const isPopped = useCallback(() => poppedRef.current, []);
   const isLifeLossEnabled = useCallback(
-    () => flowRole === "run_spawn",
-    [flowRole],
+    () => resolvedLifeLossEnabled,
+    [resolvedLifeLossEnabled],
   );
 
   const handleMissed = useCallback(() => {
@@ -566,7 +605,8 @@ export function BalloonGroup({
       if (poppedRef.current) return;
       poppedRef.current = true;
 
-      if (!popReleaseRef.current) {
+      let nextPopRelease = popRelease;
+      if (!nextPopRelease) {
         const snapshot = motionRef.current?.getVelocitySnapshot();
         const baseAngularVelocity = snapshot
           ? cloneVec3(snapshot.angularVelocity)
@@ -601,38 +641,48 @@ export function BalloonGroup({
         const spinDirection =
           normalizeVec3(scaledAngular) ?? FALLBACK_ANGULAR_DIRECTION;
 
-        popReleaseRef.current = {
+        nextPopRelease = {
           linearVelocity,
           angularVelocity: addVec3(
             scaledAngular,
             scaleVec3(spinDirection, tuning.spinBoost),
           ),
         };
+        setPopRelease(nextPopRelease);
       }
 
       const gameplayState = useGameplayStore.getState();
       if (flowRole === "idle_start") {
         gameplayState.startRunFromIdleTrigger();
       }
+      let popX = window.innerWidth * 0.5;
+      let popY = window.innerHeight * 0.5;
       if (getWorldPopCenter(popCenterWorld)) {
         popCenterNdc.copy(popCenterWorld).project(camera);
-        gameplayState.registerBalloonPopForCombo({
-          x: ((popCenterNdc.x + 1) / 2) * window.innerWidth,
-          y: ((-popCenterNdc.y + 1) / 2) * window.innerHeight,
-          timeMs: meta.sweepTimeMs,
-        });
+        popX = ((popCenterNdc.x + 1) / 2) * window.innerWidth;
+        popY = ((-popCenterNdc.y + 1) / 2) * window.innerHeight;
+      }
+
+      const hitEvent = {
+        x: popX,
+        y: popY,
+        timeMs: meta.sweepTimeMs,
+      };
+
+      if (onSpawnItemHit) {
+        onSpawnItemHit(hitEvent);
       } else {
         gameplayState.registerBalloonPopForCombo({
-          x: window.innerWidth * 0.5,
-          y: window.innerHeight * 0.5,
-          timeMs: meta.sweepTimeMs,
+          x: hitEvent.x,
+          y: hitEvent.y,
+          timeMs: hitEvent.timeMs,
         });
       }
       setPopped(true);
       playGameSound({ type: "balloon_pop" });
       onPopped?.();
     },
-    [camera, flowRole, flowState, getWorldPopCenter, onPopped, popCenterNdc, popCenterWorld, tuning],
+    [camera, flowRole, flowState, getWorldPopCenter, onPopped, onSpawnItemHit, popCenterNdc, popCenterWorld, popRelease, tuning],
   );
 
   const triggerAutoPop = useCallback(() => {
@@ -641,7 +691,7 @@ export function BalloonGroup({
     if (poppedRef.current) return;
 
     poppedRef.current = true;
-    suppressPayloadRef.current = true;
+    setSuppressPayload(true);
 
     if (getWorldPopCenter(popCenterWorld)) {
       popCenterNdc.copy(popCenterWorld).project(camera);
@@ -717,10 +767,6 @@ export function BalloonGroup({
       clearTimeout(autoPopTimerRef.current);
       autoPopTimerRef.current = null;
     }
-    if (delayMs === 0) {
-      triggerAutoPop();
-      return;
-    }
     autoPopTimerRef.current = setTimeout(() => {
       autoPopTimerRef.current = null;
       if (useGameplayStore.getState().flowState !== "game_over_travel") return;
@@ -752,15 +798,14 @@ export function BalloonGroup({
 
   useFrame(() => {
     if (!popped || feltPlayedRef.current) return;
-    if (suppressPayloadRef.current) return;
+    if (suppressPayload) return;
     const pos = payloadRef.current?.getPosition();
     if (pos && pos.y < 0.05) {
       feltPlayedRef.current = true;
       playGameSound({ type: "payload_landed" });
     }
   });
-  const popRelease = popReleaseRef.current;
-  const renderPayload = !popped || !suppressPayloadRef.current;
+  const renderPayload = !popped || !suppressPayload;
 
   return (
     <TransformMotion
@@ -778,8 +823,8 @@ export function BalloonGroup({
       rotationLoopMode={rotationLoopMode ?? BALLOON_GROUP_SETTINGS.motion.rotationLoopMode}
       rotationRange={rotationRange ?? BALLOON_GROUP_SETTINGS.motion.rotationRange}
       rotationRangeStart={rotationRangeStart ?? BALLOON_GROUP_SETTINGS.motion.rotationRangeStart}
-      rotationOffset={rotationOffset ?? (randomize ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetBase : undefined)}
-      randomRotationOffset={randomRotationOffset ?? (randomize ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetAmplitude : undefined)}
+      rotationOffset={rotationOffset ?? (configuredRandomizeColor ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetBase : undefined)}
+      randomRotationOffset={randomRotationOffset ?? (configuredRandomizeColor ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetAmplitude : undefined)}
       timeScale={timeScale ?? 1.5}
       timeScaleAcceleration={timeScaleAcceleration ?? SETTINGS.motionAcceleration.balloons.timeScaleAcceleration}
       timeScaleAccelerationCurve={timeScaleAccelerationCurve ?? SETTINGS.motionAcceleration.balloons.timeScaleAccelerationCurve}
@@ -797,6 +842,24 @@ export function BalloonGroup({
         {!popped ? (
           <>
             <BalloonComponent materialColor0={resolvedColor} />
+            {itemMarker === "hazard" ? (
+              <>
+                <SplineElement
+                  points={HAZARD_MARKER_POINTS_A}
+                  segments={1}
+                  curveType="linear"
+                  color="#ffffff"
+                  castShadow={false}
+                />
+                <SplineElement
+                  points={HAZARD_MARKER_POINTS_B}
+                  segments={1}
+                  curveType="linear"
+                  color="#ffffff"
+                  castShadow={false}
+                />
+              </>
+            ) : null}
             <SplineElement
               points={[
                 [0, 0, 0],

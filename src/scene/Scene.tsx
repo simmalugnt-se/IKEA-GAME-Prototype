@@ -160,7 +160,8 @@ export function Scene() {
                     key={`idle-balloon-${idleBalloonVersion}`}
                     flowRole="idle_start"
                     color={8}
-                    randomize={false}
+                    randomizeColor={false}
+                    randomizeDropType={false}
                     dropType="ball"
                     position={IDLE_BALLOON_TARGET_POSITION}
                     positionVelocity={{ z: IDLE_BALLOON_ENTRY_SPEED_Z }}
@@ -181,7 +182,12 @@ export function Scene() {
                 spawnMarkerRef={spawnMarkerRef}
                 cullMarkerRef={cullMarkerRef}
               >
-                <BalloonGroup randomize flowRole="run_spawn" position={[0, 2.3, 0]} />
+                <BalloonGroup
+                  randomizeColor
+                  randomizeDropType
+                  flowRole="run_spawn"
+                  position={[0, 2.3, 0]}
+                />
               </ItemSpawner>
 
 

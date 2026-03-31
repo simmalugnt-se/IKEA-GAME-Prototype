@@ -2,9 +2,14 @@ import { useEntityStore } from "@/entities/entityStore";
 import { getGameRunClockSeconds, isGameRunClockRunning } from "@/game/GameRunClock";
 import { useGameplayStore } from "@/gameplay/gameplayStore";
 import {
+  pickWeightedSpawnItemDefinition,
+  resolveSpawnItemDefinitionById,
+} from "@/gameplay/spawnItemSettings";
+import {
   useSpawnerStore,
   type SpawnedItemDescriptor,
 } from "@/gameplay/spawnerStore";
+import type { SpawnItemHitCallbackEvent } from "@/geometry/BalloonGroup";
 import type { PositionTargetHandle } from "@/scene/PositionTargetHandle";
 import { SETTINGS } from "@/settings/GameSettings";
 import { resolveAccelerationMultiplier } from "@/utils/accelerationCurve";
@@ -27,6 +32,27 @@ const GAME_OVER_AUTO_POP_STAGGER_MS = 60;
 
 type ZGetter = () => number | undefined;
 
+function countDefaultPoolItems(items: SpawnedItemDescriptor[]): number {
+  let count = 0;
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    if (item?.spawnItem.includeInDefaultPool === true) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function countItemsByItemId(items: SpawnedItemDescriptor[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (let i = 0; i < items.length; i += 1) {
+    const itemId = items[i]?.itemId;
+    if (!itemId) continue;
+    counts[itemId] = (counts[itemId] ?? 0) + 1;
+  }
+  return counts;
+}
+
 function SpawnedItemView({
   item,
   templates,
@@ -44,9 +70,35 @@ function SpawnedItemView({
 }) {
   if (templates.length === 0) return null;
   const template = templates[item.templateIndex % templates.length];
+  const handleSpawnItemHit = (event: SpawnItemHitCallbackEvent) => {
+    const gameplayState = useGameplayStore.getState();
+    if (item.spawnItem.scoreMode === "direct") {
+      gameplayState.applySpawnItemHitEffect({
+        scoreDelta: item.spawnItem.scoreDelta,
+        timeDeltaMs: item.spawnItem.timeDeltaMs,
+        x: event.x,
+        y: event.y,
+        feedbackText: item.spawnItem.feedbackText,
+      });
+      return;
+    }
+
+    gameplayState.registerBalloonPopForCombo({
+      x: event.x,
+      y: event.y,
+      timeMs: event.timeMs,
+    });
+  };
 
   return cloneElement(template as ReactElement<Record<string, unknown>>, {
     position: item.position,
+    color: item.spawnItem.color,
+    randomizeColor: item.spawnItem.randomizeColor,
+    randomizeDropType: item.spawnItem.randomizeDropType,
+    dropType: item.spawnItem.dropType,
+    lifeLossEnabled: item.spawnItem.lifeLossEnabled,
+    onSpawnItemHit: handleSpawnItemHit,
+    itemMarker: item.spawnItem.scoreMode === "direct" ? "hazard" : "none",
     onRegisterCullZ,
     onCleanupRequested,
     autoPopSignal,
@@ -70,6 +122,7 @@ export function ItemSpawner({
   const spawnIdRef = useRef(0);
   const cullGettersRef = useRef<Map<string, ZGetter>>(new Map());
   const previousFlowStateRef = useRef(flowState);
+  const autoPopSignalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoPopSignal, setAutoPopSignal] = useState(0);
 
   const templates = useMemo(() => {
@@ -81,6 +134,7 @@ export function ItemSpawner({
 
   const items = useSpawnerStore((state) => state.items);
   const addItem = useSpawnerStore((state) => state.addItem);
+  const consumeQueuedSpawns = useSpawnerStore((state) => state.consumeQueuedSpawns);
   const registerEntity = useEntityStore((state) => state.register);
 
   useEffect(() => {
@@ -97,7 +151,17 @@ export function ItemSpawner({
       return;
     }
 
-    setAutoPopSignal((signal) => signal + 1);
+    autoPopSignalTimerRef.current = setTimeout(() => {
+      autoPopSignalTimerRef.current = null;
+      setAutoPopSignal((signal) => signal + 1);
+    }, 0);
+
+    return () => {
+      if (autoPopSignalTimerRef.current !== null) {
+        clearTimeout(autoPopSignalTimerRef.current);
+        autoPopSignalTimerRef.current = null;
+      }
+    };
   }, [flowState]);
 
   const removeSpawnedItem = useCallback((id: string) => {
@@ -114,6 +178,8 @@ export function ItemSpawner({
       if (cfg.enabled && templates.length > 0) {
         const spawnPos = spawnMarkerRef.current?.getPosition();
         if (spawnPos) {
+          const spawnerState = useSpawnerStore.getState();
+          const totalActiveCount = spawnerState.activeCount;
           const spawnRateMultiplier = resolveAccelerationMultiplier(
             cfg.spawnAcceleration,
             cfg.spawnAccelerationCurve,
@@ -135,23 +201,66 @@ export function ItemSpawner({
               Math.round(cfg.maxItems * Math.max(0, maxItemsMultiplier)),
             ),
           );
+          const availableBonusSlots = Math.max(
+            0,
+            maxItemsCap - totalActiveCount,
+          );
+
+          if (availableBonusSlots > 0) {
+            const queuedSpawns = consumeQueuedSpawns(availableBonusSlots);
+            for (let i = 0; i < queuedSpawns.length; i += 1) {
+              const queuedSpawn = queuedSpawns[i];
+              const itemDefinition = resolveSpawnItemDefinitionById(queuedSpawn?.itemId);
+              if (!queuedSpawn || !itemDefinition) continue;
+
+              const spawnId = `spawn-${++spawnIdRef.current}`;
+              const added = addItem({
+                id: spawnId,
+                itemId: itemDefinition.id,
+                spawnItem: itemDefinition,
+                radius: cfg.radius,
+                templateIndex: Math.floor(Math.random() * templates.length),
+                position: [
+                  spawnPos.x + queuedSpawn.xOffset,
+                  SPAWN_HEIGHT + queuedSpawn.yOffset,
+                  spawnPos.z,
+                ],
+              }, maxItemsCap);
+              if (added) {
+                registerEntity(spawnId, "spawned_item");
+              }
+            }
+          }
 
           spawnTimerRef.current += delta;
-          while (
-            spawnTimerRef.current >= effectiveIntervalSec &&
-            useSpawnerStore.getState().activeCount < effectiveMaxItems
-          ) {
+          while (spawnTimerRef.current >= effectiveIntervalSec) {
+            const currentState = useSpawnerStore.getState();
+            const currentDefaultPoolCount = countDefaultPoolItems(currentState.items);
+            if (
+              currentDefaultPoolCount >= effectiveMaxItems
+              || currentState.activeCount >= maxItemsCap
+            ) {
+              break;
+            }
+
             spawnTimerRef.current -= effectiveIntervalSec;
+            const currentActiveCountsByItemId = countItemsByItemId(currentState.items);
+            const itemDefinition = pickWeightedSpawnItemDefinition(currentActiveCountsByItemId);
+            if (!itemDefinition) continue;
             const spawnXRange = Math.max(0, cfg.spawnXRange);
             const xOffset = cfg.spawnXRangeOffset + (Math.random() * 2 - 1) * spawnXRange;
             const itemId = `spawn-${++spawnIdRef.current}`;
-            addItem({
+            const added = addItem({
               id: itemId,
+              itemId: itemDefinition.id,
+              spawnItem: itemDefinition,
               radius: cfg.radius,
               templateIndex: Math.floor(Math.random() * templates.length),
               position: [spawnPos.x + xOffset, SPAWN_HEIGHT, spawnPos.z],
-            }, effectiveMaxItems);
-            registerEntity(itemId, "spawned_item");
+            }, maxItemsCap);
+            if (added) {
+              registerEntity(itemId, "spawned_item");
+            }
           }
         }
       }

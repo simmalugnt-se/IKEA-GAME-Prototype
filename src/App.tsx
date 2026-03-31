@@ -10,7 +10,9 @@ import { SETTINGS, getActiveBackground } from "@/settings/GameSettings";
 import { useSettingsVersion } from "@/settings/settingsStore";
 import { GltfConverter } from "@/tools/GltfConverter";
 import { DocsPage } from "@/ui/docs/DocsPage";
+import { CursorBenchmarkPage } from "@/ui/input/CursorBenchmarkPage";
 import { GameFlowOverlay } from "@/ui/GameFlowOverlay";
+import { CursorComparePage } from "@/ui/input/CursorComparePage";
 import { CursorSourcePage } from "@/ui/input/CursorSourcePage";
 import { ScoreboardPage } from "@/ui/scoreboard/ScoreboardPage";
 import { GameSettingsPanel } from "@/ui/settings/GameSettingsPanel";
@@ -23,6 +25,8 @@ export default function App() {
   const isDocs = window.location.pathname === "/docs";
   const isScoreboard = window.location.pathname === "/scoreboard";
   const isCursorSource = window.location.pathname === "/cursor-source";
+  const isCursorCompare = window.location.pathname === "/cursor-compare";
+  const isCursorBenchmark = window.location.pathname === "/cursor-benchmark";
 
   if (isConverter) {
     return <GltfConverter />;
@@ -38,6 +42,14 @@ export default function App() {
 
   if (isCursorSource) {
     return <CursorSourcePage />;
+  }
+
+  if (isCursorCompare) {
+    return <CursorComparePage />;
+  }
+
+  if (isCursorBenchmark) {
+    return <CursorBenchmarkPage />;
   }
 
   return <GameApp />;

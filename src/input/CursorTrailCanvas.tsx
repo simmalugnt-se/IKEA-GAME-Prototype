@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { tryPlaySwooshFromVelocity } from '@/audio/GameAudioRouter'
 import { SETTINGS } from '@/settings/GameSettings'
 import { submitMouseCursorSample } from '@/input/CursorInputRouter'
+import { getCursorSizeBoostScale } from '@/gameplay/gameplayStore'
 import {
   decayCursorVelocity,
   getCursorVelocityPx,
@@ -292,7 +293,8 @@ export function CursorTrailCanvas() {
       ctx.clearRect(0, 0, w, h)
 
       const smoothing = SETTINGS.cursor.trail.smoothing ?? 0.5
-      const lineWidth = SETTINGS.cursor.trail.lineWidth ?? 4
+      const cursorScale = getCursorSizeBoostScale(now)
+      const lineWidth = (SETTINGS.cursor.trail.lineWidth ?? 4) * cursorScale
       const color = SETTINGS.cursor.trail.color
 
       drawHistorySlot(
@@ -317,7 +319,9 @@ export function CursorTrailCanvas() {
       }
 
       const pointerRadiusPx = SETTINGS.cursor.pointerRadiusPx
-      const headRadius = Number.isFinite(pointerRadiusPx) ? Math.max(0, pointerRadiusPx) : 0
+      const headRadius = Number.isFinite(pointerRadiusPx)
+        ? Math.max(0, pointerRadiusPx) * cursorScale
+        : 0
       if (headRadius > 0) {
         ctx.fillStyle = color
         ctx.globalAlpha = 1

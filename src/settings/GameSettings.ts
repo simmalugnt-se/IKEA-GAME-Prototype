@@ -6,7 +6,10 @@ import type {
 } from "@/settings/GameSettings.types";
 import * as THREE from "three";
 
+export const HAZARD_BALLOON_COLOR_HEX = "#ffffff";
+
 export {
+  BALLOON_DROP_TYPES,
   CAMERA_MODES,
   CURSOR_INPUT_SOURCES,
   HIGH_SCORE_DATABASE_FALLBACK_MODES,
@@ -15,10 +18,14 @@ export {
   RENDER_STYLES,
   RUN_MODES,
   SMAA_PRESET_NAMES,
+  SPAWN_EVENT_ACTION_TYPES,
+  SPAWN_EVENT_TRIGGER_TYPES,
+  SPAWN_ITEM_SCORE_MODES,
 } from "@/settings/GameSettings.types";
 
 export type {
   AxisMask,
+  BalloonDropType,
   CameraMode,
   CursorInputSource,
   GameRunMode,
@@ -30,6 +37,13 @@ export type {
   RenderStyle,
   Settings,
   SMAAPresetName,
+  SpawnEventAction,
+  SpawnEventActionSpawnBurst,
+  SpawnEventRule,
+  SpawnEventTrigger,
+  SpawnEventTriggerComboMultiplier,
+  SpawnItemDefinition,
+  SpawnItemScoreMode,
   Vec3,
   WebSocketChannelSettings,
 } from "@/settings/GameSettings.types";
@@ -56,7 +70,7 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: true, // Master-toggle för allt debug
+    enabled: false, // Master-toggle för allt debug
     showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
     showStats: true, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
@@ -82,6 +96,7 @@ export const SETTINGS: Settings = {
           { base: "#558DCE" },
           { base: "#665747" },
           { base: "#FF2D19" },
+          { base: HAZARD_BALLOON_COLOR_HEX },
         ],
       },
       greyscale: {
@@ -98,6 +113,7 @@ export const SETTINGS: Settings = {
           { base: "#C96C05" },
           { base: "#BE0D64" },
           { base: "#A00003" },
+          { base: HAZARD_BALLOON_COLOR_HEX },
         ],
       },
       green: {
@@ -112,6 +128,7 @@ export const SETTINGS: Settings = {
           { base: "#003889" },
           { base: "#D2BE27" },
           { base: "#C96C05" },
+          { base: HAZARD_BALLOON_COLOR_HEX },
         ],
       },
       test1: {
@@ -126,6 +143,7 @@ export const SETTINGS: Settings = {
           { base: "#006B18" },
           { base: "#D2BE27" },
           { base: "#C96C05" },
+          { base: HAZARD_BALLOON_COLOR_HEX },
         ],
       },
       test2: {
@@ -140,6 +158,7 @@ export const SETTINGS: Settings = {
           { base: "#C96C05" },
           { base: "#669E10" },
           { base: "#006B18" },
+          { base: HAZARD_BALLOON_COLOR_HEX },
         ],
       },
       test3: {
@@ -154,6 +173,7 @@ export const SETTINGS: Settings = {
           { base: "#C96C05" },
           { base: "#669E10" },
           { base: "#006B18" },
+          { base: HAZARD_BALLOON_COLOR_HEX },
         ],
       },
     },
@@ -240,7 +260,7 @@ export const SETTINGS: Settings = {
     run: {
       mode: "time",
       timeLimitMs: 45000,
-      comboTimeBonusStepMs: 3000,
+      comboTimeBonusStepMs: 1000,
       timeBonusLerpMs: 500,
       pulseSlowStartMs: 10000,
       pulseFastStartMs: 5000,
@@ -274,13 +294,13 @@ export const SETTINGS: Settings = {
       popRelease: {
         linearSpeedMin: 0.02,
         linearSpeedMax: 3.8,
-        linearSpeedVelocityRangeMaxPx: 7500,
+        linearSpeedVelocityRangeMaxPx: 4500,
         curve: "exponential",
       },
       combo: {
         enabled: true,
-        strikeWindowMs: 400,
-        chainWindowMs: 1000,
+        strikeWindowMs: 250,
+        chainWindowMs: 750,
         chainBonusCap: 2,
       },
     },
@@ -318,8 +338,8 @@ export const SETTINGS: Settings = {
     speed: 0.5,
     speedVariance: 0.2,
     radius: 0,
-    maxItems: 60,
-    maxItemsCap: 120,
+    maxItems: 50,
+    maxItemsCap: 100,
     spawnXRange: 2,
     spawnXRangeOffset: 0.8,
     cullOffset: 6,
@@ -327,6 +347,92 @@ export const SETTINGS: Settings = {
     spawnAccelerationCurve: "exponential",
     maxItemsAcceleration: 0.003,
     maxItemsAccelerationCurve: "exponential",
+    itemDefinitions: [
+      {
+        id: "regular_balloon",
+        label: "Regular Balloon",
+        enabled: true,
+        includeInDefaultPool: true,
+        weight: 1,
+        color: 8,
+        randomizeColor: true,
+        randomizeDropType: true,
+        lifeLossEnabled: true,
+        scoreMode: "balloon_combo",
+        scoreDelta: 0,
+        timeDeltaMs: 0,
+      },
+      {
+        id: "hazard_balloon",
+        label: "Hazard Balloon",
+        enabled: true,
+        includeInDefaultPool: true,
+        weight: 0.1,
+        maxConcurrent: 2,
+        color: -1,
+        randomizeColor: false,
+        randomizeDropType: true,
+        lifeLossEnabled: false,
+        scoreMode: "direct",
+        scoreDelta: -500,
+        timeDeltaMs: -5000,
+        feedbackText: "BAD POP!",
+      },
+      {
+        id: "combo_cluster_balloon",
+        label: "Combo Cluster Balloon",
+        enabled: true,
+        includeInDefaultPool: false,
+        weight: 0,
+        color: 7,
+        randomizeColor: true,
+        randomizeDropType: true,
+        lifeLossEnabled: false,
+        scoreMode: "balloon_combo",
+        scoreDelta: 0,
+        timeDeltaMs: 0,
+      },
+    ],
+    eventRules: [
+      {
+        id: "combo_cluster_reward",
+        enabled: true,
+        trigger: {
+          type: "combo_multiplier",
+          minMultiplier: 3,
+          cooldownMs: 10000,
+        },
+        action: {
+          type: "spawn_burst",
+          layout: "bouquet",
+          spawnXOffset: 0,
+          spacingX: 0.42,
+          spacingY: 0.28,
+          randomXJitter: 0.04,
+          randomYJitter: 0.03,
+          entries: [
+            { itemId: "combo_cluster_balloon", count: 7 },
+          ],
+        },
+      },
+      {
+        id: "big_cursor_reward",
+        enabled: true,
+        trigger: {
+          type: "combo_multiplier",
+          minMultiplier: 4,
+          cooldownMs: 12000,
+        },
+        action: {
+          type: "cursor_size_boost",
+          scaleMultiplier: 3,
+          durationMs: 6000,
+          easeInMs: 350,
+          easeOutMs: 450,
+          feedbackText: "BIG CURSOR!",
+        },
+      },
+    ],
   },
 
   // --- MOTION ACCELERATION ---
@@ -361,7 +467,7 @@ export const SETTINGS: Settings = {
       maxAge: 0.25,
       color: "#ffffff",
       lineWidth: 3,
-      followSmoothing: 0.6,
+      followSmoothing: 0.7,
       smoothing: 0.25,
     },
   },

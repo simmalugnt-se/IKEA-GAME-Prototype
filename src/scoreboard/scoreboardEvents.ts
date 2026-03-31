@@ -1,6 +1,12 @@
 import type { GameRunMode, HighScoreStorageMode } from '@/settings/GameSettings.types'
 
-export type ScoreboardEventSource = 'balloon_pop' | 'balloon_combo' | 'contagion' | 'unknown'
+export type ScoreboardEventSource =
+  | 'balloon_pop'
+  | 'balloon_combo'
+  | 'contagion'
+  | 'spawn_item_bonus'
+  | 'spawn_item_penalty'
+  | 'unknown'
 
 export type ScoreboardLifeLossReason = 'balloon_missed' | 'unknown'
 

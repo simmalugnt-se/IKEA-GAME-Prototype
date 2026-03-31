@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useGameplayStore } from '@/gameplay/gameplayStore'
+import { getCursorSizeBoostScale, useGameplayStore } from '@/gameplay/gameplayStore'
 import {
   getLatestCursorSweepSeq,
   readCursorSweepSegment,
@@ -306,7 +306,10 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
           const y1Local = sweepSegment.y1 - canvasRect.top
 
           const hitPadRaw = SETTINGS.cursor.pointerRadiusPx
-          const hitPad = Number.isFinite(hitPadRaw) ? Math.max(0, hitPadRaw) : 0
+          const hitPadScale = getCursorSizeBoostScale(sweepSegment.timeMs)
+          const hitPad = Number.isFinite(hitPadRaw)
+            ? Math.max(0, hitPadRaw) * hitPadScale
+            : 0
 
           const segmentMinX = (x0Local < x1Local ? x0Local : x1Local) - hitPad
           const segmentMaxX = (x0Local > x1Local ? x0Local : x1Local) + hitPad

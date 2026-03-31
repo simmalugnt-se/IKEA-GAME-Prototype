@@ -31,6 +31,11 @@ export const CURSOR_INPUT_SOURCES = ['mouse', 'external'] as const
 export const RUN_MODES = ['lives', 'time'] as const
 export const HIGH_SCORE_STORAGE_MODES = ['local_storage', 'memory', 'database'] as const
 export const HIGH_SCORE_DATABASE_FALLBACK_MODES = ['local_storage', 'memory'] as const
+export const BALLOON_DROP_TYPES = ['block', 'ball'] as const
+export const SPAWN_ITEM_SCORE_MODES = ['balloon_combo', 'direct'] as const
+export const COMBO_BURST_LAYOUTS = ['line', 'bouquet'] as const
+export const SPAWN_EVENT_TRIGGER_TYPES = ['combo_multiplier'] as const
+export const SPAWN_EVENT_ACTION_TYPES = ['spawn_burst', 'cursor_size_boost'] as const
 
 export type PaletteVariantName = (typeof PALETTE_VARIANT_NAMES)[number]
 export type SMAAPresetName = (typeof SMAA_PRESET_NAMES)[number]
@@ -41,6 +46,11 @@ export type CursorInputSource = (typeof CURSOR_INPUT_SOURCES)[number]
 export type GameRunMode = (typeof RUN_MODES)[number]
 export type HighScoreStorageMode = (typeof HIGH_SCORE_STORAGE_MODES)[number]
 export type HighScoreDatabaseFallbackMode = (typeof HIGH_SCORE_DATABASE_FALLBACK_MODES)[number]
+export type BalloonDropType = (typeof BALLOON_DROP_TYPES)[number]
+export type SpawnItemScoreMode = (typeof SPAWN_ITEM_SCORE_MODES)[number]
+export type ComboBurstLayout = (typeof COMBO_BURST_LAYOUTS)[number]
+export type SpawnEventTriggerType = (typeof SPAWN_EVENT_TRIGGER_TYPES)[number]
+export type SpawnEventActionType = (typeof SPAWN_EVENT_ACTION_TYPES)[number]
 
 export type AxisMask = {
   x: boolean
@@ -52,6 +62,65 @@ export type WebSocketChannelSettings = {
   enabled: boolean
   url: string
   reconnectMs: number
+}
+
+export type SpawnItemDefinition = {
+  id: string
+  label: string
+  enabled: boolean
+  includeInDefaultPool: boolean
+  weight: number
+  maxConcurrent?: number
+  color: MaterialColorIndex
+  randomizeColor: boolean
+  randomizeDropType: boolean
+  dropType?: BalloonDropType
+  lifeLossEnabled: boolean
+  scoreMode: SpawnItemScoreMode
+  scoreDelta: number
+  timeDeltaMs: number
+  feedbackText?: string
+}
+
+export type ComboBurstRuleEntry = {
+  itemId: string
+  count: number
+}
+
+export type SpawnEventTriggerComboMultiplier = {
+  type: 'combo_multiplier'
+  minMultiplier: number
+  cooldownMs: number
+}
+
+export type SpawnEventActionSpawnBurst = {
+  type: 'spawn_burst'
+  layout: ComboBurstLayout
+  spawnXOffset: number
+  spacingX: number
+  spacingY: number
+  randomXJitter: number
+  randomYJitter: number
+  entries: ComboBurstRuleEntry[]
+}
+
+export type SpawnEventActionCursorSizeBoost = {
+  type: 'cursor_size_boost'
+  scaleMultiplier: number
+  durationMs: number
+  easeInMs: number
+  easeOutMs: number
+  feedbackText?: string
+}
+
+export type SpawnEventTrigger = SpawnEventTriggerComboMultiplier
+export type SpawnEventAction = SpawnEventActionSpawnBurst | SpawnEventActionCursorSizeBoost
+
+export type SpawnEventRule = {
+  id: string
+  enabled: boolean
+  trigger: SpawnEventTrigger
+  action: SpawnEventAction
 }
 
 export type Settings = {
@@ -224,6 +293,8 @@ export type Settings = {
     spawnXRangeOffset: number
     /** Units past the cull line before the item is actually removed */
     cullOffset: number
+    itemDefinitions: SpawnItemDefinition[]
+    eventRules: SpawnEventRule[]
   }
   motionAcceleration: {
     cameraTracker: {
