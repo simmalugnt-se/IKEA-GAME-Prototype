@@ -28,7 +28,7 @@ import {
   type MaterialColorIndex,
   type Vec3,
 } from "@/settings/GameSettings";
-import { createPortal, useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -299,38 +299,33 @@ const RESERVED_RANDOM_BALLOON_COLORS = new Set([
   "#d9b5a3",
 ]);
 const HAZARD_MARKER_POINTS_A: [number, number, number][] = [
-  [-0.11, 0.235, 0.105],
-  [0.11, 0.09, 0.105],
+  [-0.09, 0.3, -0.09],
+  [0.09, 0.3, 0.09],
 ];
 const HAZARD_MARKER_POINTS_B: [number, number, number][] = [
-  [0.11, 0.235, 0.105],
-  [-0.11, 0.09, 0.105],
+  [0.09, 0.3, -0.09],
+  [-0.09, 0.3, 0.09],
 ];
 const BONUS_MARKER_POINTS_VERTICAL: [number, number, number][] = [
-  [0, 0.255, 0.06],
-  [0, 0.07, 0.06],
+  [0, 0.302, -0.105],
+  [0, 0.302, 0.105],
 ];
 const BONUS_MARKER_POINTS_HORIZONTAL: [number, number, number][] = [
-  [-0.09, 0.162, 0.06],
-  [0.09, 0.162, 0.06],
+  [-0.105, 0.302, 0],
+  [0.105, 0.302, 0],
 ];
 const BONUS_MARKER_POINTS_DIAGONAL_A: [number, number, number][] = [
-  [-0.064, 0.226, 0.06],
-  [0.064, 0.098, 0.06],
+  [-0.074, 0.302, -0.074],
+  [0.074, 0.302, 0.074],
 ];
 const BONUS_MARKER_POINTS_DIAGONAL_B: [number, number, number][] = [
-  [0.064, 0.226, 0.06],
-  [-0.064, 0.098, 0.06],
+  [0.074, 0.302, -0.074],
+  [-0.074, 0.302, 0.074],
 ];
 
 type PopRelease = {
   linearVelocity: Vec3;
   angularVelocity: Vec3;
-};
-
-type DetachedPayloadTransform = {
-  position: Vec3;
-  rotation: Vec3;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -529,11 +524,10 @@ export function BalloonGroup({
   ...transformMotionProps
 }: BalloonGroupProps) {
   const BalloonComponent = BALLOONS[detailLevel];
-  const { camera, scene } = useThree();
+  const { camera } = useThree();
   const [popped, setPopped] = useState(false);
   const [suppressPayload, setSuppressPayload] = useState(false);
   const [popRelease, setPopRelease] = useState<PopRelease | null>(null);
-  const [detachedPayloadTransform, setDetachedPayloadTransform] = useState<DetachedPayloadTransform | null>(null);
   const [initialRandomColor] = useState<MaterialColorIndex>(
     () => pickRandomBalloonColorIndex(color),
   );
@@ -549,9 +543,6 @@ export function BalloonGroup({
   const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAutoPopSignalRef = useRef(0);
   const probeWorld = useMemo(() => new THREE.Vector3(), []);
-  const payloadWorld = useMemo(() => new THREE.Vector3(), []);
-  const payloadWorldQuaternion = useMemo(() => new THREE.Quaternion(), []);
-  const payloadWorldEuler = useMemo(() => new THREE.Euler(), []);
   const popCenterWorld = useMemo(() => new THREE.Vector3(), []);
   const popCenterNdc = useMemo(() => new THREE.Vector3(), []);
   const lifecycleRegistry = useBalloonLifecycleRegistry();
@@ -629,42 +620,12 @@ export function BalloonGroup({
     onMissed?.();
   }, [onMissed]);
 
-  const captureDetachedPayloadTransform = useCallback((): DetachedPayloadTransform | null => {
-    const probe = probeRef.current;
-    if (!probe) return null;
-
-    const localPayloadPosition = resolvedDropType === "ball"
-      ? BALLOON_GROUP_SETTINGS.payload.ball.position
-      : BALLOON_GROUP_SETTINGS.payload.block.position;
-
-    payloadWorld.set(
-      localPayloadPosition[0],
-      localPayloadPosition[1],
-      localPayloadPosition[2],
-    );
-    probe.localToWorld(payloadWorld);
-    probe.getWorldQuaternion(payloadWorldQuaternion);
-    payloadWorldEuler.setFromQuaternion(payloadWorldQuaternion, "XYZ");
-
-    return {
-      position: [payloadWorld.x, payloadWorld.y, payloadWorld.z],
-      rotation: resolvedDropType === "ball"
-        ? [0, 0, 0]
-        : [
-          THREE.MathUtils.radToDeg(payloadWorldEuler.x),
-          THREE.MathUtils.radToDeg(payloadWorldEuler.y),
-          THREE.MathUtils.radToDeg(payloadWorldEuler.z),
-        ],
-    };
-  }, [payloadWorld, payloadWorldEuler, payloadWorldQuaternion, resolvedDropType]);
-
   const triggerPop = useCallback(
     (meta: BalloonLifecyclePopMeta) => {
       if (flowRole === "run_spawn" && flowState !== "run") return;
       if (flowRole === "idle_start" && flowState !== "idle") return;
       if (poppedRef.current) return;
       poppedRef.current = true;
-      setDetachedPayloadTransform(captureDetachedPayloadTransform());
 
       let nextPopRelease = popRelease;
       if (!nextPopRelease) {
@@ -743,7 +704,7 @@ export function BalloonGroup({
       playGameSound({ type: "balloon_pop" });
       onPopped?.();
     },
-    [camera, captureDetachedPayloadTransform, flowRole, flowState, getWorldPopCenter, onPopped, onSpawnItemHit, popCenterNdc, popCenterWorld, popRelease, tuning],
+    [camera, flowRole, flowState, getWorldPopCenter, onPopped, onSpawnItemHit, popCenterNdc, popCenterWorld, popRelease, tuning],
   );
 
   const triggerAutoPop = useCallback(() => {
@@ -868,14 +829,12 @@ export function BalloonGroup({
       playGameSound({ type: "payload_landed" });
     }
   });
-  const renderDetachedPayload = popped && !suppressPayload && detachedPayloadTransform !== null;
-  const renderPayload = !popped || (!suppressPayload && detachedPayloadTransform === null);
+  const renderPayload = !popped || !suppressPayload;
 
   const payloadElement = resolvedDropType === "ball" ? (
     <BallElement
       ref={payloadRef}
-      position={renderDetachedPayload ? detachedPayloadTransform.position : BALLOON_GROUP_SETTINGS.payload.ball.position}
-      rotation={renderDetachedPayload ? detachedPayloadTransform.rotation : undefined}
+      position={BALLOON_GROUP_SETTINGS.payload.ball.position}
       sizePreset={BALLOON_GROUP_SETTINGS.payload.ball.sizePreset}
       color={resolvedColor}
       align={BALLOON_GROUP_SETTINGS.payload.ball.align}
@@ -900,8 +859,7 @@ export function BalloonGroup({
   ) : (
     <BlockElement
       ref={payloadRef}
-      position={renderDetachedPayload ? detachedPayloadTransform.position : BALLOON_GROUP_SETTINGS.payload.block.position}
-      rotation={renderDetachedPayload ? detachedPayloadTransform.rotation : undefined}
+      position={BALLOON_GROUP_SETTINGS.payload.block.position}
       sizePreset={BALLOON_GROUP_SETTINGS.payload.block.sizePreset}
       heightPreset={BALLOON_GROUP_SETTINGS.payload.block.heightPreset}
       color={resolvedColor}
@@ -1042,7 +1000,6 @@ export function BalloonGroup({
           {renderPayload ? payloadElement : null}
         </group>
       </TransformMotion>
-      {renderDetachedPayload ? createPortal(payloadElement, scene) : null}
     </>
   );
 }

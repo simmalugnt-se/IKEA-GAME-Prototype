@@ -518,6 +518,7 @@ export const SETTINGS: Settings = {
         trigger: {
           type: "combo_multiplier",
           minMultiplier: 4,
+          maxMultiplier: 4,
           cooldownMs: 10000,
         },
         action: {
@@ -546,7 +547,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 4,
+          minMultiplier: 5,
           cooldownMs: 10000,
         },
         action: {
@@ -583,11 +584,11 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "mouse", // "mouse" or "external"
+    inputSource: "external", // "mouse" or "external"
     minPopVelocity: 300,
     pointerRadiusPx: 12,
     external: {
-      enabled: false,
+      enabled: true,
       websocket: {
         // url: "ws://127.0.0.1:5173/ws/cursor",
         // url: "ws://localhost:5173/ws/cursor",
