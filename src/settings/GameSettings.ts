@@ -78,7 +78,7 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: true, // Master-toggle för allt debug
+    enabled: false, // Master-toggle för allt debug
     showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
     showStats: false, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
@@ -556,7 +556,7 @@ export const SETTINGS: Settings = {
           colorIndex: 5,
           entrySides: ["left", "right"],
           radius: 0.18,
-          length: 3.5,
+          length: 4.5,
           spanPadding: 2.6,
           spawnPadding: 1.4,
           speed: 4.5,
