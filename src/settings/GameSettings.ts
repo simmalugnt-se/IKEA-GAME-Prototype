@@ -269,7 +269,7 @@ export const SETTINGS: Settings = {
       mode: "time",
       timeLimitMs: 45000,
       comboTimeBonusStepMs: 1000,
-      popStreakTimeBonusEveryPops: 10,
+      popStreakTimeBonusEveryPops: 15,
       popStreakTimeBonusMs: 3000,
       timeBonusLerpMs: 500,
       pulseSlowStartMs: 10000,
@@ -302,9 +302,9 @@ export const SETTINGS: Settings = {
         cleanupMargin: 0.35,
       },
       popRelease: {
-        linearSpeedMin: 0.02,
-        linearSpeedMax: 3.8,
-        linearSpeedVelocityRangeMaxPx: 4500,
+        linearSpeedMin: 0.12,
+        linearSpeedMax: 4.4,
+        linearSpeedVelocityRangeMaxPx: 3200,
         curve: "exponential",
       },
       combo: {
@@ -494,8 +494,8 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "pop_streak_without_miss",
-          requiredPops: 10,
-          cooldownMs: 8000,
+          requiredPops: 15,
+          cooldownMs: 10000,
         },
         action: {
           type: "cursor_burst_ring",
@@ -505,7 +505,7 @@ export const SETTINGS: Settings = {
           rotationSpeedDeg: 0,
           burstIntervalMs: 90,
           travelSpeedPx: 900,
-          durationMs: 5000,
+          durationMs: 3000,
           easeInMs: 250,
           easeOutMs: 350,
           feedbackText: "BURST!",
@@ -585,7 +585,7 @@ export const SETTINGS: Settings = {
   // --- CURSOR ---
   cursor: {
     inputSource: "external", // "mouse" or "external"
-    minPopVelocity: 300,
+    minPopVelocity: 220,
     pointerRadiusPx: 12,
     external: {
       enabled: true,

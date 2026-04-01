@@ -93,7 +93,7 @@ function GameApp() {
         width: "100vw",
         height: "100vh",
         background: backgroundColor,
-        cursor: "none",
+        cursor: SETTINGS.cursor.inputSource === "external" ? "default" : "none",
       }}
     >
       <UiStyleVarsRuntime />
