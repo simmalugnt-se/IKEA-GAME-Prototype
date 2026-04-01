@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { tryPlaySwooshFromVelocity } from '@/audio/GameAudioRouter'
 import { SETTINGS } from '@/settings/GameSettings'
 import { submitMouseCursorSample } from '@/input/CursorInputRouter'
-import { getCursorSizeBoostScale } from '@/gameplay/gameplayStore'
+import { getCursorBurstRingSample, getCursorSizeBoostScale } from '@/gameplay/gameplayStore'
 import {
   decayCursorVelocity,
   getCursorVelocityPx,
@@ -322,6 +322,7 @@ export function CursorTrailCanvas() {
       const headRadius = Number.isFinite(pointerRadiusPx)
         ? Math.max(0, pointerRadiusPx) * cursorScale
         : 0
+      const burstSample = getCursorBurstRingSample(now)
       if (headRadius > 0) {
         ctx.fillStyle = color
         ctx.globalAlpha = 1
@@ -334,6 +335,33 @@ export function CursorTrailCanvas() {
         drawHead(0, pointerRenderState0)
         if (inputSource === 'external') {
           drawHead(1, pointerRenderState1)
+        }
+      }
+
+      if (burstSample && burstSample.probeRadiusPx > 0 && burstSample.waves.length > 0) {
+        const drawBurst = (slot: 0 | 1, out: CursorPointerRenderState, active: boolean) => {
+          if (!active) return
+          const step = (Math.PI * 2) / burstSample.probeCount
+          const pointerPhase = slot * step * 0.5
+          ctx.fillStyle = color
+          for (let waveIndex = 0; waveIndex < burstSample.waves.length; waveIndex += 1) {
+            const wave = burstSample.waves[waveIndex]
+            if (!wave || !(wave.alpha > 0) || !(wave.radiusPx > 0)) continue
+            ctx.globalAlpha = Math.max(0.12, wave.alpha * 0.85)
+            for (let probeIndex = 0; probeIndex < burstSample.probeCount; probeIndex += 1) {
+              const angle = wave.rotationRadians + pointerPhase + probeIndex * step
+              const x = out.x + Math.cos(angle) * wave.radiusPx
+              const y = out.y + Math.sin(angle) * wave.radiusPx
+              ctx.beginPath()
+              ctx.arc(x, y, burstSample.probeRadiusPx, 0, Math.PI * 2)
+              ctx.fill()
+            }
+          }
+        }
+
+        drawBurst(0, pointerRenderState0, pointer0Active)
+        if (inputSource === 'external') {
+          drawBurst(1, pointerRenderState1, pointer1Active)
         }
       }
     }

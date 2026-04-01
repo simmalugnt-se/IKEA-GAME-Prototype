@@ -2,6 +2,8 @@ import { BalloonLifecycleRuntime } from "@/gameplay/BalloonLifecycleRuntime";
 import { CameraSystemProvider } from "@/camera/CameraSystem";
 import { GameMusicDirector } from "@/audio/GameMusicDirector";
 import { ContagionRuntime } from "@/gameplay/ContagionRuntime";
+import { GroundBallWaveRuntime } from "@/gameplay/GroundBallWaveRuntime";
+import { TrackSweeperRuntime } from "@/gameplay/TrackSweeperRuntime";
 import { useGameplayStore } from "@/gameplay/gameplayStore";
 import { ItemSpawner } from "@/gameplay/ItemSpawner";
 import { LevelTileManager } from "@/levels/LevelTileManager";
@@ -122,6 +124,8 @@ export function Scene() {
       >
         <GameRunClockRuntime />
         <ContagionRuntime />
+        <GroundBallWaveRuntime />
+        <TrackSweeperRuntime />
         <GameEffects />
         <GameLights lightRef={directionalLightRef} />
         <CameraSystemProvider

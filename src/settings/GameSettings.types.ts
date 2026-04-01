@@ -32,10 +32,14 @@ export const RUN_MODES = ['lives', 'time'] as const
 export const HIGH_SCORE_STORAGE_MODES = ['local_storage', 'memory', 'database'] as const
 export const HIGH_SCORE_DATABASE_FALLBACK_MODES = ['local_storage', 'memory'] as const
 export const BALLOON_DROP_TYPES = ['block', 'ball'] as const
+export const SPAWN_ITEM_MARKERS = ['none', 'hazard', 'bonus'] as const
 export const SPAWN_ITEM_SCORE_MODES = ['balloon_combo', 'direct'] as const
 export const COMBO_BURST_LAYOUTS = ['line', 'bouquet'] as const
-export const SPAWN_EVENT_TRIGGER_TYPES = ['combo_multiplier'] as const
-export const SPAWN_EVENT_ACTION_TYPES = ['spawn_burst', 'cursor_size_boost'] as const
+export const SPAWN_EVENT_TRIGGER_TYPES = ['combo_multiplier', 'pop_streak_without_miss'] as const
+export const SPAWN_EVENT_ACTION_TYPES = ['spawn_burst', 'cursor_size_boost', 'spawn_ground_ball_wave', 'spawn_track_sweeper', 'cursor_burst_ring'] as const
+export const SPAWN_EVENT_SELECTION_MODES = ['all', 'one_random'] as const
+export const SPAWN_EVENT_BALL_SIZE_PRESETS = ['lg', 'md', 'sm', 'xs'] as const
+export const GROUND_BALL_ENTRY_SIDES = ['top', 'right', 'bottom', 'left'] as const
 
 export type PaletteVariantName = (typeof PALETTE_VARIANT_NAMES)[number]
 export type SMAAPresetName = (typeof SMAA_PRESET_NAMES)[number]
@@ -47,10 +51,14 @@ export type GameRunMode = (typeof RUN_MODES)[number]
 export type HighScoreStorageMode = (typeof HIGH_SCORE_STORAGE_MODES)[number]
 export type HighScoreDatabaseFallbackMode = (typeof HIGH_SCORE_DATABASE_FALLBACK_MODES)[number]
 export type BalloonDropType = (typeof BALLOON_DROP_TYPES)[number]
+export type SpawnItemMarker = (typeof SPAWN_ITEM_MARKERS)[number]
 export type SpawnItemScoreMode = (typeof SPAWN_ITEM_SCORE_MODES)[number]
 export type ComboBurstLayout = (typeof COMBO_BURST_LAYOUTS)[number]
 export type SpawnEventTriggerType = (typeof SPAWN_EVENT_TRIGGER_TYPES)[number]
 export type SpawnEventActionType = (typeof SPAWN_EVENT_ACTION_TYPES)[number]
+export type SpawnEventSelectionMode = (typeof SPAWN_EVENT_SELECTION_MODES)[number]
+export type SpawnEventBallSizePreset = (typeof SPAWN_EVENT_BALL_SIZE_PRESETS)[number]
+export type GroundBallEntrySide = (typeof GROUND_BALL_ENTRY_SIDES)[number]
 
 export type AxisMask = {
   x: boolean
@@ -70,7 +78,15 @@ export type SpawnItemDefinition = {
   enabled: boolean
   includeInDefaultPool: boolean
   weight: number
+  weightAcceleration?: number
+  weightAccelerationCurve?: AccelerationCurveName
+  weightMaxMultiplier?: number
   maxConcurrent?: number
+  maxConcurrentAcceleration?: number
+  maxConcurrentAccelerationCurve?: AccelerationCurveName
+  maxConcurrentCap?: number
+  canTriggerSpawnEvents?: boolean
+  itemMarker?: SpawnItemMarker
   color: MaterialColorIndex
   randomizeColor: boolean
   randomizeDropType: boolean
@@ -80,6 +96,7 @@ export type SpawnItemDefinition = {
   scoreDelta: number
   timeDeltaMs: number
   feedbackText?: string
+  triggerEventRuleId?: string
 }
 
 export type ComboBurstRuleEntry = {
@@ -90,6 +107,13 @@ export type ComboBurstRuleEntry = {
 export type SpawnEventTriggerComboMultiplier = {
   type: 'combo_multiplier'
   minMultiplier: number
+  maxMultiplier?: number
+  cooldownMs: number
+}
+
+export type SpawnEventTriggerPopStreakWithoutMiss = {
+  type: 'pop_streak_without_miss'
+  requiredPops: number
   cooldownMs: number
 }
 
@@ -113,12 +137,71 @@ export type SpawnEventActionCursorSizeBoost = {
   feedbackText?: string
 }
 
-export type SpawnEventTrigger = SpawnEventTriggerComboMultiplier
-export type SpawnEventAction = SpawnEventActionSpawnBurst | SpawnEventActionCursorSizeBoost
+export type SpawnEventActionGroundBallWave = {
+  type: 'spawn_ground_ball_wave'
+  count: number
+  ballSizePreset: SpawnEventBallSizePreset
+  colorIndices: MaterialColorIndex[]
+  entrySides: GroundBallEntrySide[]
+  edgeInset: number
+  spawnPadding: number
+  speed: number
+  speedJitter: number
+  angleJitterDeg: number
+  mass?: number
+  friction?: number
+  restitution?: number
+  linearDamping?: number
+  angularDamping?: number
+  lifetimeMs: number
+  feedbackText?: string
+}
+
+export type SpawnEventActionTrackSweeper = {
+  type: 'spawn_track_sweeper'
+  colorIndex: MaterialColorIndex
+  entrySides: GroundBallEntrySide[]
+  radius: number
+  spanPadding: number
+  spawnPadding: number
+  speed: number
+  rollAngularSpeedMultiplier: number
+  friction?: number
+  restitution?: number
+  linearDamping?: number
+  angularDamping?: number
+  lifetimeMs: number
+  feedbackText?: string
+}
+
+export type SpawnEventActionCursorBurstRing = {
+  type: 'cursor_burst_ring'
+  probeCount: number
+  orbitRadiusPx: number
+  probeRadiusPx: number
+  rotationSpeedDeg: number
+  burstIntervalMs?: number
+  travelSpeedPx?: number
+  durationMs: number
+  easeInMs: number
+  easeOutMs: number
+  feedbackText?: string
+}
+
+export type SpawnEventTrigger =
+  | SpawnEventTriggerComboMultiplier
+  | SpawnEventTriggerPopStreakWithoutMiss
+export type SpawnEventAction =
+  | SpawnEventActionSpawnBurst
+  | SpawnEventActionCursorSizeBoost
+  | SpawnEventActionGroundBallWave
+  | SpawnEventActionTrackSweeper
+  | SpawnEventActionCursorBurstRing
 
 export type SpawnEventRule = {
   id: string
   enabled: boolean
+  selectionWeight?: number
   trigger: SpawnEventTrigger
   action: SpawnEventAction
 }
@@ -214,6 +297,8 @@ export type Settings = {
       mode: GameRunMode
       timeLimitMs: number
       comboTimeBonusStepMs: number
+      popStreakTimeBonusEveryPops: number
+      popStreakTimeBonusMs: number
       timeBonusLerpMs: number
       pulseSlowStartMs: number
       pulseFastStartMs: number
@@ -293,6 +378,10 @@ export type Settings = {
     spawnXRangeOffset: number
     /** Units past the cull line before the item is actually removed */
     cullOffset: number
+    eventSelectionMode: SpawnEventSelectionMode
+    eventQueueEnabled: boolean
+    eventQueueGapMs: number
+    eventQueueMaxLength: number
     itemDefinitions: SpawnItemDefinition[]
     eventRules: SpawnEventRule[]
   }

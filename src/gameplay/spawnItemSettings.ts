@@ -4,6 +4,7 @@ import type {
   SpawnEventRule,
   SpawnItemDefinition,
 } from '@/settings/GameSettings.types'
+import { resolveAccelerationMultiplier } from '@/utils/accelerationCurve'
 
 export type QueuedSpawnRequest = {
   itemId: string
@@ -18,6 +19,16 @@ function normalizeId(value: string | undefined): string {
 function normalizeWeight(value: number | undefined): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 0
   return Math.max(0, value)
+}
+
+function normalizeWeightMaxMultiplier(value: number | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return Math.max(0, value)
+}
+
+function normalizeConcurrentCap(value: number | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return Math.max(0, Math.trunc(value))
 }
 
 function normalizeCount(value: number | undefined): number {
@@ -47,7 +58,6 @@ export function getDefaultSpawnItemPool(): SpawnItemDefinition[] {
   return getSpawnItemDefinitions().filter((definition) => (
     definition.enabled === true
     && definition.includeInDefaultPool === true
-    && normalizeWeight(definition.weight) > 0
   ))
 }
 
@@ -56,18 +66,65 @@ function normalizeMaxConcurrent(value: number | undefined): number | null {
   return Math.max(0, Math.trunc(value))
 }
 
-export function pickWeightedSpawnItemDefinition(activeCountsByItemId: Record<string, number> = {}): SpawnItemDefinition | null {
+export function resolveSpawnItemMaxConcurrent(
+  definition: SpawnItemDefinition,
+  runSeconds = 0,
+): number | null {
+  const baseMaxConcurrent = normalizeMaxConcurrent(definition.maxConcurrent)
+  if (baseMaxConcurrent === null) return null
+
+  const concurrentMultiplier = resolveAccelerationMultiplier(
+    typeof definition.maxConcurrentAcceleration === 'number' ? definition.maxConcurrentAcceleration : 0,
+    definition.maxConcurrentAccelerationCurve ?? 'linear',
+    runSeconds,
+  )
+  const scaledMaxConcurrent = Math.max(
+    baseMaxConcurrent,
+    Math.round(baseMaxConcurrent * Math.max(0, concurrentMultiplier)),
+  )
+  const concurrentCap = normalizeConcurrentCap(definition.maxConcurrentCap)
+  return concurrentCap === null
+    ? scaledMaxConcurrent
+    : Math.min(scaledMaxConcurrent, concurrentCap)
+}
+
+export function resolveSpawnItemWeight(
+  definition: SpawnItemDefinition,
+  runSeconds = 0,
+): number {
+  const baseWeight = normalizeWeight(definition.weight)
+  if (!(baseWeight > 0)) return 0
+
+  const weightMultiplier = resolveAccelerationMultiplier(
+    typeof definition.weightAcceleration === 'number' ? definition.weightAcceleration : 0,
+    definition.weightAccelerationCurve ?? 'linear',
+    runSeconds,
+  )
+  const weightMaxMultiplier = normalizeWeightMaxMultiplier(definition.weightMaxMultiplier)
+  const clampedMultiplier = weightMaxMultiplier === null
+    ? weightMultiplier
+    : Math.min(weightMultiplier, weightMaxMultiplier)
+
+  return baseWeight * Math.max(0, clampedMultiplier)
+}
+
+export function pickWeightedSpawnItemDefinition(
+  activeCountsByItemId: Record<string, number> = {},
+  runSeconds = 0,
+): SpawnItemDefinition | null {
   const pool = getDefaultSpawnItemPool().filter((definition) => {
-    const maxConcurrent = normalizeMaxConcurrent(definition.maxConcurrent)
+    const maxConcurrent = resolveSpawnItemMaxConcurrent(definition, runSeconds)
     if (maxConcurrent === null) return true
     const activeCount = Math.max(0, Math.trunc(activeCountsByItemId[definition.id] ?? 0))
     return activeCount < maxConcurrent
-  })
+  }).filter((definition) => resolveSpawnItemWeight(definition, runSeconds) > 0)
   if (pool.length <= 0) return null
 
   let totalWeight = 0
   for (let i = 0; i < pool.length; i += 1) {
-    totalWeight += normalizeWeight(pool[i]?.weight)
+    const definition = pool[i]
+    if (!definition) continue
+    totalWeight += resolveSpawnItemWeight(definition, runSeconds)
   }
   if (!(totalWeight > 0)) return null
 
@@ -75,7 +132,7 @@ export function pickWeightedSpawnItemDefinition(activeCountsByItemId: Record<str
   for (let i = 0; i < pool.length; i += 1) {
     const definition = pool[i]
     if (!definition) continue
-    remaining -= normalizeWeight(definition.weight)
+    remaining -= resolveSpawnItemWeight(definition, runSeconds)
     if (remaining <= 0) return definition
   }
 

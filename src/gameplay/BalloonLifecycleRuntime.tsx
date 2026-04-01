@@ -8,10 +8,12 @@ import {
   type ReactNode,
 } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { getCursorSizeBoostScale, useGameplayStore } from '@/gameplay/gameplayStore'
+import { getCursorBurstRingSample, getCursorSizeBoostScale, useGameplayStore } from '@/gameplay/gameplayStore'
 import {
   getLatestCursorSweepSeq,
+  readCursorPointerRenderState,
   readCursorSweepSegment,
+  type CursorPointerRenderState,
   type CursorSweepSegment,
 } from '@/input/cursorVelocity'
 import {
@@ -40,6 +42,7 @@ export type BalloonLifecycleTarget = {
   getWorldPopRadiusX: () => number
   getWorldPopRadiusY: () => number
   isLifeLossEnabled: () => boolean
+  isBurstImmune: () => boolean
   requestPop: (meta: BalloonLifecyclePopMeta) => void
   isPopped: () => boolean
   onMissed: () => void
@@ -158,6 +161,22 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
     cursorSpeedPx: 0,
     sweepTimeMs: 0,
   })
+  const pointerRenderScratchRef = useRef<[CursorPointerRenderState, CursorPointerRenderState]>([
+    {
+      slot: 0,
+      active: false,
+      x: 0,
+      y: 0,
+      velocityPx: 0,
+    },
+    {
+      slot: 1,
+      active: false,
+      x: 0,
+      y: 0,
+      velocityPx: 0,
+    },
+  ])
   const frozenScreenRightOnFloorRef = useRef({ x: 0, z: 0 })
   const frozenScreenUpOnFloorRef = useRef({ x: 0, z: 0 })
   const frozenMappingReadyRef = useRef(false)
@@ -236,6 +255,9 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
 
       if (pastLife) {
         entry.missApplied = true
+        if (entry.target.isLifeLossEnabled()) {
+          useGameplayStore.getState().registerBalloonMissForSpawnEventStreak()
+        }
         const allowLifeLoss = flowState === 'run' && runMode === 'lives' && entry.target.isLifeLossEnabled()
         if (allowLifeLoss && lifeLoss > 0) loseLives(lifeLoss, 'balloon_missed')
         missQueue.push(entry.target.onMissed)
@@ -310,6 +332,7 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
           const hitPad = Number.isFinite(hitPadRaw)
             ? Math.max(0, hitPadRaw) * hitPadScale
             : 0
+          const burstSample = getCursorBurstRingSample(sweepSegment.timeMs)
 
           const segmentMinX = (x0Local < x1Local ? x0Local : x1Local) - hitPad
           const segmentMaxX = (x0Local > x1Local ? x0Local : x1Local) + hitPad
@@ -350,18 +373,49 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
             if (!(radiusPxX > 0) || !Number.isFinite(radiusPxX)) return
             if (!(radiusPxY > 0) || !Number.isFinite(radiusPxY)) return
 
+            let didIntersect = segmentIntersectsEllipse(
+              x0Local,
+              y0Local,
+              x1Local,
+              y1Local,
+              centerX,
+              centerY,
+              radiusPxX * 1.01 + hitPad,
+              radiusPxY * 1.01 + hitPad,
+            )
+
             if (
-              segmentIntersectsEllipse(
-                x0Local,
-                y0Local,
-                x1Local,
-                y1Local,
-                centerX,
-                centerY,
-                radiusPxX * 1.01 + hitPad,
-                radiusPxY * 1.01 + hitPad,
-              )
+              !didIntersect
+              && burstSample
+              && burstSample.probeCount > 0
+              && !entry.target.isBurstImmune()
             ) {
+              const probeStep = (Math.PI * 2) / burstSample.probeCount
+              const pointerPhase = sweepSegment.pointerSlot * probeStep * 0.5
+              for (let waveIndex = 0; waveIndex < burstSample.waves.length; waveIndex += 1) {
+                const wave = burstSample.waves[waveIndex]
+                if (!wave || !(wave.alpha > 0) || !(wave.radiusPx > 0)) continue
+                for (let probeIndex = 0; probeIndex < burstSample.probeCount; probeIndex += 1) {
+                  const angle = wave.rotationRadians + pointerPhase + probeIndex * probeStep
+                  const offsetX = Math.cos(angle) * wave.radiusPx
+                  const offsetY = Math.sin(angle) * wave.radiusPx
+                  didIntersect = segmentIntersectsEllipse(
+                    x0Local + offsetX,
+                    y0Local + offsetY,
+                    x1Local + offsetX,
+                    y1Local + offsetY,
+                    centerX,
+                    centerY,
+                    radiusPxX * 1.01 + burstSample.probeRadiusPx,
+                    radiusPxY * 1.01 + burstSample.probeRadiusPx,
+                  )
+                  if (didIntersect) break
+                }
+                if (didIntersect) break
+              }
+            }
+
+            if (didIntersect) {
               popQueue.push(entry.target)
             }
           })
@@ -399,6 +453,162 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
       }
 
       lastSweepSeqRef.current = latestSweepSeq
+    }
+
+    const burstSample = getCursorBurstRingSample(performance.now())
+    if (burstSample && burstSample.probeCount > 0 && burstSample.waves.length > 0) {
+      const canvasRect = canvasRectRef.current
+      const canvasWidth = canvasRect.width
+      const canvasHeight = canvasRect.height
+
+      if (canvasWidth > 0 && canvasHeight > 0) {
+        const orthographicCamera = camera as THREE.OrthographicCamera
+        const visibleWorldHeight = (orthographicCamera.top - orthographicCamera.bottom) / orthographicCamera.zoom
+
+        if (visibleWorldHeight > SEGMENT_EPSILON && Number.isFinite(visibleWorldHeight)) {
+          if (!frozenMappingReadyRef.current) {
+            camera.updateMatrixWorld()
+            _cameraRight.set(1, 0, 0).applyQuaternion(camera.quaternion)
+            _cameraUp.set(0, 1, 0).applyQuaternion(camera.quaternion)
+
+            const rightX = _cameraRight.x
+            const rightZ = _cameraRight.z
+            const rightLength = Math.hypot(rightX, rightZ)
+            const upX = _cameraUp.x
+            const upZ = _cameraUp.z
+            const upLength = Math.hypot(upX, upZ)
+
+            if (
+              rightLength > SEGMENT_EPSILON
+              && upLength > SEGMENT_EPSILON
+              && Number.isFinite(rightLength)
+              && Number.isFinite(upLength)
+            ) {
+              const frozenScreenRightOnFloor = frozenScreenRightOnFloorRef.current
+              const frozenScreenUpOnFloor = frozenScreenUpOnFloorRef.current
+              frozenScreenRightOnFloor.x = rightX / rightLength
+              frozenScreenRightOnFloor.z = rightZ / rightLength
+              frozenScreenUpOnFloor.x = upX / upLength
+              frozenScreenUpOnFloor.z = upZ / upLength
+              frozenMappingReadyRef.current = true
+            }
+          }
+
+          const pixelsPerWorld = canvasHeight / visibleWorldHeight
+          const popQueue = popQueueRef.current
+          const popCenterWorld = popCenterWorldRef.current
+          const popCenterNdc = popCenterNdcRef.current
+          const popMeta = popMetaRef.current
+          const pointerStates = pointerRenderScratchRef.current
+          const activePointerStates: CursorPointerRenderState[] = []
+
+          if (readCursorPointerRenderState(0, performance.now(), pointerStates[0])) {
+            activePointerStates.push(pointerStates[0])
+          }
+          if (readCursorPointerRenderState(1, performance.now(), pointerStates[1])) {
+            activePointerStates.push(pointerStates[1])
+          }
+
+          if (activePointerStates.length > 0) {
+            const probeStep = (Math.PI * 2) / burstSample.probeCount
+            popQueue.length = 0
+
+            entries.forEach((entry) => {
+              if (entry.target.isPopped()) return
+              if (entry.target.isBurstImmune()) return
+              if (!entry.target.getWorldPopCenter(popCenterWorld)) return
+
+              const radiusWorldX = entry.target.getWorldPopRadiusX()
+              const radiusWorldY = entry.target.getWorldPopRadiusY()
+              if (!(radiusWorldX > 0) || !Number.isFinite(radiusWorldX)) return
+              if (!(radiusWorldY > 0) || !Number.isFinite(radiusWorldY)) return
+
+              popCenterNdc.copy(popCenterWorld).project(camera)
+              if (
+                !Number.isFinite(popCenterNdc.x)
+                || !Number.isFinite(popCenterNdc.y)
+                || !Number.isFinite(popCenterNdc.z)
+              ) {
+                return
+              }
+
+              const centerX = ((popCenterNdc.x + 1) * 0.5) * canvasWidth
+              const centerY = ((1 - popCenterNdc.y) * 0.5) * canvasHeight
+              const radiusPxX = radiusWorldX * pixelsPerWorld
+              const radiusPxY = radiusWorldY * pixelsPerWorld
+              if (!(radiusPxX > 0) || !Number.isFinite(radiusPxX)) return
+              if (!(radiusPxY > 0) || !Number.isFinite(radiusPxY)) return
+
+              let didIntersect = false
+              let hitAngle = 0
+              let hitVelocityPx = SETTINGS.cursor.minPopVelocity
+
+              for (let pointerIndex = 0; pointerIndex < activePointerStates.length; pointerIndex += 1) {
+                const pointerState = activePointerStates[pointerIndex]
+                const pointerXLocal = pointerState.x - canvasRect.left
+                const pointerYLocal = pointerState.y - canvasRect.top
+                const pointerPhase = pointerState.slot * probeStep * 0.5
+
+                for (let waveIndex = 0; waveIndex < burstSample.waves.length; waveIndex += 1) {
+                  const wave = burstSample.waves[waveIndex]
+                  if (!wave || !(wave.alpha > 0) || !(wave.radiusPx > 0)) continue
+
+                  for (let probeIndex = 0; probeIndex < burstSample.probeCount; probeIndex += 1) {
+                    const angle = wave.rotationRadians + pointerPhase + probeIndex * probeStep
+                    const probeX = pointerXLocal + Math.cos(angle) * wave.radiusPx
+                    const probeY = pointerYLocal + Math.sin(angle) * wave.radiusPx
+                    didIntersect = segmentIntersectsEllipse(
+                      probeX,
+                      probeY,
+                      probeX,
+                      probeY,
+                      centerX,
+                      centerY,
+                      radiusPxX * 1.01 + burstSample.probeRadiusPx,
+                      radiusPxY * 1.01 + burstSample.probeRadiusPx,
+                    )
+                    if (didIntersect) {
+                      hitAngle = angle
+                      hitVelocityPx = Math.max(SETTINGS.cursor.minPopVelocity, pointerState.velocityPx)
+                      break
+                    }
+                  }
+                  if (didIntersect) break
+                }
+                if (didIntersect) break
+              }
+
+              if (!didIntersect) return
+
+              const frozenScreenRightOnFloor = frozenScreenRightOnFloorRef.current
+              const frozenScreenUpOnFloor = frozenScreenUpOnFloorRef.current
+              const sx = Math.cos(hitAngle)
+              const sy = -Math.sin(hitAngle)
+              const worldX = (
+                sx * frozenScreenRightOnFloor.x
+                + sy * frozenScreenUpOnFloor.x
+              )
+              const worldZ = (
+                sx * frozenScreenRightOnFloor.z
+                + sy * frozenScreenUpOnFloor.z
+              )
+              const worldLength = Math.hypot(worldX, worldZ)
+              if (worldLength > SEGMENT_EPSILON && Number.isFinite(worldLength)) {
+                const invWorldLength = 1 / worldLength
+                popMeta.worldDirX = worldX * invWorldLength
+                popMeta.worldDirZ = worldZ * invWorldLength
+              }
+              popMeta.cursorSpeedPx = hitVelocityPx
+              popMeta.sweepTimeMs = performance.now()
+              popQueue.push(entry.target)
+            })
+
+            for (let i = 0; i < popQueue.length; i += 1) {
+              popQueue[i]?.requestPop(popMeta)
+            }
+          }
+        }
+      }
     }
 
     missQueue.forEach((callback) => callback())

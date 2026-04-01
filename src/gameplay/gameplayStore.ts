@@ -6,10 +6,11 @@ import { useLevelTilingStore } from '@/levels/levelTilingStore'
 import {
   buildQueuedSpawnRequestsForSpawnEvent,
   getSpawnEventRules,
-  type QueuedSpawnRequest,
 } from '@/gameplay/spawnItemSettings'
+import { useGroundBallWaveStore } from '@/gameplay/groundBallWaveStore'
+import { useTrackSweeperStore } from '@/gameplay/trackSweeperStore'
 import { SETTINGS, resolveMaterialColorIndex } from '@/settings/GameSettings'
-import type { GameRunMode } from '@/settings/GameSettings.types'
+import type { GameRunMode, SpawnEventAction } from '@/settings/GameSettings.types'
 import { onEntityUnregister } from '@/entities/entityStore'
 import { emitScorePop } from '@/input/scorePopEmitter'
 import { sendScoreboardEvent } from '@/scoreboard/scoreboardSender'
@@ -57,6 +58,7 @@ export type BalloonPopForComboEvent = {
   x: number
   y: number
   timeMs: number
+  canTriggerSpawnEvents?: boolean
 }
 
 export type SpawnItemHitEffectEvent = {
@@ -67,7 +69,7 @@ export type SpawnItemHitEffectEvent = {
   feedbackText?: string
 }
 
-export type RunTimeBonusReason = 'combo' | 'spawn_item' | 'unknown'
+export type RunTimeBonusReason = 'combo' | 'streak' | 'spawn_item' | 'unknown'
 
 type NormalizedCollisionEntity = {
   entityId: string
@@ -112,6 +114,13 @@ type GameplayState = {
   addScore: (delta: number, source?: ScoreboardEventSource) => void
   addRunTimeMs: (deltaMs: number, reason?: RunTimeBonusReason) => void
   applySpawnItemHitEffect: (event: SpawnItemHitEffectEvent) => void
+  triggerSpawnEventRuleById: (ruleId: string, origin?: ScreenPos) => void
+  flushPendingSpawnEvents: () => void
+  registerBalloonMissForSpawnEventStreak: () => void
+  debugTriggerSpawnEventComboMultiplier: (multiplier: number, origin?: ScreenPos) => void
+  debugTriggerSpawnEventPopStreak: (requiredPops: number, origin?: ScreenPos) => void
+  debugTriggerSpawnEventRuleById: (ruleId: string, origin?: ScreenPos) => void
+  debugResetSpawnEventCooldowns: () => void
   loseLife: (reason?: ScoreboardLifeLossReason) => void
   loseLives: (delta: number, reason?: ScoreboardLifeLossReason) => void
   removeEntities: (ids: string[]) => void
@@ -147,6 +156,14 @@ function resolveRunTimeLimitMs(): number {
 
 function resolveComboTimeBonusStepMs(): number {
   return normalizeNonNegativeInt(SETTINGS.gameplay.run.comboTimeBonusStepMs, 5000)
+}
+
+function resolvePopStreakTimeBonusEveryPops(): number {
+  return normalizeNonNegativeInt(SETTINGS.gameplay.run.popStreakTimeBonusEveryPops, 0)
+}
+
+function resolvePopStreakTimeBonusMs(): number {
+  return normalizeNonNegativeInt(SETTINGS.gameplay.run.popStreakTimeBonusMs, 0)
 }
 
 function resolveTimeBonusLerpMs(): number {
@@ -244,6 +261,36 @@ type CursorSizeBoostRuntimeState = {
   easeOutMs: number
 }
 
+type CursorBurstRingRuntimeState = {
+  activatedAtMs: number
+  endsAtMs: number
+  probeCount: number
+  orbitRadiusPx: number
+  probeRadiusPx: number
+  rotationSpeedDeg: number
+  burstIntervalMs: number
+  travelSpeedPx: number
+  easeInMs: number
+  easeOutMs: number
+}
+
+type PendingSpawnEvent = {
+  id: string
+  ruleId: string
+  action: SpawnEventAction
+  origin?: ScreenPos
+}
+
+type SpawnEventQueueRuntimeState = {
+  queue: PendingSpawnEvent[]
+  nextAvailableAtMs: number
+  nextId: number
+}
+
+type PopStreakRuntimeState = {
+  withoutMissCount: number
+}
+
 function createContagionMaps(): ContagionMaps {
   return {
     records: new Map(),
@@ -270,9 +317,41 @@ function createCursorSizeBoostRuntimeState(): CursorSizeBoostRuntimeState {
   }
 }
 
+function createCursorBurstRingRuntimeState(): CursorBurstRingRuntimeState {
+  return {
+    activatedAtMs: 0,
+    endsAtMs: 0,
+    probeCount: 0,
+    orbitRadiusPx: 0,
+    probeRadiusPx: 0,
+    rotationSpeedDeg: 0,
+    burstIntervalMs: 0,
+    travelSpeedPx: 0,
+    easeInMs: 0,
+    easeOutMs: 0,
+  }
+}
+
+function createSpawnEventQueueRuntimeState(): SpawnEventQueueRuntimeState {
+  return {
+    queue: [],
+    nextAvailableAtMs: 0,
+    nextId: 0,
+  }
+}
+
+function createPopStreakRuntimeState(): PopStreakRuntimeState {
+  return {
+    withoutMissCount: 0,
+  }
+}
+
 let maps = createContagionMaps()
 let comboRuntime = createComboRuntimeState()
 let cursorSizeBoostRuntime = createCursorSizeBoostRuntimeState()
+let cursorBurstRingRuntime = createCursorBurstRingRuntimeState()
+let spawnEventQueueRuntime = createSpawnEventQueueRuntimeState()
+let popStreakRuntime = createPopStreakRuntimeState()
 let gameOverInputInactivityTimer: ReturnType<typeof setTimeout> | null = null
 let gameOverInputCountdownTimer: ReturnType<typeof setTimeout> | null = null
 let runEndTimer: ReturnType<typeof setTimeout> | null = null
@@ -330,6 +409,14 @@ function resetSpawnEventCooldowns(): void {
   spawnEventCooldownsByRuleId.clear()
 }
 
+function resetSpawnEventQueueRuntime(): void {
+  spawnEventQueueRuntime = createSpawnEventQueueRuntimeState()
+}
+
+function resetPopStreakRuntime(): void {
+  popStreakRuntime = createPopStreakRuntimeState()
+}
+
 function resolveHighResNowMs(): number {
   if (typeof performance !== 'undefined' && Number.isFinite(performance.now())) {
     return performance.now()
@@ -344,6 +431,10 @@ function easeInOutSine01(t: number): number {
 
 function resetCursorSizeBoostRuntime(): void {
   cursorSizeBoostRuntime = createCursorSizeBoostRuntimeState()
+}
+
+function resetCursorBurstRingRuntime(): void {
+  cursorBurstRingRuntime = createCursorBurstRingRuntimeState()
 }
 
 function activateCursorSizeBoost(
@@ -377,6 +468,186 @@ function activateCursorSizeBoost(
   }
 }
 
+function activateCursorBurstRing(
+  action: {
+    probeCount: number
+    orbitRadiusPx: number
+    probeRadiusPx: number
+    rotationSpeedDeg: number
+    burstIntervalMs?: number
+    travelSpeedPx?: number
+    durationMs: number
+    easeInMs: number
+    easeOutMs: number
+    feedbackText?: string
+  },
+  origin?: ScreenPos,
+): void {
+  const nowMs = resolveHighResNowMs()
+  const durationMs = Math.max(1, normalizeNonNegativeInt(action.durationMs, 0))
+  cursorBurstRingRuntime = {
+    activatedAtMs: nowMs,
+    endsAtMs: nowMs + durationMs,
+    probeCount: Math.max(1, Math.trunc(action.probeCount)),
+    orbitRadiusPx: Math.max(0, action.orbitRadiusPx),
+    probeRadiusPx: Math.max(0, action.probeRadiusPx),
+    rotationSpeedDeg: Number.isFinite(action.rotationSpeedDeg) ? action.rotationSpeedDeg : 0,
+    burstIntervalMs: Math.max(1, normalizeNonNegativeInt(action.burstIntervalMs ?? 240, 240)),
+    travelSpeedPx: Math.max(0, Number.isFinite(action.travelSpeedPx) ? action.travelSpeedPx ?? 0 : 0),
+    easeInMs: normalizeNonNegativeInt(action.easeInMs, 0),
+    easeOutMs: normalizeNonNegativeInt(action.easeOutMs, 0),
+  }
+
+  if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
+    emitScorePop({
+      text: action.feedbackText.trim(),
+      x: origin.x,
+      y: origin.y,
+      burst: false,
+      style: 'style5',
+    })
+  }
+}
+
+function triggerGroundBallWave(
+  action: {
+    feedbackText?: string
+  },
+  enqueueWave: () => void,
+  origin?: ScreenPos,
+): void {
+  enqueueWave()
+  if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
+    emitScorePop({
+      text: action.feedbackText.trim(),
+      x: origin.x,
+      y: origin.y,
+      burst: false,
+      style: 'style5',
+    })
+  }
+}
+
+function triggerTrackSweeper(
+  action: {
+    feedbackText?: string
+  },
+  enqueueSweeper: () => void,
+  origin?: ScreenPos,
+): void {
+  enqueueSweeper()
+  if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
+    emitScorePop({
+      text: action.feedbackText.trim(),
+      x: origin.x,
+      y: origin.y,
+      burst: false,
+      style: 'style5',
+    })
+  }
+}
+
+function resolveSpawnEventQueueGapMs(): number {
+  return normalizeNonNegativeInt(SETTINGS.spawner.eventQueueGapMs, 0)
+}
+
+function resolveSpawnEventQueueMaxLength(): number {
+  return Math.max(0, normalizeNonNegativeInt(SETTINGS.spawner.eventQueueMaxLength, 0))
+}
+
+function enqueueSpawnEventAction(
+  ruleId: string,
+  action: SpawnEventAction,
+  origin?: ScreenPos,
+): boolean {
+  const maxLength = resolveSpawnEventQueueMaxLength()
+  if (maxLength <= 0) return false
+  if (spawnEventQueueRuntime.queue.length >= maxLength) return false
+
+  spawnEventQueueRuntime.nextId += 1
+  spawnEventQueueRuntime.queue.push({
+    id: `spawn-event-${spawnEventQueueRuntime.nextId}`,
+    ruleId,
+    action,
+    origin,
+  })
+  return true
+}
+
+function executeSpawnEventAction(
+  action: SpawnEventAction,
+  origin?: ScreenPos,
+): void {
+  if (action.type === 'spawn_burst') {
+    const requests = buildQueuedSpawnRequestsForSpawnEvent({
+      id: '',
+      enabled: true,
+      trigger: {
+        type: 'combo_multiplier',
+        minMultiplier: 2,
+        maxMultiplier: undefined,
+        cooldownMs: 0,
+      },
+      action,
+    })
+    if (requests.length > 0) {
+      useSpawnerStore.getState().enqueueSpawns(requests)
+    }
+    return
+  }
+
+  if (action.type === 'cursor_size_boost') {
+    activateCursorSizeBoost(action, origin)
+    return
+  }
+
+  if (action.type === 'spawn_ground_ball_wave') {
+    triggerGroundBallWave(
+      action,
+      () => { useGroundBallWaveStore.getState().enqueueWaveRequest(action) },
+      origin,
+    )
+    return
+  }
+
+  if (action.type === 'spawn_track_sweeper') {
+    triggerTrackSweeper(
+      action,
+      () => { useTrackSweeperStore.getState().enqueueRequest(action) },
+      origin,
+    )
+    return
+  }
+
+  if (action.type === 'cursor_burst_ring') {
+    activateCursorBurstRing(action, origin)
+  }
+}
+
+function executeSpawnEventRuleById(ruleId: string, origin?: ScreenPos): boolean {
+  const normalizedRuleId = typeof ruleId === 'string' ? ruleId.trim() : ''
+  if (!normalizedRuleId) return false
+
+  const rule = getSpawnEventRules().find((candidate) => (
+    candidate.enabled === true && candidate.id.trim() === normalizedRuleId
+  ))
+  if (!rule) return false
+
+  executeSpawnEventAction(rule.action, origin)
+  return true
+}
+
+function flushQueuedSpawnEvents(nowMs = Date.now()): void {
+  if (spawnEventQueueRuntime.queue.length <= 0) return
+  if (nowMs < spawnEventQueueRuntime.nextAvailableAtMs) return
+
+  const nextEvent = spawnEventQueueRuntime.queue.shift()
+  if (!nextEvent) return
+
+  executeSpawnEventAction(nextEvent.action, nextEvent.origin)
+  spawnEventQueueRuntime.nextAvailableAtMs = nowMs + resolveSpawnEventQueueGapMs()
+}
+
 export function getCursorSizeBoostScale(nowMs = resolveHighResNowMs()): number {
   const {
     activatedAtMs,
@@ -408,6 +679,82 @@ export function getCursorSizeBoostScale(nowMs = resolveHighResNowMs()): number {
   return scaleMultiplier
 }
 
+export function getCursorBurstRingSample(nowMs = resolveHighResNowMs()): {
+  probeCount: number
+  probeRadiusPx: number
+  waves: Array<{
+    radiusPx: number
+    rotationRadians: number
+    alpha: number
+  }>
+} | null {
+  const {
+    activatedAtMs,
+    endsAtMs,
+    probeCount,
+    orbitRadiusPx,
+    probeRadiusPx,
+    rotationSpeedDeg,
+    burstIntervalMs,
+    travelSpeedPx,
+    easeInMs,
+    easeOutMs,
+  } = cursorBurstRingRuntime
+
+  if (!(endsAtMs > activatedAtMs) || probeCount <= 0) return null
+  if (nowMs <= activatedAtMs || nowMs >= endsAtMs) return null
+
+  const totalDurationMs = endsAtMs - activatedAtMs
+  const introDurationMs = Math.max(0, Math.min(easeInMs, totalDurationMs))
+  const outroDurationMs = Math.max(0, Math.min(easeOutMs, totalDurationMs))
+  const plateauStartMs = activatedAtMs + introDurationMs
+  const plateauEndMs = endsAtMs - outroDurationMs
+
+  let envelope = 1
+  if (introDurationMs > 0 && nowMs < plateauStartMs) {
+    const t = (nowMs - activatedAtMs) / introDurationMs
+    envelope = easeInOutSine01(t)
+  } else if (outroDurationMs > 0 && nowMs > plateauEndMs) {
+    const t = (nowMs - plateauEndMs) / outroDurationMs
+    envelope = 1 - easeInOutSine01(t)
+  }
+
+  const elapsedSeconds = Math.max(0, (nowMs - activatedAtMs) / 1000)
+  const elapsedMs = Math.max(0, nowMs - activatedAtMs)
+  const baseRotationRadians = (rotationSpeedDeg * Math.PI / 180) * elapsedSeconds
+  const launchIntervalMs = Math.max(1, burstIntervalMs)
+  const waveLifetimeMs = Math.max(550, launchIntervalMs * 3)
+  const latestWaveIndex = Math.floor(elapsedMs / launchIntervalMs)
+  const waves: Array<{
+    radiusPx: number
+    rotationRadians: number
+    alpha: number
+  }> = []
+
+  for (let waveIndex = latestWaveIndex; waveIndex >= 0; waveIndex -= 1) {
+    const waveAgeMs = elapsedMs - waveIndex * launchIntervalMs
+    if (waveAgeMs < 0 || waveAgeMs > waveLifetimeMs) continue
+
+    const waveProgress = waveLifetimeMs > 0 ? waveAgeMs / waveLifetimeMs : 1
+    const waveAlpha = envelope * Math.max(0, 1 - waveProgress)
+    if (!(waveAlpha > 0)) continue
+
+    waves.push({
+      radiusPx: orbitRadiusPx + (waveAgeMs / 1000) * travelSpeedPx,
+      rotationRadians: baseRotationRadians + waveIndex * (Math.PI / Math.max(1, probeCount)),
+      alpha: waveAlpha,
+    })
+  }
+
+  if (waves.length <= 0) return null
+
+  return {
+    probeCount,
+    probeRadiusPx: probeRadiusPx * Math.max(0.4, envelope),
+    waves,
+  }
+}
+
 function formatTimeDeltaLabel(deltaMs: number): string {
   const absMs = Math.abs(deltaMs)
   if (absMs <= 0) return ''
@@ -427,6 +774,112 @@ function buildSpawnItemEffectLabel(scoreDelta: number, timeDeltaMs: number, feed
   return lines.join('\n')
 }
 
+function normalizeSelectionWeight(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 1
+  return Math.max(0, value)
+}
+
+function resolveEligibleSpawnEventRules(multiplier: number, nowMs: number) {
+  const rules = getSpawnEventRules()
+  return rules.filter((rule) => {
+    if (!rule || rule.enabled !== true) return false
+    const ruleId = typeof rule.id === 'string' ? rule.id.trim() : ''
+    if (!ruleId) return false
+    if (rule.trigger.type !== 'combo_multiplier') return false
+    const minMultiplier = Math.max(2, Math.trunc(rule.trigger.minMultiplier))
+    const maxMultiplier = typeof rule.trigger.maxMultiplier === 'number'
+      && Number.isFinite(rule.trigger.maxMultiplier)
+      ? Math.max(minMultiplier, Math.trunc(rule.trigger.maxMultiplier))
+      : null
+    if (multiplier < minMultiplier) return false
+    if (maxMultiplier !== null && multiplier > maxMultiplier) return false
+
+    const cooldownMs = normalizeNonNegativeInt(rule.trigger.cooldownMs, 0)
+    const nextAllowedAtMs = spawnEventCooldownsByRuleId.get(ruleId) ?? 0
+    if (nowMs < nextAllowedAtMs) return false
+
+    return cooldownMs >= 0
+  })
+}
+
+function resolveEligibleSpawnEventRulesForPopStreak(
+  previousCount: number,
+  currentCount: number,
+  nowMs: number,
+) {
+  const rules = getSpawnEventRules()
+  return rules.filter((rule) => {
+    if (!rule || rule.enabled !== true) return false
+    const ruleId = typeof rule.id === 'string' ? rule.id.trim() : ''
+    if (!ruleId) return false
+    if (rule.trigger.type !== 'pop_streak_without_miss') return false
+
+    const requiredPops = Math.max(1, Math.trunc(rule.trigger.requiredPops))
+    const crossedThreshold = previousCount < requiredPops && currentCount >= requiredPops
+    if (!crossedThreshold) return false
+
+    const cooldownMs = normalizeNonNegativeInt(rule.trigger.cooldownMs, 0)
+    const nextAllowedAtMs = spawnEventCooldownsByRuleId.get(ruleId) ?? 0
+    if (nowMs < nextAllowedAtMs) return false
+
+    return cooldownMs >= 0
+  })
+}
+
+function pickOneSpawnEventRule(rules: ReturnType<typeof resolveEligibleSpawnEventRules>) {
+  let totalWeight = 0
+  for (let i = 0; i < rules.length; i += 1) {
+    totalWeight += normalizeSelectionWeight(rules[i]?.selectionWeight)
+  }
+  if (!(totalWeight > 0)) return null
+
+  let remaining = Math.random() * totalWeight
+  for (let i = 0; i < rules.length; i += 1) {
+    const rule = rules[i]
+    if (!rule) continue
+    remaining -= normalizeSelectionWeight(rule.selectionWeight)
+    if (remaining <= 0) return rule
+  }
+
+  return rules[rules.length - 1] ?? null
+}
+
+function triggerEligibleSpawnEventRules(
+  eligibleRules: ReturnType<typeof resolveEligibleSpawnEventRules>,
+  origin?: ScreenPos,
+  nowMs = Date.now(),
+): void {
+  if (eligibleRules.length <= 0) return
+
+  const selectionMode = SETTINGS.spawner.eventSelectionMode
+  const queueEnabled = SETTINGS.spawner.eventQueueEnabled === true
+
+  if (selectionMode === 'one_random') {
+    const selectedRule = pickOneSpawnEventRule(eligibleRules)
+    if (!selectedRule) return
+    const selectedRuleId = selectedRule.id.trim()
+    const cooldownMs = normalizeNonNegativeInt(selectedRule.trigger.cooldownMs, 0)
+    spawnEventCooldownsByRuleId.set(selectedRuleId, nowMs + cooldownMs)
+    executeSpawnEventAction(selectedRule.action, origin)
+    return
+  }
+
+  for (let i = 0; i < eligibleRules.length; i += 1) {
+    const rule = eligibleRules[i]
+    if (!rule) continue
+    const ruleId = rule.id.trim()
+    const cooldownMs = normalizeNonNegativeInt(rule.trigger.cooldownMs, 0)
+    spawnEventCooldownsByRuleId.set(ruleId, nowMs + cooldownMs)
+
+    if (queueEnabled) {
+      enqueueSpawnEventAction(ruleId, rule.action, origin)
+      continue
+    }
+
+    executeSpawnEventAction(rule.action, origin)
+  }
+}
+
 function maybeTriggerSpawnEventsForComboMultiplier(
   multiplier: number,
   origin?: ScreenPos,
@@ -434,38 +887,46 @@ function maybeTriggerSpawnEventsForComboMultiplier(
   if (!(multiplier >= 2)) return
 
   const nowMs = Date.now()
-  const queuedRequests: QueuedSpawnRequest[] = []
+  const eligibleRules = resolveEligibleSpawnEventRules(multiplier, nowMs)
+  triggerEligibleSpawnEventRules(eligibleRules, origin, nowMs)
+}
 
-  const rules = getSpawnEventRules()
-  for (let i = 0; i < rules.length; i += 1) {
-    const rule = rules[i]
-    if (!rule || rule.enabled !== true) continue
-    const ruleId = typeof rule.id === 'string' ? rule.id.trim() : ''
-    if (!ruleId) continue
-    if (rule.trigger.type !== 'combo_multiplier') continue
-    if (multiplier < Math.max(2, Math.trunc(rule.trigger.minMultiplier))) continue
+function maybeTriggerSpawnEventsForPopStreakWithoutMiss(
+  previousCount: number,
+  currentCount: number,
+  origin?: ScreenPos,
+): void {
+  if (currentCount <= previousCount) return
+  const nowMs = Date.now()
+  const eligibleRules = resolveEligibleSpawnEventRulesForPopStreak(previousCount, currentCount, nowMs)
+  triggerEligibleSpawnEventRules(eligibleRules, origin, nowMs)
+}
 
-    const cooldownMs = normalizeNonNegativeInt(rule.trigger.cooldownMs, 0)
-    const nextAllowedAtMs = spawnEventCooldownsByRuleId.get(ruleId) ?? 0
-    if (nowMs < nextAllowedAtMs) continue
+function maybeApplyPopStreakTimeBonus(
+  previousCount: number,
+  currentCount: number,
+  origin?: ScreenPos,
+): void {
+  const everyPops = resolvePopStreakTimeBonusEveryPops()
+  const timeBonusMs = resolvePopStreakTimeBonusMs()
+  if (everyPops <= 0 || timeBonusMs <= 0) return
 
-    spawnEventCooldownsByRuleId.set(ruleId, nowMs + cooldownMs)
+  const previousMilestoneCount = Math.floor(previousCount / everyPops)
+  const currentMilestoneCount = Math.floor(currentCount / everyPops)
+  const crossedMilestones = currentMilestoneCount - previousMilestoneCount
+  if (crossedMilestones <= 0) return
 
-    if (rule.action.type === 'spawn_burst') {
-      const requests = buildQueuedSpawnRequestsForSpawnEvent(rule)
-      if (requests.length <= 0) continue
-      queuedRequests.push(...requests)
-      continue
-    }
+  const totalTimeBonusMs = crossedMilestones * timeBonusMs
+  useGameplayStore.getState().addRunTimeMs(totalTimeBonusMs, 'streak')
 
-    if (rule.action.type === 'cursor_size_boost') {
-      activateCursorSizeBoost(rule.action, origin)
-    }
-  }
-
-  if (queuedRequests.length > 0) {
-    useSpawnerStore.getState().enqueueSpawns(queuedRequests)
-  }
+  if (!origin) return
+  emitScorePop({
+    text: `STREAK!\n${formatTimeDeltaLabel(totalTimeBonusMs)}`,
+    x: origin.x,
+    y: origin.y,
+    burst: false,
+    style: 'style5',
+  })
 }
 
 function scheduleGameOverInputInactivityTimer(): void {
@@ -602,10 +1063,13 @@ function flushPendingComboStrike(): void {
       totalPoints: totalStrikeScore,
       totalScore: totalScoreAfterStrike,
     })
-    maybeTriggerSpawnEventsForComboMultiplier(finalMultiplier, {
-      x: sumX * invCount,
-      y: sumY * invCount,
-    })
+    const canTriggerSpawnEvents = strike.pops.every((pop) => pop?.canTriggerSpawnEvents !== false)
+    if (canTriggerSpawnEvents) {
+      maybeTriggerSpawnEventsForComboMultiplier(finalMultiplier, {
+        x: sumX * invCount,
+        y: sumY * invCount,
+      })
+    }
   }
 
   const comboTimeBonusStepMs = resolveComboTimeBonusStepMs()
@@ -624,6 +1088,7 @@ function normalizeComboPopEvent(raw: BalloonPopForComboEvent): BalloonPopForComb
     x: Number.isFinite(raw.x) ? raw.x : fallbackX,
     y: Number.isFinite(raw.y) ? raw.y : fallbackY,
     timeMs: Number.isFinite(raw.timeMs) ? raw.timeMs : fallbackTime,
+    canTriggerSpawnEvents: raw.canTriggerSpawnEvents !== false,
   }
 }
 
@@ -733,7 +1198,10 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
 
     resetComboRuntimeState()
     resetSpawnEventCooldowns()
+    resetSpawnEventQueueRuntime()
+    resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
+    resetCursorBurstRingRuntime()
     clearGameOverInputTimers()
     advanceRunTimerScope()
 
@@ -788,7 +1256,10 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     maps = createContagionMaps()
     resetComboRuntimeState()
     resetSpawnEventCooldowns()
+    resetSpawnEventQueueRuntime()
+    resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
+    resetCursorBurstRingRuntime()
     clearGameOverInputTimers()
     advanceRunTimerScope()
 
@@ -833,7 +1304,10 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     maps = createContagionMaps()
     resetComboRuntimeState()
     resetSpawnEventCooldowns()
+    resetSpawnEventQueueRuntime()
+    resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
+    resetCursorBurstRingRuntime()
     clearGameOverInputTimers()
     const runScopeToken = advanceRunTimerScope()
 
@@ -962,7 +1436,9 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     if (!didTransition) return
 
     clearGameOverInputTimers()
+    resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
+    resetCursorBurstRingRuntime()
     advanceRunTimerScope()
     setGameRunClockRunning(false)
     resetGameRunClock()
@@ -1122,6 +1598,46 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     })
   },
 
+  triggerSpawnEventRuleById: (ruleId, origin) => {
+    if (get().flowState !== 'run') return
+    executeSpawnEventRuleById(ruleId, origin)
+  },
+
+  flushPendingSpawnEvents: () => {
+    if (get().flowState !== 'run') return
+    flushQueuedSpawnEvents(Date.now())
+  },
+
+  registerBalloonMissForSpawnEventStreak: () => {
+    if (get().flowState !== 'run') return
+    resetPopStreakRuntime()
+  },
+
+  debugTriggerSpawnEventComboMultiplier: (multiplier, origin) => {
+    if (get().flowState !== 'run') return
+    maybeTriggerSpawnEventsForComboMultiplier(Math.max(2, Math.trunc(multiplier)), origin)
+  },
+
+  debugTriggerSpawnEventPopStreak: (requiredPops, origin) => {
+    if (get().flowState !== 'run') return
+    const normalizedRequiredPops = Math.max(1, Math.trunc(requiredPops))
+    maybeTriggerSpawnEventsForPopStreakWithoutMiss(
+      normalizedRequiredPops - 1,
+      normalizedRequiredPops,
+      origin,
+    )
+  },
+
+  debugTriggerSpawnEventRuleById: (ruleId, origin) => {
+    if (get().flowState !== 'run') return
+    executeSpawnEventRuleById(ruleId, origin)
+  },
+
+  debugResetSpawnEventCooldowns: () => {
+    resetSpawnEventCooldowns()
+    resetSpawnEventQueueRuntime()
+  },
+
   loseLife: (reason = 'unknown') => {
     useGameplayStore.getState().loseLives(SETTINGS.gameplay.lives.lossPerMiss, reason)
   },
@@ -1192,6 +1708,19 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     if (get().flowState !== 'run') return
 
     const popEvent = normalizeComboPopEvent(rawEvent)
+    const previousPopStreakCount = popStreakRuntime.withoutMissCount
+    popStreakRuntime.withoutMissCount = previousPopStreakCount + 1
+    maybeApplyPopStreakTimeBonus(
+      previousPopStreakCount,
+      popStreakRuntime.withoutMissCount,
+      { x: popEvent.x, y: popEvent.y },
+    )
+    maybeTriggerSpawnEventsForPopStreakWithoutMiss(
+      previousPopStreakCount,
+      popStreakRuntime.withoutMissCount,
+      { x: popEvent.x, y: popEvent.y },
+    )
+
     const comboSettings = SETTINGS.gameplay.balloons.combo
     if (!comboSettings.enabled) {
       resetComboRuntimeState()

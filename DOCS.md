@@ -140,6 +140,61 @@ palette: {
 | `gameplay.balloons` | `scorePerPop` (poäng vid pop), `sensors.lifeMargin`, `sensors.cleanupMargin` |
 | `spawner` | `enabled`, `spawnIntervalMs`, `speed`, `speedVariance`, `maxItems`, `spawnXRange`, `cullOffset` |
 
+### Bonus Items & Event Rules
+
+The bonus/power-up system is now split into two clear config layers in `SETTINGS.spawner`:
+
+- `itemDefinitions` — what kinds of spawnable items exist
+- `eventRules` — when special events trigger and what they do
+
+This is all configured in [src/settings/GameSettings.ts](/home/simmalugnt/dev/IKEA-GAME-Prototype/src/settings/GameSettings.ts).
+
+#### `itemDefinitions`
+
+Use `itemDefinitions` for things like:
+
+- regular balloons
+- hazard balloons
+- bonus cluster balloons
+
+Important fields:
+
+- `enabled`
+- `includeInDefaultPool`
+- `weight`
+- `maxConcurrent`
+- `color`
+- `randomizeColor`
+- `randomizeDropType`
+- `dropType` (only needed when `randomizeDropType` is `false`)
+- `scoreMode`
+- `scoreDelta`
+- `timeDeltaMs`
+- `feedbackText`
+
+#### `eventRules`
+
+Each rule has:
+
+- `enabled`
+- `trigger`
+- `action`
+
+Current trigger/action types:
+
+- `trigger.type: "combo_multiplier"`
+- `action.type: "spawn_burst"`
+- `action.type: "cursor_size_boost"`
+- `action.type: "spawn_ground_ball_wave"`
+
+Examples of current built-in event rules:
+
+- `combo_cluster_reward`
+- `big_cursor_reward`
+- `ground_ball_wave_reward`
+
+This makes it easy to test gameplay combinations by toggling rules on/off without changing the runtime code.
+
 ### IntelliSense för fasta val
 
 Fasta val i settings och komponentprops är nu centraliserade som union-typer/konstanter för bättre IntelliSense:

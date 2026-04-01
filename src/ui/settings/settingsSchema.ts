@@ -12,6 +12,7 @@ import {
     RUN_MODES,
     SMAA_PRESET_NAMES,
     PALETTE_VARIANT_NAMES,
+    SPAWN_EVENT_SELECTION_MODES,
 } from '@/settings/GameSettings.types'
 import type { Vec3, AxisMask, PaletteVariant, PaletteVariantName } from '@/settings/GameSettings.types'
 import { ACCELERATION_CURVE_NAMES } from '@/utils/accelerationCurve'
@@ -130,11 +131,6 @@ export type SectionDescriptor = {
     key: string
     label: string
     fields: FieldDescriptor[]
-}
-
-// helper: mutate + bump
-function nb(fn: () => void) {
-    return (v: number) => { fn(); bump() }
 }
 
 function setAudioBankFiles(bankId: AudioBankId, files: string[]) {
@@ -429,6 +425,8 @@ export const settingsSections: SectionDescriptor[] = [
             },
             { type: 'number', label: 'run.timeLimitMs', get: () => SETTINGS.gameplay.run.timeLimitMs, set: (v) => { SETTINGS.gameplay.run.timeLimitMs = v; bump() }, min: 1000, max: 3600000, step: 1000 },
             { type: 'number', label: 'run.comboTimeBonusStepMs', get: () => SETTINGS.gameplay.run.comboTimeBonusStepMs, set: (v) => { SETTINGS.gameplay.run.comboTimeBonusStepMs = v; bump() }, min: 0, max: 60000, step: 100 },
+            { type: 'number', label: 'run.popStreakTimeBonusEveryPops', get: () => SETTINGS.gameplay.run.popStreakTimeBonusEveryPops, set: (v) => { SETTINGS.gameplay.run.popStreakTimeBonusEveryPops = v; bump() }, min: 0, max: 200, step: 1 },
+            { type: 'number', label: 'run.popStreakTimeBonusMs', get: () => SETTINGS.gameplay.run.popStreakTimeBonusMs, set: (v) => { SETTINGS.gameplay.run.popStreakTimeBonusMs = v; bump() }, min: 0, max: 60000, step: 100 },
             { type: 'number', label: 'run.timeBonusLerpMs', get: () => SETTINGS.gameplay.run.timeBonusLerpMs, set: (v) => { SETTINGS.gameplay.run.timeBonusLerpMs = v; bump() }, min: 0, max: 5000, step: 10 },
             { type: 'number', label: 'run.pulseSlowStartMs', get: () => SETTINGS.gameplay.run.pulseSlowStartMs, set: (v) => { SETTINGS.gameplay.run.pulseSlowStartMs = v; bump() }, min: 0, max: 120000, step: 100 },
             { type: 'number', label: 'run.pulseFastStartMs', get: () => SETTINGS.gameplay.run.pulseFastStartMs, set: (v) => { SETTINGS.gameplay.run.pulseFastStartMs = v; bump() }, min: 0, max: 120000, step: 100 },
@@ -599,6 +597,15 @@ export const settingsSections: SectionDescriptor[] = [
             { type: 'number', label: 'spawnXRange', get: () => SETTINGS.spawner.spawnXRange, set: (v) => { SETTINGS.spawner.spawnXRange = v; bump() }, min: 0, max: 10, step: 0.1 },
             { type: 'number', label: 'spawnXRangeOffset', get: () => SETTINGS.spawner.spawnXRangeOffset, set: (v) => { SETTINGS.spawner.spawnXRangeOffset = v; bump() }, min: -10, max: 10, step: 0.1 },
             { type: 'number', label: 'cullOffset', get: () => SETTINGS.spawner.cullOffset, set: (v) => { SETTINGS.spawner.cullOffset = v; bump() }, min: 0, max: 10, step: 0.1 },
+            {
+                type: 'select', label: 'eventSelectionMode',
+                get: () => SETTINGS.spawner.eventSelectionMode,
+                set: (v) => { SETTINGS.spawner.eventSelectionMode = v as typeof SETTINGS.spawner.eventSelectionMode; bump() },
+                options: SPAWN_EVENT_SELECTION_MODES,
+            },
+            { type: 'boolean', label: 'eventQueueEnabled', get: () => SETTINGS.spawner.eventQueueEnabled, set: (v) => { SETTINGS.spawner.eventQueueEnabled = v; bump() } },
+            { type: 'number', label: 'eventQueueGapMs', get: () => SETTINGS.spawner.eventQueueGapMs, set: (v) => { SETTINGS.spawner.eventQueueGapMs = v; bump() }, min: 0, max: 30000, step: 100 },
+            { type: 'number', label: 'eventQueueMaxLength', get: () => SETTINGS.spawner.eventQueueMaxLength, set: (v) => { SETTINGS.spawner.eventQueueMaxLength = v; bump() }, min: 0, max: 20, step: 1 },
         ],
     },
 

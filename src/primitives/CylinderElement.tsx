@@ -44,6 +44,10 @@ export const CylinderElement = forwardRef<PositionTargetHandle, CylinderElementP
   friction,
   restitution,
   lockRotations,
+  linearVelocity,
+  angularVelocity,
+  linearDamping,
+  angularDamping,
   entityId,
   contagionCarrier,
   contagionInfectable,
@@ -61,7 +65,7 @@ export const CylinderElement = forwardRef<PositionTargetHandle, CylinderElementP
   const colliderRestitutionProps = Number.isFinite(restitution) ? { restitution } : {}
   const anchorOffset = useMemo<Vec3>(
     () => getAlignOffset([radius * 2, height, radius * 2], align),
-    [radius, height, align?.x, align?.y, align?.z],
+    [radius, height, align],
   )
   const contagionColorOverride = useContagionColorOverride(entityId)
   const resolvedColor = contagionColorOverride ?? color
@@ -106,6 +110,10 @@ export const CylinderElement = forwardRef<PositionTargetHandle, CylinderElementP
   if (rotation !== undefined) rbProps.rotation = rotationRadians
   if (mass !== undefined) rbProps.mass = mass
   if (friction !== undefined) rbProps.friction = friction
+  if (linearVelocity !== undefined) rbProps.linearVelocity = linearVelocity
+  if (angularVelocity !== undefined) rbProps.angularVelocity = angularVelocity
+  if (linearDamping !== undefined) rbProps.linearDamping = linearDamping
+  if (angularDamping !== undefined) rbProps.angularDamping = angularDamping
   if (lockRotations) rbProps.lockRotations = true
   if (physics === 'dynamic') rbProps.additionalSolverIterations = CYLINDER_DYNAMIC_ADDITIONAL_SOLVER_ITERATIONS
 

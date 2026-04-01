@@ -14,6 +14,7 @@ import { CursorBenchmarkPage } from "@/ui/input/CursorBenchmarkPage";
 import { GameFlowOverlay } from "@/ui/GameFlowOverlay";
 import { CursorComparePage } from "@/ui/input/CursorComparePage";
 import { CursorSourcePage } from "@/ui/input/CursorSourcePage";
+import { BonusEventDebugPanel } from "@/ui/BonusEventDebugPanel";
 import { ScoreboardPage } from "@/ui/scoreboard/ScoreboardPage";
 import { GameSettingsPanel } from "@/ui/settings/GameSettingsPanel";
 import { ScoreHud } from "@/ui/ScoreHud";
@@ -121,6 +122,7 @@ function GameApp() {
       </Canvas>
       <CursorTrailCanvas />
       <ScorePopCanvas />
+      <BonusEventDebugPanel />
       {isSettingsPanelVisible && (
         <GameSettingsPanel onClose={() => setIsSettingsPanelVisible(false)} />
       )}

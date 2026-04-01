@@ -73,6 +73,12 @@ function SpawnedItemView({
   const handleSpawnItemHit = (event: SpawnItemHitCallbackEvent) => {
     const gameplayState = useGameplayStore.getState();
     if (item.spawnItem.scoreMode === "direct") {
+      if (typeof item.spawnItem.triggerEventRuleId === "string" && item.spawnItem.triggerEventRuleId.trim().length > 0) {
+        gameplayState.triggerSpawnEventRuleById(item.spawnItem.triggerEventRuleId, {
+          x: event.x,
+          y: event.y,
+        });
+      }
       gameplayState.applySpawnItemHitEffect({
         scoreDelta: item.spawnItem.scoreDelta,
         timeDeltaMs: item.spawnItem.timeDeltaMs,
@@ -87,6 +93,7 @@ function SpawnedItemView({
       x: event.x,
       y: event.y,
       timeMs: event.timeMs,
+      canTriggerSpawnEvents: item.spawnItem.canTriggerSpawnEvents !== false,
     });
   };
 
@@ -98,7 +105,7 @@ function SpawnedItemView({
     dropType: item.spawnItem.dropType,
     lifeLossEnabled: item.spawnItem.lifeLossEnabled,
     onSpawnItemHit: handleSpawnItemHit,
-    itemMarker: item.spawnItem.scoreMode === "direct" ? "hazard" : "none",
+    itemMarker: item.spawnItem.itemMarker ?? "none",
     onRegisterCullZ,
     onCleanupRequested,
     autoPopSignal,
@@ -173,6 +180,7 @@ export function ItemSpawner({
   useFrame((_state, delta) => {
     // ── Spawn ─────────────────────────────────────────────────────────────
     if (flowState === "run" && isGameRunClockRunning()) {
+      useGameplayStore.getState().flushPendingSpawnEvents();
       const cfg = SETTINGS.spawner;
       const runSeconds = getGameRunClockSeconds();
       if (cfg.enabled && templates.length > 0) {
@@ -245,7 +253,10 @@ export function ItemSpawner({
 
             spawnTimerRef.current -= effectiveIntervalSec;
             const currentActiveCountsByItemId = countItemsByItemId(currentState.items);
-            const itemDefinition = pickWeightedSpawnItemDefinition(currentActiveCountsByItemId);
+            const itemDefinition = pickWeightedSpawnItemDefinition(
+              currentActiveCountsByItemId,
+              runSeconds,
+            );
             if (!itemDefinition) continue;
             const spawnXRange = Math.max(0, cfg.spawnXRange);
             const xOffset = cfg.spawnXRangeOffset + (Math.random() * 2 - 1) * spawnXRange;
