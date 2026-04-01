@@ -36,6 +36,11 @@ function normalizeCount(value: number | undefined): number {
   return Math.max(0, Math.trunc(value))
 }
 
+function normalizeMinScoreToSpawn(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return Math.max(0, Math.trunc(value))
+}
+
 export function getSpawnItemDefinitions(): SpawnItemDefinition[] {
   return SETTINGS.spawner.itemDefinitions
 }
@@ -111,8 +116,11 @@ export function resolveSpawnItemWeight(
 export function pickWeightedSpawnItemDefinition(
   activeCountsByItemId: Record<string, number> = {},
   runSeconds = 0,
+  currentScore = 0,
 ): SpawnItemDefinition | null {
   const pool = getDefaultSpawnItemPool().filter((definition) => {
+    const minScoreToSpawn = normalizeMinScoreToSpawn(definition.minScoreToSpawn)
+    if (currentScore < minScoreToSpawn) return false
     const maxConcurrent = resolveSpawnItemMaxConcurrent(definition, runSeconds)
     if (maxConcurrent === null) return true
     const activeCount = Math.max(0, Math.trunc(activeCountsByItemId[definition.id] ?? 0))

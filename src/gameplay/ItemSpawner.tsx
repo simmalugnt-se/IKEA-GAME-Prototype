@@ -244,6 +244,7 @@ export function ItemSpawner({
           while (spawnTimerRef.current >= effectiveIntervalSec) {
             const currentState = useSpawnerStore.getState();
             const currentDefaultPoolCount = countDefaultPoolItems(currentState.items);
+            const currentScore = useGameplayStore.getState().score;
             if (
               currentDefaultPoolCount >= effectiveMaxItems
               || currentState.activeCount >= maxItemsCap
@@ -256,6 +257,7 @@ export function ItemSpawner({
             const itemDefinition = pickWeightedSpawnItemDefinition(
               currentActiveCountsByItemId,
               runSeconds,
+              currentScore,
             );
             if (!itemDefinition) continue;
             const spawnXRange = Math.max(0, cfg.spawnXRange);

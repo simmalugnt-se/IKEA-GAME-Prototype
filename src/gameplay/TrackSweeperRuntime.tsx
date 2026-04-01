@@ -125,7 +125,10 @@ function buildTrackSweeperDescriptors(
   rotationEuler.setFromQuaternion(rotationQuaternion)
 
   const radius = Math.max(0.05, action.radius)
-  const height = resolveAxisSpanLength(corners, axis, action.spanPadding)
+  const configuredLength = typeof action.length === 'number' && Number.isFinite(action.length)
+    ? Math.max(0.1, action.length)
+    : null
+  const height = configuredLength ?? resolveAxisSpanLength(corners, axis, action.spanPadding)
   const speed = Math.max(0.1, action.speed)
   const rollSpeed = (speed / Math.max(radius, 1e-3)) * Math.max(0, action.rollAngularSpeedMultiplier)
   const color = resolveMaterialColorIndex(action.colorIndex)

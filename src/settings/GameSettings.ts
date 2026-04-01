@@ -78,7 +78,7 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: false, // Master-toggle för allt debug
+    enabled: true, // Master-toggle för allt debug
     showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
     showStats: false, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
@@ -385,6 +385,7 @@ export const SETTINGS: Settings = {
         label: "Hazard Balloon",
         enabled: true,
         includeInDefaultPool: true,
+        minScoreToSpawn: 20000,
         weight: 0.1,
         weightAcceleration: 0.008,
         weightAccelerationCurve: "linear",
@@ -517,8 +518,8 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 4,
-          maxMultiplier: 4,
+          minMultiplier: 3,
+          maxMultiplier: 3,
           cooldownMs: 10000,
         },
         action: {
@@ -555,7 +556,8 @@ export const SETTINGS: Settings = {
           colorIndex: 5,
           entrySides: ["left", "right"],
           radius: 0.18,
-          spanPadding: 0.6,
+          length: 3.5,
+          spanPadding: 2.6,
           spawnPadding: 1.4,
           speed: 4.5,
           rollAngularSpeedMultiplier: 1,

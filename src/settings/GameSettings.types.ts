@@ -77,6 +77,7 @@ export type SpawnItemDefinition = {
   label: string
   enabled: boolean
   includeInDefaultPool: boolean
+  minScoreToSpawn?: number
   weight: number
   weightAcceleration?: number
   weightAccelerationCurve?: AccelerationCurveName
@@ -162,6 +163,7 @@ export type SpawnEventActionTrackSweeper = {
   colorIndex: MaterialColorIndex
   entrySides: GroundBallEntrySide[]
   radius: number
+  length?: number
   spanPadding: number
   spawnPadding: number
   speed: number
