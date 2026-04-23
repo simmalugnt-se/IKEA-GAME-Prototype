@@ -309,6 +309,7 @@ export type Settings = {
       storageMode: HighScoreStorageMode
       maxEntries: number
       localStorageKey: string
+      databaseApiBaseUrl: string
       databaseFallbackMode: HighScoreDatabaseFallbackMode
     }
     flow: {

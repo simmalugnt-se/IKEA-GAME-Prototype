@@ -19,12 +19,12 @@ export type {
   HighScorePreviewPlacement,
 }
 
-export function submitHighScoreSubmission(record: HighScoreSubmissionRecord): HighScoreSubmissionResult {
+export function submitHighScoreSubmission(record: HighScoreSubmissionRecord): Promise<HighScoreSubmissionResult> {
   return submitHighScore(record)
 }
 
 // Backward-compat shim for pre-refactor call sites.
-export function submitHighScorePlaceholder(record: HighScoreSubmissionRecord): HighScoreSubmissionResult {
+export function submitHighScorePlaceholder(record: HighScoreSubmissionRecord): Promise<HighScoreSubmissionResult> {
   return submitHighScore(record)
 }
 

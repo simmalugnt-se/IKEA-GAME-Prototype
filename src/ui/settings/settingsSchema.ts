@@ -449,6 +449,12 @@ export const settingsSections: SectionDescriptor[] = [
                 set: (v) => { SETTINGS.gameplay.highScore.localStorageKey = v; bump() },
             },
             {
+                type: 'text', label: 'highScore.databaseApiBaseUrl',
+                get: () => SETTINGS.gameplay.highScore.databaseApiBaseUrl,
+                set: (v) => { SETTINGS.gameplay.highScore.databaseApiBaseUrl = v; bump() },
+                visible: () => SETTINGS.gameplay.highScore.storageMode === 'database',
+            },
+            {
                 type: 'select', label: 'highScore.databaseFallbackMode',
                 get: () => SETTINGS.gameplay.highScore.databaseFallbackMode,
                 set: (v) => { SETTINGS.gameplay.highScore.databaseFallbackMode = v as typeof SETTINGS.gameplay.highScore.databaseFallbackMode; bump() },

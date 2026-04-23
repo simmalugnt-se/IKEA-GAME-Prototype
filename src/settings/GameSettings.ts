@@ -276,9 +276,10 @@ export const SETTINGS: Settings = {
       pulseFastStartMs: 5000,
     },
     highScore: {
-      storageMode: "local_storage",
+      storageMode: "database",
       maxEntries: 256,
       localStorageKey: "ikea-game.highscores.v1",
+      databaseApiBaseUrl: "http://127.0.0.1:5175",
       databaseFallbackMode: "local_storage",
     },
     flow: {

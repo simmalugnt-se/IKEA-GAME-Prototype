@@ -42,16 +42,30 @@ type PersistedHighScoreRecord = {
 type HighScoreStoreConfig = {
   maxEntries: number
   localStorageKey: string
+  databaseApiBaseUrl: string
+}
+
+type DatabaseSnapshotResponse = {
+  entries?: unknown
+  totalEntries?: unknown
+  storageMode?: unknown
+}
+
+type DatabaseSubmissionResponse = DatabaseSnapshotResponse & {
+  accepted?: unknown
+  rank?: unknown
 }
 
 const DEFAULT_LOCAL_STORAGE_KEY = 'ikea-game.highscores.v1'
+const DEFAULT_DATABASE_API_BASE_URL = 'http://127.0.0.1:5175'
 const DEFAULT_MAX_ENTRIES = 256
+const DATABASE_FETCH_TIMEOUT_MS = 2000
 
 const listeners = new Set<HighScoreSnapshotListener>()
 let storageEventBound = false
 let localStorageUnavailableWarned = false
 let localStorageWriteWarned = false
-let databaseStubWarned = false
+let databaseUnavailableWarned = false
 
 function normalizeNonNegativeInt(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback
@@ -85,10 +99,18 @@ function resolveConfiguredLocalStorageKey(): string {
   return trimmed.length > 0 ? trimmed : DEFAULT_LOCAL_STORAGE_KEY
 }
 
+function resolveConfiguredDatabaseApiBaseUrl(): string {
+  const raw = SETTINGS.gameplay.highScore.databaseApiBaseUrl
+  if (typeof raw !== 'string') return DEFAULT_DATABASE_API_BASE_URL
+  const trimmed = raw.trim().replace(/\/+$/, '')
+  return trimmed.length > 0 ? trimmed : DEFAULT_DATABASE_API_BASE_URL
+}
+
 function resolveConfig(): HighScoreStoreConfig {
   return {
     maxEntries: resolveConfiguredMaxEntries(),
     localStorageKey: resolveConfiguredLocalStorageKey(),
+    databaseApiBaseUrl: resolveConfiguredDatabaseApiBaseUrl(),
   }
 }
 
@@ -154,6 +176,17 @@ function normalizePersistedRecord(raw: unknown): HighScoreSubmissionRecord | nul
     submittedAtMs: normalizeNonNegativeInt(record.submittedAtMs ?? Date.now(), Date.now()),
     reason: normalizeReason(record.reason),
   })
+}
+
+function normalizeSnapshotEntries(raw: unknown): HighScoreSubmissionRecord[] {
+  if (!Array.isArray(raw)) return []
+  const records: HighScoreSubmissionRecord[] = []
+  for (const entry of raw) {
+    const normalized = normalizePersistedRecord(entry)
+    if (normalized) records.push(normalized)
+  }
+  sortAndTrimRecords(records, resolveConfiguredMaxEntries())
+  return records
 }
 
 function sortAndTrimRecords(records: HighScoreSubmissionRecord[], maxEntries: number): void {
@@ -286,24 +319,155 @@ class LocalStorageHighScoreStore {
   }
 }
 
+type DatabaseState = 'unknown' | 'available' | 'unavailable'
+
+class DatabaseHighScoreStore {
+  private configKey = ''
+  private state: DatabaseState = 'unknown'
+  private records: HighScoreSubmissionRecord[] = []
+  private readyPromise: Promise<void> | null = null
+
+  configure(config: HighScoreStoreConfig): void {
+    const nextConfigKey = `${config.databaseApiBaseUrl}|${config.localStorageKey}|${config.maxEntries}`
+    if (this.configKey === nextConfigKey) return
+    this.configKey = nextConfigKey
+    this.state = 'unknown'
+    this.records = []
+    this.readyPromise = null
+  }
+
+  getSnapshot(): readonly HighScoreSubmissionRecord[] {
+    return this.records
+  }
+
+  isUnavailable(): boolean {
+    return this.state === 'unavailable'
+  }
+
+  isUnknown(): boolean {
+    return this.state === 'unknown'
+  }
+
+  markUnavailable(): void {
+    this.state = 'unavailable'
+  }
+
+  refresh(config: HighScoreStoreConfig): Promise<void> {
+    this.configure(config)
+    if (this.readyPromise) return this.readyPromise
+    this.readyPromise = this.load(config)
+      .finally(() => {
+        this.readyPromise = null
+      })
+    return this.readyPromise
+  }
+
+  async submit(record: HighScoreSubmissionRecord, config: HighScoreStoreConfig): Promise<HighScoreSubmissionResult> {
+    this.configure(config)
+    await this.ensureMigrated(config)
+    const response = await this.fetchJson<DatabaseSubmissionResponse>(config, '/api/highscores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...record, maxEntries: config.maxEntries }),
+    })
+
+    const entries = normalizeSnapshotEntries(response.entries)
+    this.records = entries
+    this.state = 'available'
+    databaseUnavailableWarned = false
+
+    return {
+      accepted: true,
+      rank: typeof response.rank === 'number' ? Math.max(1, Math.trunc(response.rank)) : resolveRank(entries, record),
+      totalEntries: Number.isFinite(response.totalEntries) ? Math.max(0, Math.trunc(Number(response.totalEntries))) : entries.length,
+      storageMode: 'database',
+    }
+  }
+
+  async clear(config: HighScoreStoreConfig): Promise<void> {
+    this.configure(config)
+    await this.fetchJson<DatabaseSnapshotResponse>(config, '/api/highscores', { method: 'DELETE' })
+    this.records = []
+    this.state = 'available'
+    databaseUnavailableWarned = false
+  }
+
+  private async load(config: HighScoreStoreConfig): Promise<void> {
+    this.configure(config)
+    await this.ensureMigrated(config)
+    const response = await this.fetchJson<DatabaseSnapshotResponse>(config, `/api/highscores?limit=${config.maxEntries}`)
+    this.records = normalizeSnapshotEntries(response.entries)
+    this.state = 'available'
+    databaseUnavailableWarned = false
+  }
+
+  private async ensureMigrated(config: HighScoreStoreConfig): Promise<void> {
+    if (!isLocalStorageAvailable()) return
+    const migrationKey = `${config.localStorageKey}.migratedToDatabase`
+    if (window.localStorage.getItem(migrationKey) === 'true') return
+
+    localStorageStore.configure(config)
+    const entries = cloneSnapshot(localStorageStore.getSnapshot())
+    if (entries.length > 0) {
+      await this.fetchJson<DatabaseSnapshotResponse>(config, '/api/highscores/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries, maxEntries: config.maxEntries }),
+      })
+    } else {
+      await this.fetchJson<DatabaseSnapshotResponse>(config, `/api/highscores?limit=${config.maxEntries}`)
+    }
+
+    window.localStorage.setItem(migrationKey, 'true')
+  }
+
+  private async fetchJson<T>(config: HighScoreStoreConfig, path: string, init?: RequestInit): Promise<T> {
+    if (typeof fetch !== 'function') {
+      throw new Error('fetch is unavailable')
+    }
+
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => {
+      controller.abort()
+    }, DATABASE_FETCH_TIMEOUT_MS)
+
+    try {
+      const response = await fetch(`${config.databaseApiBaseUrl}${path}`, {
+        ...init,
+        signal: controller.signal,
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { error?: unknown }
+        throw new Error(typeof data.error === 'string' ? data.error : `High score database request failed (${response.status})`)
+      }
+      return await response.json() as T
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+  }
+}
+
 const memoryStore = new MemoryHighScoreStore()
 const localStorageStore = new LocalStorageHighScoreStore()
+const databaseStore = new DatabaseHighScoreStore()
 
-function resolvePreferredStorageMode(): HighScoreStorageMode {
-  const configuredMode = resolveConfiguredStorageMode()
-  if (configuredMode !== 'database') return configuredMode
+function warnDatabaseFallback(error: unknown): void {
+  databaseStore.markUnavailable()
+  if (databaseUnavailableWarned) return
+  databaseUnavailableWarned = true
+  console.warn('[highScoreStoreRuntime] Failed to use high score database, using configured fallback.', error)
+}
 
-  if (!databaseStubWarned) {
-    databaseStubWarned = true
-    console.warn('[highScoreStoreRuntime] "database" mode is not implemented yet, using configured fallback.')
-  }
+function resolveFallbackStorageMode(): HighScoreStorageMode {
   return resolveConfiguredFallbackMode()
 }
 
 function resolveEffectiveStorageMode(): HighScoreStorageMode {
-  const preferredMode = resolvePreferredStorageMode()
-  if (preferredMode === 'memory') return 'memory'
-
+  const configuredMode = resolveConfiguredStorageMode()
+  if (configuredMode === 'memory') return 'memory'
+  if (configuredMode === 'database') {
+    return databaseStore.isUnavailable() ? resolveFallbackStorageMode() : 'database'
+  }
   if (isLocalStorageAvailable()) return 'local_storage'
 
   if (!localStorageUnavailableWarned) {
@@ -313,12 +477,61 @@ function resolveEffectiveStorageMode(): HighScoreStorageMode {
   return 'memory'
 }
 
+function submitToFallback(record: HighScoreSubmissionRecord, config: HighScoreStoreConfig): HighScoreSubmissionResult {
+  const fallbackMode = resolveFallbackStorageMode()
+  if (fallbackMode === 'local_storage' && isLocalStorageAvailable()) {
+    localStorageStore.configure(config)
+    try {
+      const result = localStorageStore.submit(record)
+      return {
+        accepted: true,
+        rank: result.rank,
+        totalEntries: result.totalEntries,
+        storageMode: 'local_storage',
+      }
+    } catch (error) {
+      if (!localStorageWriteWarned) {
+        localStorageWriteWarned = true
+        console.warn('[highScoreStoreRuntime] Failed to write high score to localStorage, falling back to memory.', error)
+      }
+    }
+  }
+
+  const memoryResult = memoryStore.submit(record, config.maxEntries)
+  return {
+    accepted: true,
+    rank: memoryResult.rank,
+    totalEntries: memoryResult.totalEntries,
+    storageMode: 'memory',
+  }
+}
+
+function getFallbackSnapshot(config: HighScoreStoreConfig): readonly HighScoreSubmissionRecord[] {
+  const fallbackMode = resolveFallbackStorageMode()
+  if (fallbackMode === 'local_storage' && isLocalStorageAvailable()) {
+    localStorageStore.configure(config)
+    return cloneSnapshot(localStorageStore.getSnapshot())
+  }
+  return cloneSnapshot(memoryStore.getSnapshot(config.maxEntries))
+}
+
 function emitSnapshotChanged(): void {
   if (listeners.size === 0) return
   const snapshot = getHighScoreSnapshot()
   for (const listener of listeners) {
     listener(snapshot)
   }
+}
+
+function refreshDatabaseSnapshot(config: HighScoreStoreConfig): void {
+  void databaseStore.refresh(config)
+    .then(() => {
+      emitSnapshotChanged()
+    })
+    .catch((error) => {
+      warnDatabaseFallback(error)
+      emitSnapshotChanged()
+    })
 }
 
 function handleStorageEvent(event: StorageEvent): void {
@@ -358,12 +571,26 @@ function resolvePlacement(
   }
 }
 
-export function submitHighScore(record: HighScoreSubmissionRecord): HighScoreSubmissionResult {
+export async function submitHighScore(record: HighScoreSubmissionRecord): Promise<HighScoreSubmissionResult> {
   const normalizedRecord = normalizeRecordInput(record)
   const config = resolveConfig()
-  const effectiveMode = resolveEffectiveStorageMode()
+  const configuredMode = resolveConfiguredStorageMode()
 
-  if (effectiveMode === 'local_storage') {
+  if (configuredMode === 'database') {
+    databaseStore.configure(config)
+    try {
+      const result = await databaseStore.submit(normalizedRecord, config)
+      emitSnapshotChanged()
+      return result
+    } catch (error) {
+      warnDatabaseFallback(error)
+      const result = submitToFallback(normalizedRecord, config)
+      emitSnapshotChanged()
+      return result
+    }
+  }
+
+  if (configuredMode === 'local_storage') {
     localStorageStore.configure(config)
     try {
       const result = localStorageStore.submit(normalizedRecord)
@@ -395,10 +622,20 @@ export function submitHighScore(record: HighScoreSubmissionRecord): HighScoreSub
 export function getHighScoreSnapshot(): readonly HighScoreSubmissionRecord[] {
   const config = resolveConfig()
   const effectiveMode = resolveEffectiveStorageMode()
+
+  if (effectiveMode === 'database') {
+    databaseStore.configure(config)
+    if (databaseStore.isUnknown()) {
+      refreshDatabaseSnapshot(config)
+    }
+    return cloneSnapshot(databaseStore.getSnapshot())
+  }
+
   if (effectiveMode === 'local_storage') {
     localStorageStore.configure(config)
     return cloneSnapshot(localStorageStore.getSnapshot())
   }
+
   return cloneSnapshot(memoryStore.getSnapshot(config.maxEntries))
 }
 
@@ -426,17 +663,26 @@ export function getHighScorePreviewPlacement(score: number): HighScorePreviewPla
 export function clearHighScoreSnapshot(): void {
   const config = resolveConfig()
   const effectiveMode = resolveEffectiveStorageMode()
-  if (effectiveMode === 'local_storage') {
+  if (effectiveMode === 'database') {
+    void databaseStore.clear(config)
+      .then(() => {
+        emitSnapshotChanged()
+      })
+      .catch((error) => {
+        warnDatabaseFallback(error)
+      })
+  } else if (effectiveMode === 'local_storage') {
     localStorageStore.configure(config)
     try {
       localStorageStore.clear()
     } catch (error) {
       console.warn('[highScoreStoreRuntime] Failed to clear localStorage high score snapshot.', error)
     }
+    emitSnapshotChanged()
   } else {
     memoryStore.clear()
+    emitSnapshotChanged()
   }
-  emitSnapshotChanged()
 }
 
 export function subscribeHighScoreSnapshot(listener: HighScoreSnapshotListener): () => void {
