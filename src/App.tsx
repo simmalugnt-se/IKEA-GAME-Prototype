@@ -15,6 +15,7 @@ import { GameFlowOverlay } from "@/ui/GameFlowOverlay";
 import { CursorComparePage } from "@/ui/input/CursorComparePage";
 import { CursorSourcePage } from "@/ui/input/CursorSourcePage";
 import { BonusEventDebugPanel } from "@/ui/BonusEventDebugPanel";
+import { HighScoresPage } from "@/ui/highscores/HighScoresPage";
 import { ScoreboardPage } from "@/ui/scoreboard/ScoreboardPage";
 import { GameSettingsPanel } from "@/ui/settings/GameSettingsPanel";
 import { ScoreHud } from "@/ui/ScoreHud";
@@ -24,6 +25,7 @@ import { UiStyleVarsRuntime } from "@/ui/UiStyleVarsRuntime";
 export default function App() {
   const isConverter = window.location.pathname === "/converter";
   const isDocs = window.location.pathname === "/docs";
+  const isHighScores = window.location.pathname === "/highscores";
   const isScoreboard = window.location.pathname === "/scoreboard";
   const isCursorSource = window.location.pathname === "/cursor-source";
   const isCursorCompare = window.location.pathname === "/cursor-compare";
@@ -35,6 +37,10 @@ export default function App() {
 
   if (isDocs) {
     return <DocsPage />;
+  }
+
+  if (isHighScores) {
+    return <HighScoresPage />;
   }
 
   if (isScoreboard) {
