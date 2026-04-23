@@ -13,6 +13,7 @@ import { SETTINGS, resolveMaterialColorIndex } from '@/settings/GameSettings'
 import type { GameRunMode, SpawnEventAction } from '@/settings/GameSettings.types'
 import { onEntityUnregister } from '@/entities/entityStore'
 import { emitScorePop } from '@/input/scorePopEmitter'
+import { sendExternalCursorLifecycleEvent } from '@/input/externalCursorLifecycle'
 import { sendScoreboardEvent } from '@/scoreboard/scoreboardSender'
 import { getRunId, rotateRunId } from '@/scoreboard/runId'
 import {
@@ -1414,11 +1415,15 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     resetGameRunClock()
 
     if (didTransition) {
+      const currentRunId = getRunId()
       playGameSound({ type: 'idle_started' })
+      sendExternalCursorLifecycleEvent('idle_started', {
+        runId: currentRunId,
+      })
       sendScoreboardEvent({
         type: 'idle_started',
         timestamp: Date.now(),
-        runId: getRunId(),
+        runId: currentRunId,
       })
     }
   },
@@ -1472,6 +1477,10 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     }
 
     playGameSound({ type: 'run_started' })
+    sendExternalCursorLifecycleEvent('run_started', {
+      runId: newRunId,
+      reason: 'first_balloon_popped',
+    })
     sendScoreboardEvent({
       type: 'game_started',
       timestamp: Date.now(),
@@ -1592,6 +1601,9 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       })
 
       playGameSound({ type: 'idle_started' })
+      sendExternalCursorLifecycleEvent('idle_started', {
+        runId: submittedRunId,
+      })
       sendScoreboardEvent({
         type: 'initials_step_finished',
         timestamp: Date.now(),

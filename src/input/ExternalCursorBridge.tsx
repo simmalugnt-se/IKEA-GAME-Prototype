@@ -6,6 +6,7 @@ import {
   submitExternalCursorFrameSample,
   type ExternalCursorPointerSample,
 } from '@/input/CursorInputRouter'
+import { registerExternalCursorLifecycleSender } from '@/input/externalCursorLifecycle'
 import { SETTINGS } from '@/settings/GameSettings'
 import { useSettingsVersion } from '@/settings/settingsStore'
 
@@ -56,6 +57,7 @@ export function ExternalCursorBridge() {
 
     let ws: WebSocket | null = null
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let unregisterLifecycleSender: (() => void) | null = null
     let disposed = false
 
     let telemetrySourceId = ''
@@ -250,7 +252,14 @@ export function ExternalCursorBridge() {
         }
       }
 
+      ws.onopen = () => {
+        unregisterLifecycleSender?.()
+        unregisterLifecycleSender = registerExternalCursorLifecycleSender(trySendJson)
+      }
+
       ws.onclose = () => {
+        unregisterLifecycleSender?.()
+        unregisterLifecycleSender = null
         ws = null
         if (disposed) return
         scheduleReconnect()
@@ -269,6 +278,8 @@ export function ExternalCursorBridge() {
         clearTimeout(reconnectTimer)
         reconnectTimer = null
       }
+      unregisterLifecycleSender?.()
+      unregisterLifecycleSender = null
       ws?.close()
       endExternalCursorInputSession()
     }

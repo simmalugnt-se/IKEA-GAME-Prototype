@@ -81,7 +81,7 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: true, // Master-toggle för allt debug
+    enabled: false, // Master-toggle för allt debug
     showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
     showStats: false, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
