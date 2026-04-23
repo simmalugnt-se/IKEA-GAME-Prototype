@@ -159,6 +159,7 @@ function buildTrackSweeperDescriptors(
 
 export function TrackSweeperRuntime() {
   const flowState = useGameplayStore((state) => state.flowState)
+  const paused = useGameplayStore((state) => state.paused)
   const queuedRequests = useTrackSweeperStore((state) => state.queuedRequests)
   const activeSweepers = useTrackSweeperStore((state) => state.activeSweepers)
   const consumeRequests = useTrackSweeperStore((state) => state.consumeRequests)
@@ -174,6 +175,7 @@ export function TrackSweeperRuntime() {
 
   useEffect(() => {
     if (flowState !== 'run') return
+    if (paused) return
     if (!(camera instanceof THREE.OrthographicCamera)) return
     if (queuedRequests.length <= 0) return
 
@@ -188,9 +190,10 @@ export function TrackSweeperRuntime() {
       buildTrackSweeperDescriptors(request.id, request.action, corners as FrustumCorners, nowMs)
     ))
     addActiveSweepers(nextSweepers)
-  }, [addActiveSweepers, camera, consumeRequests, flowState, queuedRequests])
+  }, [addActiveSweepers, camera, consumeRequests, flowState, paused, queuedRequests])
 
   useFrame(() => {
+    if (paused) return
     if (activeSweepers.length <= 0) return
     const nowMs = performance.now()
     for (let i = 0; i < activeSweepers.length; i += 1) {

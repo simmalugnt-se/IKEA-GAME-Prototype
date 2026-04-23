@@ -152,6 +152,7 @@ function buildGroundBallDescriptorsForAction(
 
 export function GroundBallWaveRuntime() {
   const flowState = useGameplayStore((state) => state.flowState)
+  const paused = useGameplayStore((state) => state.paused)
   const queuedRequests = useGroundBallWaveStore((state) => state.queuedRequests)
   const activeBalls = useGroundBallWaveStore((state) => state.activeBalls)
   const consumeWaveRequests = useGroundBallWaveStore((state) => state.consumeWaveRequests)
@@ -167,6 +168,7 @@ export function GroundBallWaveRuntime() {
 
   useEffect(() => {
     if (flowState !== 'run') return
+    if (paused) return
     if (!(camera instanceof THREE.OrthographicCamera)) return
     if (queuedRequests.length <= 0) return
 
@@ -181,9 +183,10 @@ export function GroundBallWaveRuntime() {
       buildGroundBallDescriptorsForAction(request.id, request.action, corners as FrustumCorners, nowMs)
     ))
     addActiveBalls(nextBalls)
-  }, [addActiveBalls, camera, consumeWaveRequests, flowState, queuedRequests])
+  }, [addActiveBalls, camera, consumeWaveRequests, flowState, paused, queuedRequests])
 
   useFrame(() => {
+    if (paused) return
     if (activeBalls.length <= 0) return
     const nowMs = performance.now()
     for (let i = 0; i < activeBalls.length; i += 1) {

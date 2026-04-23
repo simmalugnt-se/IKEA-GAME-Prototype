@@ -42,6 +42,7 @@ export function Scene() {
   const spawnMarkerRef = useRef<PositionTargetHandle | null>(null);
   const cullMarkerRef = useRef<PositionTargetHandle | null>(null);
   const flowState = useGameplayStore((state) => state.flowState);
+  const paused = useGameplayStore((state) => state.paused);
   const trackerTravelSpeedMultiplierRef = useRef(1);
   const trackerTravelEaseStartMsRef = useRef<number | null>(null);
   const previousFlowStateRef = useRef(flowState);
@@ -120,6 +121,7 @@ export function Scene() {
       <ExternalCursorBridge />
       <Physics
         gravity={[0, -9.81, 0]}
+        paused={paused}
         debug={isDebug && SETTINGS.debug.showColliders}
       >
         <GameRunClockRuntime />

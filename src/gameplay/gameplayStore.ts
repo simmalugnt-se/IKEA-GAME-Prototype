@@ -89,6 +89,7 @@ type GameplayState = {
   lastRunScore: number
   sessionHighScore: number
   lives: number
+  paused: boolean
   runMode: GameRunMode
   runTimeEndsAtMs: number
   runTimePausedRemainingMs: number
@@ -106,6 +107,8 @@ type GameplayState = {
   contagionColorsByEntityId: Record<string, number>
   bootstrapIdle: () => void
   startRunFromIdleTrigger: () => void
+  setPaused: (paused: boolean) => void
+  togglePaused: () => void
   onGameOverTileCentered: () => void
   setGameOverInitials: (initials: string) => void
   registerGameOverInputInteraction: () => void
@@ -1142,6 +1145,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       if (!isRunTimerScopeActive(scopeToken)) return
       const state = get()
       if (state.flowState !== 'run' || state.runMode !== 'time') return
+      if (state.paused) return
       if (state.runTimePauseEndsAtMs > Date.now()) return
       if (state.runTimeEndsAtMs > Date.now()) {
         scheduleRunEndTimer(scopeToken, state.runTimeEndsAtMs)
@@ -1158,6 +1162,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     let shouldEndRun = false
     set((state) => {
       if (state.flowState !== 'run' || state.runMode !== 'time') return state
+      if (state.paused) return state
       const nextRemainingMs = Math.max(0, Math.trunc(state.runTimePausedRemainingMs))
       if (nextRemainingMs <= 0) {
         shouldEndRun = true
@@ -1213,6 +1218,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       return {
         ...state,
         lives: endReason === 'lives_depleted' ? 0 : state.lives,
+        paused: false,
         lastRunScore: state.score,
         sessionHighScore: Math.max(state.sessionHighScore, state.score),
         flowState: 'game_over_travel',
@@ -1259,10 +1265,99 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
 
   const resolveCurrentRemainingTimeMs = (state: GameplayState, nowMs: number): number => {
     if (state.runMode !== 'time') return 0
+    if (state.paused) {
+      return Math.max(0, Math.trunc(state.runTimePausedRemainingMs))
+    }
     if (state.runTimePauseEndsAtMs > nowMs) {
       return Math.max(0, Math.trunc(state.runTimePauseToMs))
     }
     return Math.max(0, Math.trunc(state.runTimeEndsAtMs - nowMs))
+  }
+
+  const setRunPaused = (nextPaused: boolean): void => {
+    const nowMs = Date.now()
+    const scopeToken = runTimerScopeToken
+    let didChange = false
+    let shouldResumeClock = false
+    let shouldPauseClock = false
+    let shouldEndRun = false
+    let resumeEndsAtMs = 0
+
+    set((state) => {
+      if (state.flowState !== 'run') return state
+      if (state.paused === nextPaused) return state
+      didChange = true
+
+      if (nextPaused) {
+        shouldPauseClock = true
+        if (state.runMode !== 'time') {
+          return {
+            ...state,
+            paused: true,
+          }
+        }
+
+        const remainingMs = resolveCurrentRemainingTimeMs(state, nowMs)
+        return {
+          ...state,
+          paused: true,
+          runTimeEndsAtMs: 0,
+          runTimePausedRemainingMs: remainingMs,
+          runTimePauseFromMs: remainingMs,
+          runTimePauseToMs: remainingMs,
+          runTimePauseStartedAtMs: nowMs,
+          runTimePauseEndsAtMs: 0,
+        }
+      }
+
+      shouldResumeClock = true
+      if (state.runMode !== 'time') {
+        return {
+          ...state,
+          paused: false,
+        }
+      }
+
+      const remainingMs = Math.max(0, Math.trunc(state.runTimePausedRemainingMs))
+      if (remainingMs <= 0) {
+        shouldEndRun = true
+        return {
+          ...state,
+          paused: false,
+          ...createClearedRunTimeStateFields(),
+          runTimeEndsAtMs: nowMs,
+        }
+      }
+
+      resumeEndsAtMs = nowMs + remainingMs
+      return {
+        ...state,
+        paused: false,
+        ...createClearedRunTimeStateFields(),
+        runTimeEndsAtMs: resumeEndsAtMs,
+      }
+    })
+
+    if (!didChange) return
+
+    clearRunModeTimers()
+    if (shouldPauseClock) {
+      setGameRunClockRunning(false)
+      return
+    }
+
+    if (shouldEndRun) {
+      if (isRunTimerScopeActive(scopeToken)) {
+        endRun('time_elapsed')
+      }
+      return
+    }
+
+    if (!shouldResumeClock) return
+    setGameRunClockRunning(true)
+    if (resumeEndsAtMs > 0 && isRunTimerScopeActive(scopeToken)) {
+      scheduleRunEndTimer(scopeToken, resumeEndsAtMs)
+    }
   }
 
   return ({
@@ -1270,6 +1365,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
   lastRunScore: 0,
   sessionHighScore: 0,
   lives: getInitialLives(),
+  paused: false,
   runMode: resolveRunModeFromSettings(),
   ...createClearedRunTimeStateFields(),
   flowState: 'idle',
@@ -1299,6 +1395,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       return {
         ...state,
         lives: getInitialLives(),
+        paused: false,
         runMode: resolveRunModeFromSettings(),
         flowState: 'idle',
         flowEpoch: state.flowEpoch + 1,
@@ -1353,6 +1450,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         ...state,
         score: 0,
         lives: initialLives,
+        paused: false,
         runMode,
         ...createClearedRunTimeStateFields(),
         runTimeEndsAtMs,
@@ -1383,6 +1481,15 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       runMode,
       timeLimitMs: runTimeLimitMs,
     })
+  },
+
+  setPaused: (paused) => {
+    setRunPaused(paused === true)
+  },
+
+  togglePaused: () => {
+    const state = get()
+    setRunPaused(!state.paused)
   },
 
   onGameOverTileCentered: () => {
@@ -1455,6 +1562,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       return {
         ...state,
         runMode: resolveRunModeFromSettings(),
+        paused: false,
         flowState: 'idle',
         flowEpoch: state.flowEpoch + 1,
         gameOverInputEndsAtMs: 0,
@@ -1558,6 +1666,21 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
 
     set((state) => {
       if (state.flowState !== 'run' || state.runMode !== 'time') return state
+      if (state.paused) {
+        const currentRemainingMs = Math.max(0, Math.trunc(state.runTimePausedRemainingMs))
+        targetRemainingMs = Math.max(0, currentRemainingMs + normalizedDeltaMs)
+        accepted = true
+        return {
+          ...state,
+          runTimeEndsAtMs: 0,
+          runTimePausedRemainingMs: targetRemainingMs,
+          runTimePauseFromMs: targetRemainingMs,
+          runTimePauseToMs: targetRemainingMs,
+          runTimePauseStartedAtMs: nowMs,
+          runTimePauseEndsAtMs: 0,
+        }
+      }
+
       const currentRemainingMs = resolveCurrentRemainingTimeMs(state, nowMs)
       targetRemainingMs = Math.max(0, currentRemainingMs + normalizedDeltaMs)
       accepted = true
@@ -1599,6 +1722,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         },
       })
     }
+
+    if (stateBefore.paused) return
 
     if (lerpMs <= 0) {
       scheduleRunEndTimer(scopeToken, nextEndsAtMs)
@@ -2000,7 +2125,16 @@ export function isGameplayRunFlow(): boolean {
 }
 
 export function isMotionSystemFlowActive(): boolean {
-  return useGameplayStore.getState().flowState !== 'game_over_input'
+  const state = useGameplayStore.getState()
+  return state.flowState !== 'game_over_input' && state.paused !== true
+}
+
+export function isGameplayPaused(): boolean {
+  return useGameplayStore.getState().paused === true
+}
+
+export function toggleGameplayPause(): void {
+  useGameplayStore.getState().togglePaused()
 }
 
 onEntityUnregister((id) => {

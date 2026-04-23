@@ -137,6 +137,7 @@ export function useBalloonLifecycleRegistry(): BalloonLifecycleRegistry | null {
 export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
   const { camera, gl } = useThree()
   const flowState = useGameplayStore((state) => state.flowState)
+  const paused = useGameplayStore((state) => state.paused)
   const runMode = useGameplayStore((state) => state.runMode)
   const loseLives = useGameplayStore((state) => state.loseLives)
   const entriesRef = useRef<Set<BalloonLifecycleEntry>>(new Set())
@@ -228,6 +229,8 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
   }, [gl])
 
   useFrame(() => {
+    if (paused) return
+
     const entries = entriesRef.current
     if (entries.size === 0) return
 

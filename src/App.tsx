@@ -20,6 +20,19 @@ import { GameSettingsPanel } from "@/ui/settings/GameSettingsPanel";
 import { ScoreHud } from "@/ui/ScoreHud";
 import { ScorePopCanvas } from "@/ui/ScorePopCanvas";
 import { UiStyleVarsRuntime } from "@/ui/UiStyleVarsRuntime";
+import { toggleGameplayPause } from "@/gameplay/gameplayStore";
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+  const tagName = element.tagName;
+  return (
+    element.isContentEditable ||
+    tagName === "INPUT" ||
+    tagName === "TEXTAREA" ||
+    tagName === "SELECT"
+  );
+}
 
 export default function App() {
   const isConverter = window.location.pathname === "/converter";
@@ -71,9 +84,16 @@ function GameApp() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
+      if (isEditableKeyboardTarget(e.target)) return;
       if (e.metaKey && (e.key === "." || e.code === "Period")) {
         e.preventDefault();
         setIsSettingsPanelVisible((v) => !v);
+        return;
+      }
+      const isPauseKey = (e.code === "KeyP" || e.key === "p" || e.key === "P");
+      if (isPauseKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        toggleGameplayPause();
       }
     };
     window.addEventListener("keydown", handleKeyDown);

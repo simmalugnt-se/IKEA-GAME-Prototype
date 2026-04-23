@@ -29,8 +29,10 @@ export function ScoreHud() {
   const [blinkingLifeSlots, setBlinkingLifeSlots] = useState<number[]>([])
   const [displayScore, setDisplayScore] = useState(() => score)
   const lives = useGameplayStore((state) => state.lives)
+  const paused = useGameplayStore((state) => state.paused)
   const runMode = useGameplayStore((state) => state.runMode)
   const runTimeEndsAtMs = useGameplayStore((state) => state.runTimeEndsAtMs)
+  const runTimePausedRemainingMs = useGameplayStore((state) => state.runTimePausedRemainingMs)
   const runTimePauseFromMs = useGameplayStore((state) => state.runTimePauseFromMs)
   const runTimePauseToMs = useGameplayStore((state) => state.runTimePauseToMs)
   const runTimePauseStartedAtMs = useGameplayStore((state) => state.runTimePauseStartedAtMs)
@@ -186,13 +188,13 @@ export function ScoreHud() {
     }
 
     clearTicker()
-    if (flowState !== 'run' || runMode !== 'time') return clearTicker
+    if (flowState !== 'run' || runMode !== 'time' || paused) return clearTicker
 
     let disposed = false
     const tick = () => {
       if (disposed) return
       const latestState = useGameplayStore.getState()
-      if (latestState.flowState !== 'run' || latestState.runMode !== 'time') return
+      if (latestState.flowState !== 'run' || latestState.runMode !== 'time' || latestState.paused) return
 
       const nowMs = Date.now()
       setTimeNowMs(nowMs)
@@ -210,7 +212,7 @@ export function ScoreHud() {
       disposed = true
       clearTicker()
     }
-  }, [flowState, runMode])
+  }, [flowState, paused, runMode])
 
   useEffect(() => {
     return () => {
@@ -235,27 +237,32 @@ export function ScoreHud() {
   const blinkingLifeSlotSet = new Set(blinkingLifeSlots)
   let displayRemainingTimeMs = 0
   if (runMode === 'time' && flowState === 'run') {
-    const isPauseActive = (
-      runTimePauseEndsAtMs > timeNowMs
-      && runTimePauseEndsAtMs > runTimePauseStartedAtMs
-    )
-    if (isPauseActive) {
-      const progress = (timeNowMs - runTimePauseStartedAtMs) / (runTimePauseEndsAtMs - runTimePauseStartedAtMs)
-      const clampedProgress = Math.max(0, Math.min(1, progress))
-      displayRemainingTimeMs = Math.max(
-        0,
-        Math.round(runTimePauseFromMs + (runTimePauseToMs - runTimePauseFromMs) * clampedProgress),
-      )
+    if (paused) {
+      displayRemainingTimeMs = Math.max(0, Math.trunc(runTimePausedRemainingMs))
     } else {
-      displayRemainingTimeMs = Math.max(0, runTimeEndsAtMs - timeNowMs)
+      const isPauseActive = (
+        runTimePauseEndsAtMs > timeNowMs
+        && runTimePauseEndsAtMs > runTimePauseStartedAtMs
+      )
+      if (isPauseActive) {
+        const progress = (timeNowMs - runTimePauseStartedAtMs) / (runTimePauseEndsAtMs - runTimePauseStartedAtMs)
+        const clampedProgress = Math.max(0, Math.min(1, progress))
+        displayRemainingTimeMs = Math.max(
+          0,
+          Math.round(runTimePauseFromMs + (runTimePauseToMs - runTimePauseFromMs) * clampedProgress),
+        )
+      } else {
+        displayRemainingTimeMs = Math.max(0, runTimeEndsAtMs - timeNowMs)
+      }
     }
   }
   const pulseSlowStartMs = Math.max(0, Math.trunc(SETTINGS.gameplay.run.pulseSlowStartMs))
   const pulseFastStartMs = Math.max(0, Math.min(pulseSlowStartMs, Math.trunc(SETTINGS.gameplay.run.pulseFastStartMs)))
-  const timePulseFast = runMode === 'time' && flowState === 'run' && displayRemainingTimeMs > 0 && displayRemainingTimeMs <= pulseFastStartMs
+  const timePulseFast = runMode === 'time' && flowState === 'run' && !paused && displayRemainingTimeMs > 0 && displayRemainingTimeMs <= pulseFastStartMs
   const timePulseSlow = (
     runMode === 'time'
     && flowState === 'run'
+    && !paused
     && displayRemainingTimeMs > 0
     && displayRemainingTimeMs <= pulseSlowStartMs
     && !timePulseFast
