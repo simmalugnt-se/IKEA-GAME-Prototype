@@ -74,6 +74,9 @@ export const SETTINGS: Settings = {
       url: "ws://localhost:5175/ws/scoreboard",
       reconnectMs: 1000,
     },
+    ui: {
+      showEventLog: true,
+    },
   },
 
   // --- DEBUG ---

@@ -1,6 +1,11 @@
-import { parseScoreboardEvent, type ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
+import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
 import { CHANNEL_NAME } from '@/scoreboard/scoreboardSender'
+import {
+  parseScoreboardTransportMessage,
+  type ScoreboardSettingsSyncMessage,
+} from '@/scoreboard/scoreboardTransport'
 import { SETTINGS } from '@/settings/GameSettings'
+import { bump } from '@/settings/settingsStore'
 
 const DEDUPE_WINDOW_SIZE = 512
 
@@ -53,12 +58,6 @@ function createDedupeWindow(size: number) {
   }
 }
 
-function parseIncomingScoreboardData(data: unknown): ScoreboardEvent | null {
-  const text = typeof data === 'string' ? data : null
-  if (!text) return null
-  return parseScoreboardEvent(text)
-}
-
 export function subscribeScoreboardEvents(
   onEvent: ScoreboardEventListener,
   onStatus?: ScoreboardStatusListener,
@@ -83,9 +82,26 @@ export function subscribeScoreboardEvents(
     onEvent(event)
   }
 
+  const applySettingsSync = (message: ScoreboardSettingsSyncMessage) => {
+    const nextShowEventLog = message.settings.ui.showEventLog === true
+    if (SETTINGS.scoreboard.ui.showEventLog === nextShowEventLog) return
+
+    SETTINGS.scoreboard.ui.showEventLog = nextShowEventLog
+    bump()
+  }
+
   const handleIncomingData = (data: unknown) => {
-    const parsed = parseIncomingScoreboardData(data)
+    const text = typeof data === 'string' ? data : null
+    if (!text) return
+
+    const parsed = parseScoreboardTransportMessage(text)
     if (!parsed) return
+
+    if (parsed.type === 'scoreboard_settings_sync') {
+      applySettingsSync(parsed)
+      return
+    }
+
     pushIfUnique(parsed)
   }
 

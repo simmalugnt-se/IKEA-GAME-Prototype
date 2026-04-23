@@ -2,6 +2,7 @@ import { SETTINGS, markShadingDirDirty, markShadowLightDirDirty } from '@/settin
 import { AUDIO_SETTINGS } from '@/audio/AudioSettings'
 import type { AudioBankId } from '@/audio/AudioSettings.types'
 import { reloadAudioBank, syncAudioMixerGainsFromSettings } from '@/audio/SoundManager'
+import { sendScoreboardSettingsSync } from '@/scoreboard/scoreboardSender'
 import {
     RENDER_STYLES,
     CURSOR_INPUT_SOURCES,
@@ -191,6 +192,15 @@ export const settingsSections: SectionDescriptor[] = [
                 set: (v) => { SETTINGS.scoreboard.websocket.reconnectMs = v; bump() },
                 min: 100, max: 10000, step: 100,
                 visible: () => SETTINGS.scoreboard.websocket.enabled,
+            },
+            {
+                type: 'boolean', label: 'ui.showEventLog',
+                get: () => SETTINGS.scoreboard.ui.showEventLog,
+                set: (v) => {
+                    SETTINGS.scoreboard.ui.showEventLog = v
+                    bump()
+                    sendScoreboardSettingsSync({ force: true })
+                },
             },
         ],
     },

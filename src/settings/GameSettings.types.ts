@@ -214,6 +214,9 @@ export type Settings = {
   }
   scoreboard: {
     websocket: WebSocketChannelSettings
+    ui: {
+      showEventLog: boolean
+    }
   }
   debug: {
     enabled: boolean

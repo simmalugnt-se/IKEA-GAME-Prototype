@@ -12,6 +12,7 @@ import {
   subscribeScoreboardEvents,
   type ScoreboardReceiverStatus,
 } from '@/scoreboard/scoreboardReceiver'
+import { SETTINGS } from '@/settings/GameSettings'
 import { useSettingsVersion } from '@/settings/settingsStore'
 import { ScoreboardDmdRenderer } from '@/ui/scoreboard/ScoreboardDmdRenderer'
 import { ScoreboardFxOverlay } from '@/ui/scoreboard/ScoreboardFxOverlay'
@@ -102,6 +103,7 @@ function resolveCurrentSource(): ResolvedScoreboardSource {
 
 export function ScoreboardPage() {
   const globalSettingsVersion = useSettingsVersion()
+  const showEventLog = SETTINGS.scoreboard.ui.showEventLog === true
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dmdRendererRef = useRef<ScoreboardDmdRenderer | null>(null)
   const orchestratorRef = useRef<ScoreboardEventOrchestrator | null>(null)
@@ -485,6 +487,11 @@ export function ScoreboardPage() {
             <span style={styles.value}>rank {uiState.lastSubmittedRank ?? '-'}</span>
             <span style={styles.muted}>entries {uiState.highScoreEntries} | storage {uiState.highScoreStorageMode}</span>
           </div>
+        </div>
+      )}
+
+      {showEventLog && (
+        <div style={styles.eventLogPanel}>
           <div style={styles.eventLogHeader}>
             <span style={styles.label}>event log</span>
             <span style={styles.muted}>{eventLog.length} / 200</span>
@@ -583,11 +590,26 @@ const styles = {
     color: '#a7f3d0',
     opacity: 0.75,
   },
+  eventLogPanel: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    width: 'min(920px, calc(100vw - 24px))',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 6,
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: '1px solid rgba(134, 239, 172, 0.22)',
+    background: 'rgba(0, 0, 0, 0.58)',
+    color: '#d1fae5',
+    pointerEvents: 'auto' as const,
+    zIndex: 25,
+  },
   eventLogHeader: {
     display: 'flex',
     alignItems: 'center' as const,
     gap: 10,
-    marginTop: 4,
   },
   clearButton: {
     marginLeft: 'auto',

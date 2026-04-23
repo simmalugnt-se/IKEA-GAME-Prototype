@@ -1,4 +1,5 @@
 import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
+import { createScoreboardSettingsSyncMessage } from '@/scoreboard/scoreboardTransport'
 import { SETTINGS } from '@/settings/GameSettings'
 
 const CHANNEL_NAME = 'ikea-game-scoreboard'
@@ -30,6 +31,8 @@ const wsState: WsBridgeState = {
   queue: [],
   reconnectAttempt: 0,
 }
+
+let lastSyncedShowEventLog: boolean | null = null
 
 function flushWsQueue(): void {
   if (!wsState.ws || wsState.ws.readyState !== WebSocket.OPEN) return
@@ -112,26 +115,42 @@ export function initScoreboardBridge(): () => void {
 
   wsState.isDisposed = false
   connectWs()
+  sendScoreboardSettingsSync({ force: true })
 
   return () => {
     disposeWs()
   }
 }
 
-export function sendScoreboardEvent(event: ScoreboardEvent): void {
+function sendRawTransportMessage(msg: string): void {
   const bc = ensureBroadcastChannel()
-  const msg = JSON.stringify(event)
-
   bc.postMessage(msg)
 
   const { enabled } = SETTINGS.scoreboard.websocket
-  if (enabled) {
-    if (wsState.ws && wsState.ws.readyState === WebSocket.OPEN) {
-      wsState.ws.send(msg)
-    } else if (wsState.queue.length < MAX_QUEUE_SIZE) {
-      wsState.queue.push(msg)
-    }
+  if (!enabled) return
+
+  if (wsState.ws && wsState.ws.readyState === WebSocket.OPEN) {
+    wsState.ws.send(msg)
+    return
   }
+
+  if (wsState.queue.length < MAX_QUEUE_SIZE) {
+    wsState.queue.push(msg)
+  }
+}
+
+export function sendScoreboardEvent(event: ScoreboardEvent): void {
+  sendRawTransportMessage(JSON.stringify(event))
+}
+
+export function sendScoreboardSettingsSync(options?: { force?: boolean }): void {
+  const showEventLog = SETTINGS.scoreboard.ui.showEventLog === true
+  const force = options?.force === true
+  if (!force && lastSyncedShowEventLog === showEventLog) return
+
+  lastSyncedShowEventLog = showEventLog
+  const message = createScoreboardSettingsSyncMessage(showEventLog)
+  sendRawTransportMessage(JSON.stringify(message))
 }
 
 export { CHANNEL_NAME }
