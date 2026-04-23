@@ -653,6 +653,11 @@ export const settingsSections: SectionDescriptor[] = [
         label: 'Cursor',
         fields: [
             {
+                type: 'boolean', label: 'useMouseInput',
+                get: () => SETTINGS.cursor.inputSource === 'mouse',
+                set: (v) => { SETTINGS.cursor.inputSource = v ? 'mouse' : 'external'; bump() },
+            },
+            {
                 type: 'select', label: 'inputSource',
                 get: () => SETTINGS.cursor.inputSource,
                 set: (v) => { SETTINGS.cursor.inputSource = v as typeof SETTINGS.cursor.inputSource; bump() },

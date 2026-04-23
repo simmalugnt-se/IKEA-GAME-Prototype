@@ -578,6 +578,17 @@ function executeSpawnEventAction(
   action: SpawnEventAction,
   origin?: ScreenPos,
 ): void {
+  const scoreboardPayload: Record<string, unknown> = {
+    actionType: action.type,
+  }
+  if (origin) {
+    scoreboardPayload.originX = origin.x
+    scoreboardPayload.originY = origin.y
+  }
+  sendGameEventTriggered(resolveScoreboardEventIdFromSpawnActionType(action.type), {
+    ...scoreboardPayload,
+  })
+
   if (action.type === 'spawn_burst') {
     const requests = buildQueuedSpawnRequestsForSpawnEvent({
       id: '',
@@ -772,6 +783,24 @@ function buildSpawnItemEffectLabel(scoreDelta: number, timeDeltaMs: number, feed
   if (scoreDelta !== 0) lines.push(`${scoreDelta > 0 ? '+' : ''}${scoreDelta}`)
   if (timeDeltaMs !== 0) lines.push(formatTimeDeltaLabel(timeDeltaMs))
   return lines.join('\n')
+}
+
+function resolveScoreboardEventIdFromSpawnActionType(actionType: SpawnEventAction['type']): string {
+  if (actionType === 'spawn_track_sweeper') return 'steamroller'
+  return actionType
+}
+
+function sendGameEventTriggered(
+  eventId: string,
+  payload: Record<string, unknown> = {},
+): void {
+  sendScoreboardEvent({
+    type: 'game_event_triggered',
+    timestamp: Date.now(),
+    runId: getRunId(),
+    eventId,
+    payload,
+  })
 }
 
 function normalizeSelectionWeight(value: number | undefined): number {
@@ -1513,8 +1542,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     })
   },
 
-  addRunTimeMs: (deltaMs, _reason = 'unknown') => {
-    void _reason
+  addRunTimeMs: (deltaMs, reason = 'unknown') => {
     const normalizedDeltaMs = normalizeInt(deltaMs, 0)
     if (normalizedDeltaMs === 0) return
     const stateBefore = get()
@@ -1526,11 +1554,12 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     let accepted = false
     let nextEndsAtMs = 0
     let nextPauseEndsAtMs = 0
+    let targetRemainingMs = 0
 
     set((state) => {
       if (state.flowState !== 'run' || state.runMode !== 'time') return state
       const currentRemainingMs = resolveCurrentRemainingTimeMs(state, nowMs)
-      const targetRemainingMs = Math.max(0, currentRemainingMs + normalizedDeltaMs)
+      targetRemainingMs = Math.max(0, currentRemainingMs + normalizedDeltaMs)
       accepted = true
 
       if (lerpMs <= 0) {
@@ -1555,6 +1584,21 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     })
 
     if (!accepted || !isRunTimerScopeActive(scopeToken)) return
+
+    if (normalizedDeltaMs > 0) {
+      sendScoreboardEvent({
+        type: 'game_event_triggered',
+        timestamp: Date.now(),
+        runId: getRunId(),
+        eventId: 'timebonus',
+        payload: {
+          awardedMs: normalizedDeltaMs,
+          reason,
+          targetRemainingMs: Math.max(0, Math.trunc(targetRemainingMs)),
+          lerpMs,
+        },
+      })
+    }
 
     if (lerpMs <= 0) {
       scheduleRunEndTimer(scopeToken, nextEndsAtMs)
