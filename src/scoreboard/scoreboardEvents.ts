@@ -61,6 +61,14 @@ export type ComboTriggeredEvent = {
   totalScore: number
 }
 
+export type GameEventTriggeredEvent = {
+  type: 'game_event_triggered'
+  timestamp: number
+  runId: string
+  eventId: string
+  payload: Record<string, unknown>
+}
+
 export type IdleStartedEvent = {
   type: 'idle_started'
   timestamp: number
@@ -93,6 +101,7 @@ export type ScoreboardEvent =
   | LivesLostEvent
   | GameOverEvent
   | ComboTriggeredEvent
+  | GameEventTriggeredEvent
   | IdleStartedEvent
   | InitialsStepStartedEvent
   | InitialsStepFinishedEvent
@@ -106,6 +115,7 @@ export function isScoreboardEvent(value: unknown): value is ScoreboardEvent {
     || obj.type === 'lives_lost'
     || obj.type === 'game_over'
     || obj.type === 'combo_triggered'
+    || obj.type === 'game_event_triggered'
     || obj.type === 'idle_started'
     || obj.type === 'initials_step_started'
     || obj.type === 'initials_step_finished'

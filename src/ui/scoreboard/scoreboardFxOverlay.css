@@ -1,0 +1,110 @@
+.sbfx-root {
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sbfx-cue {
+  position: absolute;
+  inset: -8%;
+  --sbfx-peak-opacity: 0.72;
+  opacity: 0;
+  animation-name: sbfx-cue-fade;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-fill-mode: forwards;
+  mix-blend-mode: screen;
+}
+
+.sbfx-vignette {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  filter: blur(28px);
+}
+
+.sbfx-label {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #e9fff0;
+  text-shadow: 0 0 18px rgba(152, 246, 197, 0.85);
+  font-size: clamp(18px, 4vw, 42px);
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  animation-name: sbfx-label-fade;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sbfx-kind-combo .sbfx-vignette {
+  background: radial-gradient(circle at 50% 52%, rgba(76, 255, 148, 0.9), rgba(12, 60, 28, 0.08) 68%);
+}
+
+.sbfx-kind-points {
+  inset: 38% 58% 12% 8%;
+}
+
+.sbfx-kind-points .sbfx-vignette {
+  background: radial-gradient(circle at 65% 35%, rgba(129, 255, 221, 0.78), rgba(11, 30, 23, 0.04) 78%);
+}
+
+.sbfx-kind-points .sbfx-label {
+  top: 22%;
+  left: 64%;
+  font-size: clamp(14px, 2.5vw, 26px);
+}
+
+.sbfx-kind-game-started .sbfx-vignette {
+  background: radial-gradient(circle at 50% 46%, rgba(106, 255, 120, 0.72), rgba(10, 46, 18, 0.06) 76%);
+}
+
+.sbfx-kind-game-over .sbfx-vignette {
+  background: radial-gradient(circle at 50% 48%, rgba(255, 78, 78, 0.78), rgba(54, 5, 10, 0.08) 74%);
+}
+
+.sbfx-kind-initials-submitted .sbfx-vignette {
+  background: radial-gradient(circle at 50% 44%, rgba(118, 225, 255, 0.66), rgba(6, 28, 44, 0.07) 74%);
+}
+
+.sbfx-kind-timebonus .sbfx-vignette {
+  background: radial-gradient(circle at 50% 40%, rgba(255, 225, 112, 0.72), rgba(65, 39, 0, 0.08) 74%);
+}
+
+.sbfx-kind-special .sbfx-vignette {
+  background: radial-gradient(circle at 50% 48%, rgba(246, 164, 255, 0.78), rgba(44, 8, 49, 0.07) 74%);
+}
+
+@keyframes sbfx-cue-fade {
+  0% {
+    opacity: 0;
+    transform: scale(0.93);
+  }
+  20% {
+    opacity: var(--sbfx-peak-opacity);
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.07);
+  }
+}
+
+@keyframes sbfx-label-fade {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.96);
+  }
+  18% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-14px) scale(1.03);
+  }
+}

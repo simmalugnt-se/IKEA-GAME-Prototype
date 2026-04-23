@@ -14,10 +14,23 @@ import {
 } from '@/scoreboard/scoreboardReceiver'
 import { useSettingsVersion } from '@/settings/settingsStore'
 import { ScoreboardDmdRenderer } from '@/ui/scoreboard/ScoreboardDmdRenderer'
+import { ScoreboardFxOverlay } from '@/ui/scoreboard/ScoreboardFxOverlay'
+import {
+  createScoreboardEventOrchestrator,
+  type ScoreboardEventOrchestrator,
+} from '@/ui/scoreboard/scoreboardEventOrchestrator'
+import type {
+  ScoreboardEventLogEntry,
+  ScoreboardVisualCue,
+} from '@/ui/scoreboard/scoreboardEventRuntime.types'
 import {
   ScoreboardRiveDriver,
   type ScoreboardRiveStatus,
 } from '@/ui/scoreboard/ScoreboardRiveDriver'
+import {
+  initScoreboardAudio,
+  playScoreboardSoundCue,
+} from '@/ui/scoreboard/scoreboardSoundRouter'
 import { ScoreboardSettingsPanel } from '@/ui/scoreboard/ScoreboardSettingsPanel'
 import {
   isSameResolvedScoreboardSource,
@@ -91,6 +104,8 @@ export function ScoreboardPage() {
   const globalSettingsVersion = useSettingsVersion()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dmdRendererRef = useRef<ScoreboardDmdRenderer | null>(null)
+  const orchestratorRef = useRef<ScoreboardEventOrchestrator | null>(null)
+  const cueTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
   const overlayVisibleRef = useRef(SCOREBOARD_SETTINGS.debug.showOverlayByDefault === true)
   const [overlayVisible, setOverlayVisible] = useState(
     SCOREBOARD_SETTINGS.debug.showOverlayByDefault === true,
@@ -103,6 +118,26 @@ export function ScoreboardPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [uiState, setUiState] = useState<ScoreboardUiState>(INITIAL_UI_STATE)
+  const [eventLog, setEventLog] = useState<readonly ScoreboardEventLogEntry[]>([])
+  const [activeFxCues, setActiveFxCues] = useState<readonly ScoreboardVisualCue[]>([])
+
+  const clearFxCueTimeouts = useCallback(() => {
+    cueTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId))
+    cueTimeoutsRef.current.clear()
+  }, [])
+
+  const enqueueVisualCue = useCallback((cue: ScoreboardVisualCue) => {
+    setActiveFxCues((prev) => [...prev, cue])
+    const timeoutId = setTimeout(() => {
+      cueTimeoutsRef.current.delete(cue.id)
+      setActiveFxCues((prev) => prev.filter((activeCue) => activeCue.id !== cue.id))
+    }, cue.durationMs + 140)
+    cueTimeoutsRef.current.set(cue.id, timeoutId)
+  }, [])
+
+  const clearEventLog = useCallback(() => {
+    orchestratorRef.current?.clearLog()
+  }, [])
 
   useEffect(() => {
     overlayVisibleRef.current = overlayVisible
@@ -111,6 +146,16 @@ export function ScoreboardPage() {
   useEffect(() => {
     appliedSourceRef.current = appliedSource
   }, [appliedSource])
+
+  useEffect(() => {
+    initScoreboardAudio()
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      clearFxCueTimeouts()
+    }
+  }, [clearFxCueTimeouts])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -256,8 +301,19 @@ export function ScoreboardPage() {
       },
     })
 
+    const orchestrator = createScoreboardEventOrchestrator({
+      logCapacity: 200,
+      onVisualCue: enqueueVisualCue,
+      onSoundCue: playScoreboardSoundCue,
+      onLogUpdate: setEventLog,
+    })
+    orchestratorRef.current = orchestrator
+    setEventLog(orchestrator.getLogSnapshot())
+
     unsubscribeReceiver = subscribeScoreboardEvents(
       (event) => {
+        orchestrator.handleEvent(event)
+
         if (event.type === 'initials_step_finished') {
           const rank = typeof event.rank === 'number' ? Math.max(1, Math.trunc(event.rank)) : null
           const totalEntries = Number.isFinite(event.totalEntries)
@@ -353,15 +409,30 @@ export function ScoreboardPage() {
       disposed = true
       cancelAnimationFrame(rafId)
       unsubscribeReceiver?.()
+      if (orchestratorRef.current === orchestrator) {
+        orchestratorRef.current = null
+      }
+      orchestrator.dispose()
+      clearFxCueTimeouts()
+      setActiveFxCues([])
       riveDriver?.dispose()
       dmdRenderer?.dispose()
       dmdRendererRef.current = null
     }
-  }, [globalSettingsVersion, sourceConfigVersion, appliedSource.fit, appliedSource.height, appliedSource.width])
+  }, [
+    globalSettingsVersion,
+    sourceConfigVersion,
+    appliedSource.fit,
+    appliedSource.height,
+    appliedSource.width,
+    clearFxCueTimeouts,
+    enqueueVisualCue,
+  ])
 
   return (
     <div style={styles.page}>
       <canvas ref={canvasRef} style={styles.canvas} />
+      <ScoreboardFxOverlay cues={activeFxCues} />
 
       {overlayVisible && (
         <div style={styles.status}>
@@ -413,6 +484,26 @@ export function ScoreboardPage() {
             <span style={styles.label}>high score</span>
             <span style={styles.value}>rank {uiState.lastSubmittedRank ?? '-'}</span>
             <span style={styles.muted}>entries {uiState.highScoreEntries} | storage {uiState.highScoreStorageMode}</span>
+          </div>
+          <div style={styles.eventLogHeader}>
+            <span style={styles.label}>event log</span>
+            <span style={styles.muted}>{eventLog.length} / 200</span>
+            <button type="button" style={styles.clearButton} onClick={clearEventLog}>
+              clear
+            </button>
+          </div>
+          <div style={styles.eventLogList}>
+            {eventLog.length === 0 ? (
+              <div style={styles.eventLogEmpty}>no events yet</div>
+            ) : (
+              eventLog.slice(0, 10).map((entry) => (
+                <div key={entry.id} style={styles.eventLogLine}>
+                  <span style={styles.eventLogTime}>{new Date(entry.receivedAtMs).toLocaleTimeString()}</span>
+                  <span style={styles.eventLogType}>{entry.eventType}</span>
+                  <span style={styles.eventLogSummary}>{entry.summary}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -466,7 +557,7 @@ const styles = {
     borderRadius: 8,
     background: 'rgba(0, 0, 0, 0.55)',
     color: '#d1fae5',
-    pointerEvents: 'none' as const,
+    pointerEvents: 'auto' as const,
     zIndex: 20,
   },
   statusLine: {
@@ -491,6 +582,62 @@ const styles = {
   muted: {
     color: '#a7f3d0',
     opacity: 0.75,
+  },
+  eventLogHeader: {
+    display: 'flex',
+    alignItems: 'center' as const,
+    gap: 10,
+    marginTop: 4,
+  },
+  clearButton: {
+    marginLeft: 'auto',
+    padding: '2px 8px',
+    borderRadius: 4,
+    border: '1px solid rgba(134, 239, 172, 0.45)',
+    background: 'rgba(5, 18, 12, 0.8)',
+    color: '#d1fae5',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.04em',
+    fontSize: 10,
+    cursor: 'pointer',
+  },
+  eventLogList: {
+    maxHeight: 170,
+    overflowY: 'auto' as const,
+    border: '1px solid rgba(134, 239, 172, 0.24)',
+    borderRadius: 6,
+    padding: '6px 8px',
+    background: 'rgba(2, 10, 6, 0.65)',
+  },
+  eventLogEmpty: {
+    color: '#a7f3d0',
+    opacity: 0.7,
+    fontSize: 11,
+  },
+  eventLogLine: {
+    display: 'flex',
+    alignItems: 'baseline' as const,
+    gap: 8,
+    fontSize: 11,
+    minHeight: 16,
+    lineHeight: 1.3,
+  },
+  eventLogTime: {
+    color: '#6ee7b7',
+    minWidth: 62,
+    opacity: 0.85,
+  },
+  eventLogType: {
+    color: '#d9f99d',
+    minWidth: 132,
+    fontWeight: 700,
+  },
+  eventLogSummary: {
+    color: '#c6f6d5',
+    opacity: 0.85,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
   },
   errorOverlay: {
     position: 'absolute',
