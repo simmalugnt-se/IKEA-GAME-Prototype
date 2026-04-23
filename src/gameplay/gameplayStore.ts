@@ -1443,33 +1443,36 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     setGameRunClockRunning(false)
     resetGameRunClock()
 
-    const submission = submitHighScoreSubmission({
-      runId: getRunId(),
-      score: submittedScore,
-      initials: submittedInitials,
-      submittedAtMs,
-      submittedAtIso: new Date(submittedAtMs).toISOString(),
-      reason,
-    })
+    const submittedRunId = getRunId()
+    void (async () => {
+      const submission = await submitHighScoreSubmission({
+        runId: submittedRunId,
+        score: submittedScore,
+        initials: submittedInitials,
+        submittedAtMs,
+        submittedAtIso: new Date(submittedAtMs).toISOString(),
+        reason,
+      })
 
-    playGameSound({ type: 'idle_started' })
-    sendScoreboardEvent({
-      type: 'initials_step_finished',
-      timestamp: Date.now(),
-      runId: getRunId(),
-      reason,
-      initials: submittedInitials,
-      score: submittedScore,
-      submittedAtMs,
-      rank: submission.rank,
-      totalEntries: submission.totalEntries,
-      storageMode: submission.storageMode,
-    })
-    sendScoreboardEvent({
-      type: 'idle_started',
-      timestamp: Date.now(),
-      runId: getRunId(),
-    })
+      playGameSound({ type: 'idle_started' })
+      sendScoreboardEvent({
+        type: 'initials_step_finished',
+        timestamp: Date.now(),
+        runId: submittedRunId,
+        reason,
+        initials: submittedInitials,
+        score: submittedScore,
+        submittedAtMs,
+        rank: submission.rank,
+        totalEntries: submission.totalEntries,
+        storageMode: submission.storageMode,
+      })
+      sendScoreboardEvent({
+        type: 'idle_started',
+        timestamp: Date.now(),
+        runId: submittedRunId,
+      })
+    })()
   },
 
   setGameOverTravelTargetZ: (targetZ) => {
