@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import {
   getLatestCursorSweepSeq,
@@ -10,6 +10,7 @@ import {
 import { SETTINGS } from '@/settings/GameSettings'
 import { useSettingsVersion } from '@/settings/settingsStore'
 import {
+  HIGH_SCORE_ALPHABET,
   normalizeHighScoreInitials,
   shiftHighScoreLetter,
 } from '@/ui/highScoreEntry/highScoreEntryAlphabet'
@@ -52,6 +53,7 @@ type FlowScenarioOverride = `flow:${string}`
 
 type HitZones = {
   letters: Array<ScreenRect | null>
+  alphabet: Array<ScreenRect | null>
   back: ScreenRect | null
   next: ScreenRect | null
 }
@@ -73,6 +75,14 @@ type LetterPassState = {
 }
 
 type LetterPassBySlot = [LetterPassState, LetterPassState]
+
+type AlphabetDwellState = {
+  letterIndex: number
+  blockedLetterIndex: number
+  dwell: ButtonDwellState
+}
+
+type AlphabetDwellBySlot = [AlphabetDwellState, AlphabetDwellState]
 
 function createButtonDwellState(): ButtonDwellState {
   return {
@@ -114,6 +124,31 @@ function resetLetterPassState(state: LetterPassState): void {
 function resetLetterPassBySlot(states: LetterPassBySlot): void {
   resetLetterPassState(states[0])
   resetLetterPassState(states[1])
+}
+
+function createAlphabetDwellState(): AlphabetDwellState {
+  return {
+    letterIndex: -1,
+    blockedLetterIndex: -1,
+    dwell: createButtonDwellState(),
+  }
+}
+
+function resetAlphabetDwellState(state: AlphabetDwellState): void {
+  state.letterIndex = -1
+  state.blockedLetterIndex = -1
+  resetButtonDwellState(state.dwell)
+}
+
+function resetAlphabetDwellBySlot(states: AlphabetDwellBySlot): void {
+  resetAlphabetDwellState(states[0])
+  resetAlphabetDwellState(states[1])
+}
+
+function blockAlphabetDwellState(state: AlphabetDwellState, letterIndex: number): void {
+  state.letterIndex = letterIndex
+  state.blockedLetterIndex = letterIndex
+  resetButtonDwellState(state.dwell)
 }
 
 function pointInScreenRect(x: number, y: number, rect: ScreenRect): boolean {
@@ -174,6 +209,9 @@ function clearHitZones(zones: HitZones): void {
   for (let i = 0; i < HIGH_SCORE_INITIALS_LENGTH; i += 1) {
     zones.letters[i] = null
   }
+  for (let i = 0; i < HIGH_SCORE_ALPHABET.length; i += 1) {
+    zones.alphabet[i] = null
+  }
 }
 
 export function GameFlowOverlay() {
@@ -195,15 +233,20 @@ export function GameFlowOverlay() {
   const scoreTickRafIdRef = useRef<number | null>(null)
   const scoreTickStartMsRef = useRef<number | null>(null)
   const scoreTickTargetRef = useRef(0)
+  const scoreTickResetPendingRef = useRef(false)
   const previousIsGameOverViewRef = useRef(false)
   const previousScoreTargetRef = useRef(0)
 
   const overlayRootRef = useRef<HTMLDivElement | null>(null)
   const letterSlotRefs = useRef<Array<HTMLSpanElement | null>>([null, null, null])
+  const alphabetLetterRefs = useRef<Array<HTMLButtonElement | null>>(
+    Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
+  )
   const backButtonRef = useRef<HTMLButtonElement | null>(null)
   const nextButtonRef = useRef<HTMLButtonElement | null>(null)
   const hitZonesRef = useRef<HitZones>({
     letters: [null, null, null],
+    alphabet: Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
     back: null,
     next: null,
   })
@@ -239,8 +282,14 @@ export function GameFlowOverlay() {
     createButtonDwellState(),
     createButtonDwellState(),
   ])
+  const alphabetDwellBySlotRef = useRef<AlphabetDwellBySlot>([
+    createAlphabetDwellState(),
+    createAlphabetDwellState(),
+  ])
   const backButtonHoldClassActiveRef = useRef(false)
   const nextButtonHoldClassActiveRef = useRef(false)
+  const [heldAlphabetLetterIndices, setHeldAlphabetLetterIndices] = useState<readonly number[]>([])
+  const heldAlphabetLetterIndicesRef = useRef<readonly number[]>(heldAlphabetLetterIndices)
   const activeLetterIndexRef = useRef(activeLetterIndex)
   const initialsRef = useRef(normalizeHighScoreInitials(gameOverInitials, HIGH_SCORE_INITIALS_LENGTH))
   const setGameOverInitialsRef = useRef(setGameOverInitials)
@@ -273,6 +322,8 @@ export function GameFlowOverlay() {
 
   const timerDurationMs = Math.max(1, SETTINGS.gameplay.flow.gameOverInputCountdownMs)
   const swipeConfig = SETTINGS.gameplay.flow.highScoreEntrySwipe
+  const highScoreEntryMode = SETTINGS.gameplay.flow.highScoreEntryMode
+  const isAlphabetGridMode = highScoreEntryMode === 'alphabet_grid'
   const letterMinVelocityPx = Math.max(0, swipeConfig.letterMinVelocityPx)
   const letterMinDistancePx = Math.max(0, swipeConfig.letterMinDistancePx)
   const letterCooldownMs = Math.max(0, Math.trunc(swipeConfig.letterCooldownMs))
@@ -290,15 +341,19 @@ export function GameFlowOverlay() {
     '--gfo-button-dwell-color': dwellProgressColor,
   } as CSSProperties
   const [letter0, letter1, letter2] = resolveInitialLetters(gameOverInitials)
-  const previewPlacement = useMemo(
-    () => getHighScoreSubmissionPreviewPlacement(resolvedScoreTarget),
-    [highScoreSnapshotVersion, resolvedScoreTarget],
-  )
+  const previewPlacement = useMemo(() => {
+    void highScoreSnapshotVersion
+    return getHighScoreSubmissionPreviewPlacement(resolvedScoreTarget)
+  }, [highScoreSnapshotVersion, resolvedScoreTarget])
   const rankingValue = previewPlacement.rank === null ? '-' : String(previewPlacement.rank)
 
   useEffect(() => {
     activeLetterIndexRef.current = activeLetterIndex
   }, [activeLetterIndex])
+
+  useEffect(() => {
+    heldAlphabetLetterIndicesRef.current = heldAlphabetLetterIndices
+  }, [heldAlphabetLetterIndices])
 
   useEffect(() => {
     initialsRef.current = normalizeHighScoreInitials(gameOverInitials, HIGH_SCORE_INITIALS_LENGTH)
@@ -320,7 +375,7 @@ export function GameFlowOverlay() {
     })
   }, [])
 
-  function transitionActiveLetterIndex(nextIndex: number): void {
+  const transitionActiveLetterIndex = useCallback((nextIndex: number): void => {
     const from = activeLetterIndexRef.current
     if (from === nextIndex) return
 
@@ -338,7 +393,55 @@ export function GameFlowOverlay() {
         setActiveLetterIndex((previous) => (previous === nextIndex ? previous : nextIndex))
       },
     })
-  }
+  }, [])
+
+  const setHeldAlphabetLetterIndicesIfChanged = useCallback((nextIndices: readonly number[]): void => {
+    const normalized = Array.from(new Set(nextIndices))
+      .filter((index) => index >= 0)
+      .sort((a, b) => a - b)
+    const previous = heldAlphabetLetterIndicesRef.current
+    if (
+      previous.length === normalized.length
+      && previous.every((value, index) => value === normalized[index])
+    ) {
+      return
+    }
+    heldAlphabetLetterIndicesRef.current = normalized
+    setHeldAlphabetLetterIndices(normalized)
+  }, [])
+
+  const resolveAlphabetLetterIndexAtPoint = useCallback((x: number, y: number): number => {
+    const alphabetZones = hitZonesRef.current.alphabet
+    for (let i = 0; i < alphabetZones.length; i += 1) {
+      const zone = alphabetZones[i]
+      if (!zone) continue
+      if (pointInScreenRect(x, y, zone)) return i
+    }
+    return -1
+  }, [])
+
+  const selectAlphabetLetter = useCallback((letterIndex: number, resolvedLetterIndex: number): number | 'submitted' => {
+    const nextLetter = HIGH_SCORE_ALPHABET[letterIndex]
+    if (!nextLetter) return resolvedLetterIndex
+
+    const initials = initialsRef.current
+    const letters = Array.from(initials)
+    letters[resolvedLetterIndex] = nextLetter
+
+    const nextInitials = normalizeHighScoreInitials(letters.join(''), HIGH_SCORE_INITIALS_LENGTH)
+    initialsRef.current = nextInitials
+    setGameOverInitialsRef.current(nextInitials)
+    registerGameOverInputInteractionRef.current()
+
+    if (resolvedLetterIndex >= HIGH_SCORE_INITIALS_LENGTH - 1) {
+      submitGameOverInitialsRef.current('submitted')
+      return 'submitted'
+    }
+
+    const nextIndex = resolvedLetterIndex + 1
+    transitionActiveLetterIndex(nextIndex)
+    return nextIndex
+  }, [transitionActiveLetterIndex])
 
   function setPreviewFlowState(
     nextMode: GameOverPreviewMode,
@@ -362,10 +465,7 @@ export function GameFlowOverlay() {
     const scenarioOverride = pendingFlowScenarioOverrideRef.current
     pendingFlowScenarioOverrideRef.current = null
 
-    if (from === to) {
-      setVisualFlowState((previous) => (previous === to ? previous : to))
-      return
-    }
+    if (from === to) return
 
     activeTransitionSeqRef.current += 1
     const transitionSeq = activeTransitionSeqRef.current
@@ -453,44 +553,60 @@ export function GameFlowOverlay() {
   useEffect(() => {
     if (previewMode !== 'state2') return
     if (previewInputEndsAtMs > Date.now()) return
-    setPreviewInputEndsAtMs(Date.now() + timerDurationMs)
+
+    const rafId = requestAnimationFrame(() => {
+      setPreviewInputEndsAtMs(Date.now() + timerDurationMs)
+    })
+    return () => {
+      cancelAnimationFrame(rafId)
+    }
   }, [previewMode, previewInputEndsAtMs, timerDurationMs])
   // TEMP_GAME_OVER_PREVIEW_END
 
   useEffect(() => {
     const enteredInput = visualFlowState === 'game_over_input'
+    activeLetterIndexRef.current = 0
+    heldAlphabetLetterIndicesRef.current = []
     if (!enteredInput) {
-      setActiveLetterIndex(0)
-      activeLetterIndexRef.current = 0
       resetLetterPassBySlot(letterPassBySlotRef.current)
       resetButtonDwellBySlot(backDwellBySlotRef.current)
       resetButtonDwellBySlot(nextDwellBySlotRef.current)
+      resetAlphabetDwellBySlot(alphabetDwellBySlotRef.current)
       setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
       setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, false)
-      return
+    } else {
+      lastLetterActionAtMsRef.current = Number.NEGATIVE_INFINITY
+      resetLetterPassBySlot(letterPassBySlotRef.current)
+      resetButtonDwellBySlot(backDwellBySlotRef.current)
+      resetButtonDwellBySlot(nextDwellBySlotRef.current)
+      resetAlphabetDwellBySlot(alphabetDwellBySlotRef.current)
+      setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
+      setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, false)
+      lastSweepSeqRef.current = getLatestCursorSweepSeq()
     }
 
-    setActiveLetterIndex(0)
-    activeLetterIndexRef.current = 0
-    lastLetterActionAtMsRef.current = Number.NEGATIVE_INFINITY
-    resetLetterPassBySlot(letterPassBySlotRef.current)
-    resetButtonDwellBySlot(backDwellBySlotRef.current)
-    resetButtonDwellBySlot(nextDwellBySlotRef.current)
-    setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
-    setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, false)
-    lastSweepSeqRef.current = getLatestCursorSweepSeq()
+    const rafId = requestAnimationFrame(() => {
+      setActiveLetterIndex((previous) => (previous === 0 ? previous : 0))
+      setHeldAlphabetLetterIndices((previous) => (previous.length === 0 ? previous : []))
+    })
+    return () => {
+      cancelAnimationFrame(rafId)
+    }
   }, [visualFlowState])
 
   useEffect(() => {
     const shouldTickTime = effectiveFlowState === 'game_over_input' && effectiveInputEndsAtMs > 0
     if (!shouldTickTime) return
 
-    setNowMs(Date.now())
+    const rafId = requestAnimationFrame(() => {
+      setNowMs(Date.now())
+    })
     const timer = setInterval(() => {
       setNowMs(Date.now())
     }, 100)
 
     return () => {
+      cancelAnimationFrame(rafId)
       clearInterval(timer)
     }
   }, [effectiveFlowState, effectiveInputEndsAtMs])
@@ -510,7 +626,11 @@ export function GameFlowOverlay() {
       }
       scoreTickStartMsRef.current = null
       scoreTickTargetRef.current = 0
-      setDisplayGameOverScore(0)
+      scoreTickResetPendingRef.current = false
+      scoreTickRafIdRef.current = requestAnimationFrame(() => {
+        scoreTickRafIdRef.current = null
+        setDisplayGameOverScore(0)
+      })
       return
     }
 
@@ -521,9 +641,9 @@ export function GameFlowOverlay() {
       scoreTickRafIdRef.current = null
     }
 
-    setDisplayGameOverScore(0)
     scoreTickStartMsRef.current = null
     scoreTickTargetRef.current = resolvedScoreTarget
+    scoreTickResetPendingRef.current = true
 
     const step = (now: number) => {
       if (scoreTickStartMsRef.current === null) {
@@ -535,12 +655,17 @@ export function GameFlowOverlay() {
       const rawScore = Math.floor(scoreTickTargetRef.current * easedT)
       const clampedScore = Math.max(0, Math.min(scoreTickTargetRef.current, rawScore))
 
-      setDisplayGameOverScore((previousScore) => (
-        clampedScore > previousScore ? clampedScore : previousScore
-      ))
+      setDisplayGameOverScore((previousScore) => {
+        if (scoreTickResetPendingRef.current) {
+          scoreTickResetPendingRef.current = false
+          return clampedScore
+        }
+        return clampedScore > previousScore ? clampedScore : previousScore
+      })
 
       if (linearT >= 1 || clampedScore >= scoreTickTargetRef.current) {
         setDisplayGameOverScore(scoreTickTargetRef.current)
+        scoreTickResetPendingRef.current = false
         scoreTickRafIdRef.current = null
         return
       }
@@ -557,6 +682,7 @@ export function GameFlowOverlay() {
         cancelAnimationFrame(scoreTickRafIdRef.current)
         scoreTickRafIdRef.current = null
       }
+      scoreTickResetPendingRef.current = false
     }
   }, [])
 
@@ -571,6 +697,10 @@ export function GameFlowOverlay() {
       for (let i = 0; i < HIGH_SCORE_INITIALS_LENGTH; i += 1) {
         const node = letterSlotRefs.current[i]
         zones.letters[i] = node ? toScreenRect(node.getBoundingClientRect()) : null
+      }
+      for (let i = 0; i < HIGH_SCORE_ALPHABET.length; i += 1) {
+        const node = alphabetLetterRefs.current[i]
+        zones.alphabet[i] = node ? toScreenRect(node.getBoundingClientRect()) : null
       }
 
       const backNode = backButtonRef.current
@@ -598,13 +728,19 @@ export function GameFlowOverlay() {
       window.removeEventListener('resize', updateHitZones)
       window.removeEventListener('scroll', updateHitZones)
     }
-  }, [activeLetterIndex, effectiveFlowState, nextLabel])
+  }, [activeLetterIndex, effectiveFlowState, highScoreEntryMode, nextLabel])
 
   useEffect(() => {
     if (effectiveFlowState !== 'game_over_input') return
     if (previewMode !== 'off') return
 
     let disposed = false
+    const letterPassBySlot = letterPassBySlotRef.current
+    const backDwellBySlot = backDwellBySlotRef.current
+    const nextDwellBySlot = nextDwellBySlotRef.current
+    const alphabetDwellBySlot = alphabetDwellBySlotRef.current
+    const backButton = backButtonRef.current
+    const nextButton = nextButtonRef.current
 
     const frame = () => {
       if (disposed) return
@@ -613,7 +749,7 @@ export function GameFlowOverlay() {
       const latestSweepSeq = getLatestCursorSweepSeq()
       const sweepSegment = sweepSegmentRef.current
 
-      if (latestSweepSeq > lastSweepSeqRef.current) {
+      if (!isAlphabetGridMode && latestSweepSeq > lastSweepSeqRef.current) {
         for (let sweepSeq = lastSweepSeqRef.current + 1; sweepSeq <= latestSweepSeq; sweepSeq += 1) {
           if (!readCursorSweepSegment(sweepSeq, sweepSegment)) continue
 
@@ -625,7 +761,7 @@ export function GameFlowOverlay() {
           const activeIndex = activeLetterIndexRef.current
           const activeLetterZone = zones.letters[activeIndex] ?? null
           const pointerSlot = sweepSegment.pointerSlot as 0 | 1
-          const passState = letterPassBySlotRef.current[pointerSlot]
+          const passState = letterPassBySlot[pointerSlot]
           if (activeLetterZone === null) {
             resetLetterPassState(passState)
             continue
@@ -711,13 +847,12 @@ export function GameFlowOverlay() {
       const zones = hitZonesRef.current
       const backZone = zones.back
       const nextZone = zones.next
-      const backDwellBySlot = backDwellBySlotRef.current
-      const nextDwellBySlot = nextDwellBySlotRef.current
       const pointerRenderStates = pointerRenderScratchRef.current
       let resolvedLetterIndex = activeLetterIndexRef.current
 
       let backHoldClassActive = false
       let nextHoldClassActive = false
+      const heldAlphabetLetterIndicesNext: number[] = []
 
       for (let slot = 0; slot < 2; slot += 1) {
         const pointerState = pointerRenderStates[slot]
@@ -731,6 +866,25 @@ export function GameFlowOverlay() {
         const touchingNext = pointerActive && nextZone !== null
           ? pointInScreenRect(pointerX, pointerY, nextZone)
           : false
+        const alphabetLetterIndex = pointerActive && isAlphabetGridMode
+          ? resolveAlphabetLetterIndexAtPoint(pointerX, pointerY)
+          : -1
+
+        const alphabetDwell = alphabetDwellBySlot[slot]
+        if (
+          alphabetDwell.blockedLetterIndex >= 0
+          && alphabetLetterIndex !== alphabetDwell.blockedLetterIndex
+        ) {
+          alphabetDwell.blockedLetterIndex = -1
+        }
+        if (alphabetDwell.letterIndex !== alphabetLetterIndex) {
+          resetButtonDwellState(alphabetDwell.dwell)
+          alphabetDwell.letterIndex = alphabetLetterIndex
+        }
+        const alphabetEligible = (
+          alphabetLetterIndex >= 0
+          && alphabetLetterIndex !== alphabetDwell.blockedLetterIndex
+        )
 
         const backTriggered = updateButtonDwellState(
           backDwellBySlot[slot],
@@ -746,12 +900,20 @@ export function GameFlowOverlay() {
           buttonDwellMs,
           buttonDwellJitterGraceMs,
         )
+        const alphabetTriggered = updateButtonDwellState(
+          alphabetDwell.dwell,
+          alphabetEligible,
+          nowMs,
+          buttonDwellMs,
+          buttonDwellJitterGraceMs,
+        )
 
         if (backTriggered) {
           registerGameOverInputInteractionRef.current()
           if (resolvedLetterIndex > 0) {
             resolvedLetterIndex -= 1
             transitionActiveLetterIndex(resolvedLetterIndex)
+            resetAlphabetDwellBySlot(alphabetDwellBySlot)
           }
         }
 
@@ -764,6 +926,18 @@ export function GameFlowOverlay() {
           resolvedLetterIndex += 1
           transitionActiveLetterIndex(resolvedLetterIndex)
           registerGameOverInputInteractionRef.current()
+          resetAlphabetDwellBySlot(alphabetDwellBySlot)
+        }
+
+        if (alphabetTriggered) {
+          const selectedLetterIndex = alphabetLetterIndex
+          const result = selectAlphabetLetter(alphabetLetterIndex, resolvedLetterIndex)
+          resetAlphabetDwellBySlot(alphabetDwellBySlot)
+          blockAlphabetDwellState(alphabetDwell, selectedLetterIndex)
+          if (result === 'submitted') {
+            break
+          }
+          resolvedLetterIndex = result
         }
 
         if (backDwellBySlot[slot].inside && !backDwellBySlot[slot].triggeredThisVisit) {
@@ -772,10 +946,14 @@ export function GameFlowOverlay() {
         if (nextDwellBySlot[slot].inside && !nextDwellBySlot[slot].triggeredThisVisit) {
           nextHoldClassActive = true
         }
+        if (alphabetEligible && alphabetDwell.dwell.inside && !alphabetDwell.dwell.triggeredThisVisit) {
+          heldAlphabetLetterIndicesNext.push(alphabetLetterIndex)
+        }
       }
 
       setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, backHoldClassActive)
       setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, nextHoldClassActive)
+      setHeldAlphabetLetterIndicesIfChanged(heldAlphabetLetterIndicesNext)
     }
 
     gestureRafIdRef.current = requestAnimationFrame(frame)
@@ -786,11 +964,13 @@ export function GameFlowOverlay() {
         cancelAnimationFrame(gestureRafIdRef.current)
         gestureRafIdRef.current = null
       }
-      resetLetterPassBySlot(letterPassBySlotRef.current)
-      resetButtonDwellBySlot(backDwellBySlotRef.current)
-      resetButtonDwellBySlot(nextDwellBySlotRef.current)
-      setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
-      setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, false)
+      resetLetterPassBySlot(letterPassBySlot)
+      resetButtonDwellBySlot(backDwellBySlot)
+      resetButtonDwellBySlot(nextDwellBySlot)
+      resetAlphabetDwellBySlot(alphabetDwellBySlot)
+      setHeldAlphabetLetterIndicesIfChanged([])
+      setButtonDwellClass(backButton, backButtonHoldClassActiveRef, false)
+      setButtonDwellClass(nextButton, nextButtonHoldClassActiveRef, false)
     }
   }, [
     buttonDwellJitterGraceMs,
@@ -799,7 +979,12 @@ export function GameFlowOverlay() {
     letterMinDistancePx,
     letterMinVelocityPx,
     letterCooldownMs,
+    isAlphabetGridMode,
     previewMode,
+    resolveAlphabetLetterIndexAtPoint,
+    selectAlphabetLetter,
+    setHeldAlphabetLetterIndicesIfChanged,
+    transitionActiveLetterIndex,
   ])
 
   if (visualFlowState === 'idle') {
@@ -820,7 +1005,13 @@ export function GameFlowOverlay() {
     const isTimerVisible = effectiveInputEndsAtMs > nowMs
 
     return (
-      <div ref={overlayRootRef} className="gfo-center-wrap">
+      <div
+        ref={overlayRootRef}
+        className={[
+          'gfo-center-wrap',
+          isAlphabetGridMode ? 'gfo-center-wrap-alphabet-grid' : '',
+        ].filter(Boolean).join(' ')}
+      >
         <div className="gfo-2-cols-grid gfo-gap-8">
           <div className="gfo-score-row gfo-stack-center gfo-gap-2">
             <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label gfo-vt-score-label">TOTAL SCORE:</span>
@@ -843,6 +1034,7 @@ export function GameFlowOverlay() {
                 'popdot-style-1',
                 'popdot-shadow-16',
                 'gfo-high-score-entry-letter',
+                isAlphabetGridMode ? 'gfo-high-score-entry-letter-compact' : '',
                 'gfo-vt-entry-letter-0',
                 activeLetterIndex === 0 ? 'gfo-high-score-entry-letter-active' : '',
               ].filter(Boolean).join(' ')}
@@ -856,6 +1048,7 @@ export function GameFlowOverlay() {
                 'popdot-style-1',
                 'popdot-shadow-16',
                 'gfo-high-score-entry-letter',
+                isAlphabetGridMode ? 'gfo-high-score-entry-letter-compact' : '',
                 'gfo-vt-entry-letter-1',
                 activeLetterIndex === 1 ? 'gfo-high-score-entry-letter-active' : '',
               ].filter(Boolean).join(' ')}
@@ -869,6 +1062,7 @@ export function GameFlowOverlay() {
                 'popdot-style-1',
                 'popdot-shadow-16',
                 'gfo-high-score-entry-letter',
+                isAlphabetGridMode ? 'gfo-high-score-entry-letter-compact' : '',
                 'gfo-vt-entry-letter-2',
                 activeLetterIndex === 2 ? 'gfo-high-score-entry-letter-active' : '',
               ].filter(Boolean).join(' ')}
@@ -877,6 +1071,37 @@ export function GameFlowOverlay() {
             </span>
           </div>
         </div>
+
+        {isAlphabetGridMode ? (
+          <div className="gfo-alphabet-grid" style={buttonDwellStyle}>
+            {HIGH_SCORE_ALPHABET.map((letter, index) => {
+              const selectedForActiveSlot = (
+                (activeLetterIndex === 0 && letter0 === letter)
+                || (activeLetterIndex === 1 && letter1 === letter)
+                || (activeLetterIndex === 2 && letter2 === letter)
+              )
+              const held = heldAlphabetLetterIndices.includes(index)
+              return (
+                <button
+                  key={letter}
+                  ref={(node) => { alphabetLetterRefs.current[index] = node }}
+                  type="button"
+                  className={[
+                    'gfo-alphabet-letter',
+                    'gfo-button-dwellable',
+                    'popdot-text-base',
+                    'popdot-style-1',
+                    'popdot-box-shadow-8',
+                    selectedForActiveSlot ? 'gfo-alphabet-letter-selected' : '',
+                    held ? BUTTON_DWELL_HOLD_CLASS : '',
+                  ].filter(Boolean).join(' ')}
+                >
+                  <span className="gfo-button-dwell-label">{letter}</span>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
 
         <div className="gfo-row-center gfo-gap-2">
           <button

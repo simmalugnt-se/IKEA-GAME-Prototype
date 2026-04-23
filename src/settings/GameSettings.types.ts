@@ -31,6 +31,7 @@ export const CURSOR_INPUT_SOURCES = ['mouse', 'external'] as const
 export const RUN_MODES = ['lives', 'time'] as const
 export const HIGH_SCORE_STORAGE_MODES = ['local_storage', 'memory', 'database'] as const
 export const HIGH_SCORE_DATABASE_FALLBACK_MODES = ['local_storage', 'memory'] as const
+export const HIGH_SCORE_ENTRY_MODES = ['swipe_letters', 'alphabet_grid'] as const
 export const BALLOON_DROP_TYPES = ['block', 'ball'] as const
 export const SPAWN_ITEM_MARKERS = ['none', 'hazard', 'bonus'] as const
 export const SPAWN_ITEM_SCORE_MODES = ['balloon_combo', 'direct'] as const
@@ -50,6 +51,7 @@ export type CursorInputSource = (typeof CURSOR_INPUT_SOURCES)[number]
 export type GameRunMode = (typeof RUN_MODES)[number]
 export type HighScoreStorageMode = (typeof HIGH_SCORE_STORAGE_MODES)[number]
 export type HighScoreDatabaseFallbackMode = (typeof HIGH_SCORE_DATABASE_FALLBACK_MODES)[number]
+export type HighScoreEntryMode = (typeof HIGH_SCORE_ENTRY_MODES)[number]
 export type BalloonDropType = (typeof BALLOON_DROP_TYPES)[number]
 export type SpawnItemMarker = (typeof SPAWN_ITEM_MARKERS)[number]
 export type SpawnItemScoreMode = (typeof SPAWN_ITEM_SCORE_MODES)[number]
@@ -318,6 +320,7 @@ export type Settings = {
     flow: {
       gameOverInputInactivityMs: number
       gameOverInputCountdownMs: number
+      highScoreEntryMode: HighScoreEntryMode
       highScoreEntrySwipe: {
         letterMinVelocityPx: number
         letterMinDistancePx: number

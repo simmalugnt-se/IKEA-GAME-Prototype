@@ -12,6 +12,10 @@
   text-align: center;
 }
 
+.gfo-center-wrap-alphabet-grid {
+  gap: 2.25rem;
+}
+
 .gfo-stack-center {
   display: flex;
   flex-direction: column;
@@ -111,9 +115,49 @@
   text-transform: uppercase;
 }
 
+.gfo-high-score-entry-letter-compact {
+  font-size: 12rem;
+}
+
 .gfo-high-score-entry-letter-active {
   animation: high-score-letter-wght-pulse 900ms ease-in-out infinite;
   will-change: font-variation-settings, font-weight;
+}
+
+.gfo-alphabet-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.8rem;
+  width: min(78rem, calc(100vw - 8rem));
+}
+
+.gfo-alphabet-letter {
+  appearance: none;
+  position: relative;
+  min-width: 0;
+  height: 4.4rem;
+  padding: 0;
+  border: 0.25rem solid #ffffff;
+  border-radius: 0;
+  background: #141414;
+  color: #ffffff;
+  font-size: 3.2rem;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.gfo-alphabet-letter::before {
+  border-radius: 0;
+}
+
+.gfo-alphabet-letter-selected {
+  background: #ffffff;
+  color: #141414;
+}
+
+.gfo-alphabet-letter-selected::before {
+  background: var(--gfo-button-dwell-color, #669E10);
 }
 
 .gfo-button-dwellable {

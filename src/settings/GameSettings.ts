@@ -13,6 +13,7 @@ export {
   CAMERA_MODES,
   CURSOR_INPUT_SOURCES,
   HIGH_SCORE_DATABASE_FALLBACK_MODES,
+  HIGH_SCORE_ENTRY_MODES,
   HIGH_SCORE_STORAGE_MODES,
   PALETTE_VARIANT_NAMES,
   RENDER_STYLES,
@@ -288,6 +289,7 @@ export const SETTINGS: Settings = {
     flow: {
       gameOverInputInactivityMs: 15000,
       gameOverInputCountdownMs: 15000,
+      highScoreEntryMode: "alphabet_grid",
       highScoreEntrySwipe: {
         letterMinVelocityPx: 550,
         letterMinDistancePx: 18,
