@@ -253,6 +253,7 @@ export function ExternalCursorBridge() {
       }
 
       ws.onopen = () => {
+        beginExternalCursorInputSession()
         unregisterLifecycleSender?.()
         unregisterLifecycleSender = registerExternalCursorLifecycleSender(trySendJson)
       }
@@ -261,6 +262,7 @@ export function ExternalCursorBridge() {
         unregisterLifecycleSender?.()
         unregisterLifecycleSender = null
         ws = null
+        endExternalCursorInputSession()
         if (disposed) return
         scheduleReconnect()
       }

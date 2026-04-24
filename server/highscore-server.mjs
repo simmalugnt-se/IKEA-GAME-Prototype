@@ -15,6 +15,7 @@ fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
 const db = new Database(dbPath)
 db.pragma('journal_mode = WAL')
+db.pragma('busy_timeout = 5000')
 db.pragma('foreign_keys = ON')
 db.exec(`
   CREATE TABLE IF NOT EXISTS high_scores (
@@ -54,6 +55,7 @@ const insertEntry = db.prepare(`
 `)
 
 const clearEntries = db.prepare('DELETE FROM high_scores')
+const countEntries = db.prepare('SELECT COUNT(*) AS count FROM high_scores')
 
 const pruneEntries = db.prepare(`
   DELETE FROM high_scores
@@ -136,6 +138,10 @@ function getSnapshot(limit) {
   return selectEntries.all(limit)
 }
 
+function getEntryCount() {
+  return Number(countEntries.get()?.count || 0)
+}
+
 function isAllowedOrigin(origin) {
   if (typeof origin !== 'string') return false
   try {
@@ -212,7 +218,12 @@ async function handleRequest(req, res) {
     }
 
     if (req.method === 'GET' && url.pathname === '/api/health') {
-      sendJson(req, res, 200, { ok: true, databasePath: dbPath })
+      sendJson(req, res, 200, {
+        ok: true,
+        databasePath: dbPath,
+        journalMode: db.pragma('journal_mode', { simple: true }),
+        entryCount: getEntryCount(),
+      })
       return
     }
 
@@ -288,6 +299,12 @@ server.listen(port, host, () => {
 
 function shutdown() {
   server.close(() => {
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`[highscore] WAL checkpoint during shutdown failed: ${message}`)
+    }
     db.close()
     process.exit(0)
   })
