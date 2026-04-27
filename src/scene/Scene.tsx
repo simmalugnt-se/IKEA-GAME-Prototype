@@ -7,6 +7,7 @@ import { TrackSweeperRuntime } from "@/gameplay/TrackSweeperRuntime";
 import {
   getGameplayGravityY,
   getGameplayTimeScale,
+  getGravityShiftBodyTuning,
   getGravityShiftContagionColorIndex,
   getGravityShiftActivationToken,
   useGameplayStore,
@@ -40,6 +41,17 @@ import { applyEasing } from "@/utils/easing";
 
 const IDLE_BALLOON_TARGET_POSITION: [number, number, number] = [.65, 1.3, .65];
 const IDLE_BALLOON_ENTRY_SPEED_Z = 0.4;
+const BASE_GRAVITY_Y = -9.81;
+
+type GravityShiftBodyTuning = {
+  startsAtMs: number;
+  gravityY: number;
+};
+
+function randomRange(min: number, max: number): number {
+  if (!(max > min)) return min;
+  return min + Math.random() * (max - min);
+}
 
 function PhysicsRuntimeController({
   setPhysicsTimeStep,
@@ -49,7 +61,7 @@ function PhysicsRuntimeController({
   const { world } = useRapier();
   const { camera } = useThree();
   const previousActivationTokenRef = useRef(0);
-  const affectedBodyHandlesRef = useRef<Set<number>>(new Set());
+  const affectedBodyHandlesRef = useRef<Map<number, GravityShiftBodyTuning>>(new Map());
   const projectionScratchRef = useRef(new THREE.Vector3());
 
   useFrame(() => {
@@ -57,17 +69,18 @@ function PhysicsRuntimeController({
     const nextGravityY = getGameplayGravityY(nowMs);
     const activationToken = getGravityShiftActivationToken();
     const activationChanged = activationToken > 0 && activationToken !== previousActivationTokenRef.current;
-    const activeGravityShift = Math.abs(nextGravityY + 9.81) > 0.01;
+    const activeGravityShift = Math.abs(nextGravityY - BASE_GRAVITY_Y) > 0.01;
 
     if (activationChanged) {
       previousActivationTokenRef.current = activationToken;
-      affectedBodyHandlesRef.current.forEach((handle) => {
+      affectedBodyHandlesRef.current.forEach((_, handle) => {
         world.getRigidBody(handle)?.setGravityScale(1, true);
       });
       affectedBodyHandlesRef.current.clear();
 
       const projectionScratch = projectionScratchRef.current;
       const contagionColorIndex = getGravityShiftContagionColorIndex();
+      const bodyTuning = getGravityShiftBodyTuning();
       const queueGravityShiftContagionCarrier = useGameplayStore.getState().queueGravityShiftContagionCarrier;
       world.forEachRigidBody((body) => {
         if (!body.isDynamic()) return;
@@ -80,7 +93,10 @@ function PhysicsRuntimeController({
           && projectionScratch.y >= -1.15
           && projectionScratch.y <= 1.15;
         if (!isInView) return;
-        affectedBodyHandlesRef.current.add(body.handle);
+        affectedBodyHandlesRef.current.set(body.handle, {
+          startsAtMs: nowMs + randomRange(bodyTuning.delayMinMs, bodyTuning.delayMaxMs),
+          gravityY: randomRange(bodyTuning.gravityYMin, bodyTuning.gravityYMax),
+        });
         if (contagionColorIndex !== null) {
           const userData = (body.userData ?? {}) as Record<string, unknown>;
           const entityId = typeof userData.entityId === 'string' ? userData.entityId : '';
@@ -91,17 +107,29 @@ function PhysicsRuntimeController({
     }
 
     if (affectedBodyHandlesRef.current.size > 0) {
-      const gravityScale = activeGravityShift ? nextGravityY / -9.81 : 1;
-      affectedBodyHandlesRef.current.forEach((handle) => {
+      const bodyTuning = getGravityShiftBodyTuning();
+      const gravityDenominator = bodyTuning.targetGravityY - BASE_GRAVITY_Y;
+      const effectBlend = activeGravityShift && Math.abs(gravityDenominator) > 0.0001
+        ? Math.min(1, Math.max(0, (nextGravityY - BASE_GRAVITY_Y) / gravityDenominator))
+        : 0;
+      affectedBodyHandlesRef.current.forEach((bodyRuntime, handle) => {
         const body = world.getRigidBody(handle);
         if (!body) {
           affectedBodyHandlesRef.current.delete(handle);
           return;
         }
-        body.setGravityScale(gravityScale, activeGravityShift);
         if (!activeGravityShift) {
+          body.setGravityScale(1, true);
           affectedBodyHandlesRef.current.delete(handle);
+          return;
         }
+        if (nowMs < bodyRuntime.startsAtMs) {
+          body.setGravityScale(1, false);
+          return;
+        }
+
+        const bodyGravityY = BASE_GRAVITY_Y + (bodyRuntime.gravityY - BASE_GRAVITY_Y) * effectBlend;
+        body.setGravityScale(bodyGravityY / BASE_GRAVITY_Y, true);
       });
     }
 

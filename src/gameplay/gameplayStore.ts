@@ -293,6 +293,10 @@ type GravityShiftRuntimeState = {
   activatedAtMs: number
   endsAtMs: number
   gravityY: number
+  bodyDelayMinMs: number
+  bodyDelayMaxMs: number
+  bodyGravityYMin: number
+  bodyGravityYMax: number
   easeInMs: number
   easeOutMs: number
   activationToken: number
@@ -372,6 +376,10 @@ function createGravityShiftRuntimeState(): GravityShiftRuntimeState {
     activatedAtMs: 0,
     endsAtMs: 0,
     gravityY: -9.81,
+    bodyDelayMinMs: 0,
+    bodyDelayMaxMs: 0,
+    bodyGravityYMin: -9.81,
+    bodyGravityYMax: -9.81,
     easeInMs: 0,
     easeOutMs: 0,
     activationToken: 0,
@@ -560,30 +568,65 @@ function activateTimeScaleBoost(
   }
 }
 
+function resolveGravityShiftContagionColorIndex(
+  action: {
+    contagionColorIndex?: number
+    contagionColorIndices?: number[]
+  },
+): number | null {
+  const colorIndices = Array.isArray(action.contagionColorIndices)
+    ? action.contagionColorIndices.filter((index) => Number.isFinite(index))
+    : []
+  if (colorIndices.length > 0) {
+    const selectedIndex = colorIndices[Math.floor(Math.random() * colorIndices.length)]
+    return normalizeInt(selectedIndex ?? 0, 0)
+  }
+
+  return typeof action.contagionColorIndex === 'number' && Number.isFinite(action.contagionColorIndex)
+    ? normalizeInt(action.contagionColorIndex, 0)
+    : null
+}
+
 function activateGravityShift(
   action: {
     gravityY: number
+    bodyDelayMinMs?: number
+    bodyDelayMaxMs?: number
+    bodyGravityYMin?: number
+    bodyGravityYMax?: number
     durationMs: number
     easeInMs: number
     easeOutMs: number
     contagionColorIndex?: number
+    contagionColorIndices?: number[]
     feedbackText?: string
   },
   origin?: ScreenPos,
 ): void {
   const nowMs = resolveHighResNowMs()
   const durationMs = Math.max(1, normalizeNonNegativeInt(action.durationMs, 0))
+  const gravityY = Number.isFinite(action.gravityY) ? action.gravityY : -9.81
+  const delayA = normalizeNonNegativeInt(action.bodyDelayMinMs ?? 0, 0)
+  const delayB = normalizeNonNegativeInt(action.bodyDelayMaxMs ?? delayA, delayA)
+  const bodyGravityA = typeof action.bodyGravityYMin === 'number' && Number.isFinite(action.bodyGravityYMin)
+    ? action.bodyGravityYMin
+    : gravityY
+  const bodyGravityB = typeof action.bodyGravityYMax === 'number' && Number.isFinite(action.bodyGravityYMax)
+    ? action.bodyGravityYMax
+    : bodyGravityA
   gravityShiftActivationSequence += 1
   gravityShiftRuntime = {
     activatedAtMs: nowMs,
     endsAtMs: nowMs + durationMs,
-    gravityY: Number.isFinite(action.gravityY) ? action.gravityY : -9.81,
+    gravityY,
+    bodyDelayMinMs: Math.min(delayA, delayB),
+    bodyDelayMaxMs: Math.max(delayA, delayB),
+    bodyGravityYMin: Math.min(bodyGravityA, bodyGravityB),
+    bodyGravityYMax: Math.max(bodyGravityA, bodyGravityB),
     easeInMs: normalizeNonNegativeInt(action.easeInMs, 0),
     easeOutMs: normalizeNonNegativeInt(action.easeOutMs, 0),
     activationToken: gravityShiftActivationSequence,
-    contagionColorIndex: typeof action.contagionColorIndex === 'number' && Number.isFinite(action.contagionColorIndex)
-      ? action.contagionColorIndex
-      : null,
+    contagionColorIndex: resolveGravityShiftContagionColorIndex(action),
   }
 
   if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
@@ -894,6 +937,22 @@ export function getGameplayGravityY(nowMs = resolveHighResNowMs()): number {
 
 export function getGravityShiftActivationToken(): number {
   return gravityShiftRuntime.activationToken
+}
+
+export function getGravityShiftBodyTuning(): {
+  targetGravityY: number
+  delayMinMs: number
+  delayMaxMs: number
+  gravityYMin: number
+  gravityYMax: number
+} {
+  return {
+    targetGravityY: gravityShiftRuntime.gravityY,
+    delayMinMs: gravityShiftRuntime.bodyDelayMinMs,
+    delayMaxMs: gravityShiftRuntime.bodyDelayMaxMs,
+    gravityYMin: gravityShiftRuntime.bodyGravityYMin,
+    gravityYMax: gravityShiftRuntime.bodyGravityYMax,
+  }
 }
 
 export function getGravityShiftContagionColorIndex(): number | null {

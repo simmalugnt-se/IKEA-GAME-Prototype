@@ -205,10 +205,15 @@ export type SpawnEventActionTimeScaleBoost = {
 export type SpawnEventActionGravityShift = {
   type: 'gravity_shift'
   gravityY: number
+  bodyDelayMinMs?: number
+  bodyDelayMaxMs?: number
+  bodyGravityYMin?: number
+  bodyGravityYMax?: number
   durationMs: number
   easeInMs: number
   easeOutMs: number
   contagionColorIndex?: MaterialColorIndex
+  contagionColorIndices?: MaterialColorIndex[]
   feedbackText?: string
 }
 
