@@ -82,7 +82,7 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: true, // Master-toggle för allt debug
+    enabled: false, // Master-toggle för allt debug
     showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
     showStats: false, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
@@ -441,7 +441,7 @@ export const SETTINGS: Settings = {
         label: "Gift Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        weight: 0.35,
+        weight: 0.035,
         weightAcceleration: 0,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 1,
@@ -666,12 +666,12 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "mouse", // "mouse" or "external"
+    inputSource: "external", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 1.5,
     hitRadiusPx: 12,
     external: {
-      enabled: false,
+      enabled: true,
       websocket: {
         // url: "ws://127.0.0.1:5173/ws/cursor",
         // url: "ws://localhost:5173/ws/cursor",
