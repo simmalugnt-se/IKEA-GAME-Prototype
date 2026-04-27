@@ -81,6 +81,7 @@ const pointerSlots: PointerSlotState[] = Array.from(
 let latestSweepSeq = 0
 let externalOffsetMs = 0
 let externalOffsetReady = false
+let maxExternalPointersOverride: number | null = null
 
 // Light smoothing keeps release direction stable without adding noticeable latency.
 const SCREEN_VELOCITY_BLEND = 0.35
@@ -97,9 +98,18 @@ function clampPointerSlot(slot: number): 0 | 1 {
 }
 
 function resolveMaxExternalPointers(): number {
-  const raw = SETTINGS.cursor.external.maxPointers
+  const raw = maxExternalPointersOverride ?? SETTINGS.cursor.external.maxPointers
   if (!Number.isFinite(raw)) return 2
   return clamp(Math.trunc(raw), 1, POINTER_SLOT_COUNT)
+}
+
+export function setMaxExternalPointersOverride(maxPointers: number | null): void {
+  maxExternalPointersOverride = maxPointers
+  const resolvedMaxPointers = resolveMaxExternalPointers()
+  for (let i = resolvedMaxPointers; i < POINTER_SLOT_COUNT; i += 1) {
+    const slot = pointerSlots[i]
+    if (slot) resetSlot(slot)
+  }
 }
 
 function resolveExternalStaleTimeoutMs(): number {

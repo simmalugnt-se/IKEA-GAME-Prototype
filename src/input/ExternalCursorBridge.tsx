@@ -1,12 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   beginExternalCursorInputSession,
   endExternalCursorInputSession,
+  setExternalCursorMaxPointersOverride,
   submitEmptyExternalCursorFrame,
   submitExternalCursorFrameSample,
   type ExternalCursorPointerSample,
 } from '@/input/CursorInputRouter'
 import { registerExternalCursorLifecycleSender } from '@/input/externalCursorLifecycle'
+import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { SETTINGS } from '@/settings/GameSettings'
 import { useSettingsVersion } from '@/settings/settingsStore'
 
@@ -36,8 +38,40 @@ function asNonEmptyString(value: unknown): string | null {
   return value
 }
 
+function resolveConfiguredMaxExternalPointers(): number {
+  const raw = SETTINGS.cursor.external.maxPointers
+  if (!Number.isFinite(raw)) return 2
+  return Math.max(1, Math.min(POINTER_BUFFER_SIZE, Math.trunc(raw)))
+}
+
+function resolveEffectiveMaxExternalPointers(flowState: string): number {
+  const isAlphabetGridEntry = (
+    flowState === 'game_over_input'
+    && SETTINGS.gameplay.flow.highScoreEntryMode === 'alphabet_grid'
+  )
+  if (!isAlphabetGridEntry) return resolveConfiguredMaxExternalPointers()
+
+  const raw = SETTINGS.cursor.external.alphabetGridEntryMaxPointers
+  if (!Number.isFinite(raw)) return 1
+  return Math.max(1, Math.min(resolveConfiguredMaxExternalPointers(), Math.trunc(raw)))
+}
+
 export function ExternalCursorBridge() {
   const settingsVersion = useSettingsVersion()
+  const flowState = useGameplayStore((state) => state.flowState)
+  const flowStateRef = useRef(flowState)
+  const singlePointerLockIdRef = useRef('')
+
+  useEffect(() => {
+    flowStateRef.current = flowState
+    const maxPointers = resolveEffectiveMaxExternalPointers(flowState)
+    const configuredMaxPointers = resolveConfiguredMaxExternalPointers()
+    setExternalCursorMaxPointersOverride(maxPointers < configuredMaxPointers ? maxPointers : null)
+
+    return () => {
+      setExternalCursorMaxPointersOverride(null)
+    }
+  }, [flowState, settingsVersion])
 
   useEffect(() => {
     const cfg = SETTINGS.cursor.external
@@ -203,11 +237,26 @@ export function ExternalCursorBridge() {
         const height = window.innerHeight
         if (!(width > 0) || !(height > 0)) return
 
-        const maxPointers = Math.max(1, Math.min(2, Math.trunc(SETTINGS.cursor.external.maxPointers)))
+        const maxPointers = resolveEffectiveMaxExternalPointers(flowStateRef.current)
+
+        const rawPointerCount = rawPointers.length
+        let lockedRawPointer: AnyPacket | null = null
+        if (maxPointers === 1 && singlePointerLockIdRef.current.length > 0) {
+          for (let i = 0; i < rawPointerCount; i += 1) {
+            const rawPointer = asRecord(rawPointers[i])
+            if (!rawPointer) continue
+            if (asNonEmptyString(rawPointer.id) === singlePointerLockIdRef.current) {
+              lockedRawPointer = rawPointer
+              break
+            }
+          }
+        }
 
         let validCount = 0
-        for (let i = 0; i < rawPointers.length; i += 1) {
-          const rawPointer = asRecord(rawPointers[i])
+        const pointerSource = lockedRawPointer ? [lockedRawPointer] : rawPointers
+        for (let i = 0; i < pointerSource.length; i += 1) {
+          if (maxPointers === 1 && validCount >= 1) break
+          const rawPointer = asRecord(pointerSource[i])
           if (!rawPointer) continue
 
           const id = asNonEmptyString(rawPointer.id)
@@ -239,6 +288,7 @@ export function ExternalCursorBridge() {
 
         const count = Math.min(validCount, maxPointers)
         if (count <= 0) return
+        singlePointerLockIdRef.current = maxPointers === 1 ? pointerBuffer[0]?.id ?? '' : ''
 
         submitExternalCursorFrameSample(sourceTimeMs, pointerBuffer, count)
 

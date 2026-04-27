@@ -710,6 +710,13 @@ export const settingsSections: SectionDescriptor[] = [
                 min: 1, max: 2, step: 1,
                 visible: () => SETTINGS.cursor.inputSource === 'external' && SETTINGS.cursor.external.enabled,
             },
+            {
+                type: 'number', label: 'external.alphabetGridEntryMaxPointers',
+                get: () => SETTINGS.cursor.external.alphabetGridEntryMaxPointers,
+                set: (v) => { SETTINGS.cursor.external.alphabetGridEntryMaxPointers = v; bump() },
+                min: 1, max: 2, step: 1,
+                visible: () => SETTINGS.cursor.inputSource === 'external' && SETTINGS.cursor.external.enabled,
+            },
             { type: 'number', label: 'trail.maxAge', get: () => SETTINGS.cursor.trail.maxAge, set: (v) => { SETTINGS.cursor.trail.maxAge = v; bump() }, min: 0, max: 2, step: 0.01 },
             { type: 'color', label: 'trail.color', get: () => SETTINGS.cursor.trail.color, set: (v) => { SETTINGS.cursor.trail.color = v; bump() } },
             { type: 'number', label: 'trail.lineWidth', get: () => SETTINGS.cursor.trail.lineWidth, set: (v) => { SETTINGS.cursor.trail.lineWidth = v; bump() }, min: 0, max: 20, step: 0.5 },

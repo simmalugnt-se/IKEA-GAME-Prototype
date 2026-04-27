@@ -422,6 +422,7 @@ export type Settings = {
       }
       staleTimeoutMs: number
       maxPointers: number
+      alphabetGridEntryMaxPointers: number
     }
     trail: {
       /** How long (in seconds) trail points persist before fading out */

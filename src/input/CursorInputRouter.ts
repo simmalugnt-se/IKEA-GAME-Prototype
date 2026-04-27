@@ -2,6 +2,7 @@ import { SETTINGS } from '@/settings/GameSettings'
 import {
   beginExternalCursorSession,
   endExternalCursorSession,
+  setMaxExternalPointersOverride,
   submitCursorSample,
   submitEmptyExternalCursorFrame as applyEmptyExternalCursorFrame,
   submitExternalCursorFrame,
@@ -37,6 +38,10 @@ export function beginExternalCursorInputSession(): void {
 
 export function endExternalCursorInputSession(): void {
   endExternalCursorSession()
+}
+
+export function setExternalCursorMaxPointersOverride(maxPointers: number | null): void {
+  setMaxExternalPointersOverride(maxPointers)
 }
 
 export type { ExternalCursorPointerSample }

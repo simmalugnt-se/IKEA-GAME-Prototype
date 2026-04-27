@@ -271,7 +271,7 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 45000,
+      timeLimitMs: 15000,
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,
       popStreakTimeBonusMs: 3000,
@@ -604,6 +604,7 @@ export const SETTINGS: Settings = {
       },
       staleTimeoutMs: 120,
       maxPointers: 2,
+      alphabetGridEntryMaxPointers: 1,
     },
     trail: {
       maxAge: 0.25,
