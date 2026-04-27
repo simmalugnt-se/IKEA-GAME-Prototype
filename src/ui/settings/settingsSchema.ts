@@ -682,6 +682,7 @@ export const settingsSections: SectionDescriptor[] = [
             },
             { type: 'number', label: 'minPopVelocity', get: () => SETTINGS.cursor.minPopVelocity, set: (v) => { SETTINGS.cursor.minPopVelocity = v; bump() }, min: 0, max: 2000, step: 10 },
             { type: 'number', label: 'pointerRadiusPx', get: () => SETTINGS.cursor.pointerRadiusPx, set: (v) => { SETTINGS.cursor.pointerRadiusPx = v; bump() }, min: 0, max: 80, step: 1 },
+            { type: 'number', label: 'hitRadiusPx', get: () => SETTINGS.cursor.hitRadiusPx, set: (v) => { SETTINGS.cursor.hitRadiusPx = v; bump() }, min: 0, max: 120, step: 1 },
             { type: 'boolean', label: 'external.enabled', get: () => SETTINGS.cursor.external.enabled, set: (v) => { SETTINGS.cursor.external.enabled = v; bump() } },
             {
                 type: 'text', label: 'external.websocket.url',

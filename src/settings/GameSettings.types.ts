@@ -411,9 +411,10 @@ export type Settings = {
     /**
      * Screen-space radius of the cursor head (filled circle) in CSS pixels.
      * Trail thickness is controlled separately by `trail.lineWidth`.
-     * Balloon pop tests expand the target ellipse by this amount in screen space.
      */
     pointerRadiusPx: number
+    /** Screen-space radius used to expand balloon pop tests in CSS pixels. */
+    hitRadiusPx: number
     external: {
       enabled: boolean
       websocket: {

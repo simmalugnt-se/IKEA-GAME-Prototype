@@ -330,7 +330,7 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
           const x1Local = sweepSegment.x1 - canvasRect.left
           const y1Local = sweepSegment.y1 - canvasRect.top
 
-          const hitPadRaw = SETTINGS.cursor.pointerRadiusPx
+          const hitPadRaw = SETTINGS.cursor.hitRadiusPx
           const hitPadScale = getCursorSizeBoostScale(sweepSegment.timeMs)
           const hitPad = Number.isFinite(hitPadRaw)
             ? Math.max(0, hitPadRaw) * hitPadScale

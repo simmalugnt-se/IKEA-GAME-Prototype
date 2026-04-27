@@ -271,7 +271,7 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 15000,
+      timeLimitMs: 45000,
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,
       popStreakTimeBonusMs: 3000,
@@ -593,7 +593,8 @@ export const SETTINGS: Settings = {
   cursor: {
     inputSource: "external", // "mouse" or "external"
     minPopVelocity: 220,
-    pointerRadiusPx: 12,
+    pointerRadiusPx: 1.5,
+    hitRadiusPx: 12,
     external: {
       enabled: true,
       websocket: {
