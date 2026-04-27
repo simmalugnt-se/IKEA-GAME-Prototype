@@ -140,25 +140,29 @@ export function GameRigidBody({
 
   useEntityRegistration(resolvedEntityId, 'rigid_body')
 
+  // Keep this object identity stable for Rapier; do not convert to useMemo to satisfy lint.
+  const mergedUserDataRef = useRef<Record<string, unknown>>({})
   useEffect(() => {
     cameraRef.current = camera
     sizeRef.current = size
   }, [camera, size])
 
-  const mergedUserData = useMemo(() => {
+  useEffect(() => {
     const baseUserData = (userData && typeof userData === 'object')
       ? userData as Record<string, unknown>
       : {}
-    const nextUserData = { ...baseUserData }
+    const target = mergedUserDataRef.current
+    for (const key of Object.keys(target)) {
+      if (!(key in baseUserData)) delete target[key]
+    }
+    Object.assign(target, baseUserData)
 
     if (contagion && resolvedEntityId) {
-      nextUserData.entityId = resolvedEntityId
-      nextUserData.contagionCarrier = contagion.carrier === true
-      nextUserData.contagionInfectable = contagion.infectable !== false
-      nextUserData.contagionColorIndex = contagion.colorIndex ?? 0
+      target.entityId = resolvedEntityId
+      target.contagionCarrier = contagion.carrier === true
+      target.contagionInfectable = contagion.infectable !== false
+      target.contagionColorIndex = contagion.colorIndex ?? 0
     }
-
-    return nextUserData
   }, [userData, resolvedEntityId, contagion])
 
   useEffect(() => {
@@ -350,7 +354,8 @@ export function GameRigidBody({
       {...(rotation !== undefined ? { rotation } : {})}
       {...(quaternion !== undefined ? { quaternion } : {})}
       {...(scale !== undefined ? { scale } : {})}
-      userData={mergedUserData}
+      // Don't convert to useMemo to satisfy lint.
+      userData={mergedUserDataRef.current}
       sensor={sensor}
       onCollisionEnter={handleCollisionEnter}
       onIntersectionEnter={handleIntersectionEnter}
