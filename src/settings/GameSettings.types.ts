@@ -33,11 +33,11 @@ export const HIGH_SCORE_STORAGE_MODES = ['local_storage', 'memory', 'database'] 
 export const HIGH_SCORE_DATABASE_FALLBACK_MODES = ['local_storage', 'memory'] as const
 export const HIGH_SCORE_ENTRY_MODES = ['swipe_letters', 'alphabet_grid'] as const
 export const BALLOON_DROP_TYPES = ['block', 'ball'] as const
-export const SPAWN_ITEM_MARKERS = ['none', 'hazard', 'bonus'] as const
+export const SPAWN_ITEM_MARKERS = ['none', 'hazard', 'bonus', 'time', 'gift'] as const
 export const SPAWN_ITEM_SCORE_MODES = ['balloon_combo', 'direct'] as const
 export const COMBO_BURST_LAYOUTS = ['line', 'bouquet'] as const
 export const SPAWN_EVENT_TRIGGER_TYPES = ['combo_multiplier', 'pop_streak_without_miss'] as const
-export const SPAWN_EVENT_ACTION_TYPES = ['spawn_burst', 'cursor_size_boost', 'spawn_ground_ball_wave', 'spawn_track_sweeper', 'cursor_burst_ring'] as const
+export const SPAWN_EVENT_ACTION_TYPES = ['spawn_burst', 'cursor_size_boost', 'spawn_ground_ball_wave', 'spawn_track_sweeper', 'cursor_burst_ring', 'time_scale_boost', 'gravity_shift'] as const
 export const SPAWN_EVENT_SELECTION_MODES = ['all', 'one_random'] as const
 export const SPAWN_EVENT_BALL_SIZE_PRESETS = ['lg', 'md', 'sm', 'xs'] as const
 export const GROUND_BALL_ENTRY_SIDES = ['top', 'right', 'bottom', 'left'] as const
@@ -100,6 +100,7 @@ export type SpawnItemDefinition = {
   timeDeltaMs: number
   feedbackText?: string
   triggerEventRuleId?: string
+  triggerEventRuleIds?: string[]
 }
 
 export type ComboBurstRuleEntry = {
@@ -192,6 +193,25 @@ export type SpawnEventActionCursorBurstRing = {
   feedbackText?: string
 }
 
+export type SpawnEventActionTimeScaleBoost = {
+  type: 'time_scale_boost'
+  scaleMultiplier: number
+  durationMs: number
+  easeInMs: number
+  easeOutMs: number
+  feedbackText?: string
+}
+
+export type SpawnEventActionGravityShift = {
+  type: 'gravity_shift'
+  gravityY: number
+  durationMs: number
+  easeInMs: number
+  easeOutMs: number
+  contagionColorIndex?: MaterialColorIndex
+  feedbackText?: string
+}
+
 export type SpawnEventTrigger =
   | SpawnEventTriggerComboMultiplier
   | SpawnEventTriggerPopStreakWithoutMiss
@@ -201,6 +221,8 @@ export type SpawnEventAction =
   | SpawnEventActionGroundBallWave
   | SpawnEventActionTrackSweeper
   | SpawnEventActionCursorBurstRing
+  | SpawnEventActionTimeScaleBoost
+  | SpawnEventActionGravityShift
 
 export type SpawnEventRule = {
   id: string

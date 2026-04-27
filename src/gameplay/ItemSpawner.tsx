@@ -32,6 +32,18 @@ const GAME_OVER_AUTO_POP_STAGGER_MS = 60;
 
 type ZGetter = () => number | undefined;
 
+function pickSpawnItemTriggerEventRuleId(item: SpawnedItemDescriptor): string | null {
+  const ruleIds = item.spawnItem.triggerEventRuleIds
+    ?.map((ruleId) => ruleId.trim())
+    .filter((ruleId) => ruleId.length > 0);
+  if (ruleIds && ruleIds.length > 0) {
+    return ruleIds[Math.floor(Math.random() * ruleIds.length)] ?? null;
+  }
+
+  const ruleId = item.spawnItem.triggerEventRuleId?.trim();
+  return ruleId && ruleId.length > 0 ? ruleId : null;
+}
+
 function countDefaultPoolItems(items: SpawnedItemDescriptor[]): number {
   let count = 0;
   for (let i = 0; i < items.length; i += 1) {
@@ -73,8 +85,9 @@ function SpawnedItemView({
   const handleSpawnItemHit = (event: SpawnItemHitCallbackEvent) => {
     const gameplayState = useGameplayStore.getState();
     if (item.spawnItem.scoreMode === "direct") {
-      if (typeof item.spawnItem.triggerEventRuleId === "string" && item.spawnItem.triggerEventRuleId.trim().length > 0) {
-        gameplayState.triggerSpawnEventRuleById(item.spawnItem.triggerEventRuleId, {
+      const triggerEventRuleId = pickSpawnItemTriggerEventRuleId(item);
+      if (triggerEventRuleId) {
+        gameplayState.triggerSpawnEventRuleById(triggerEventRuleId, {
           x: event.x,
           y: event.y,
         });

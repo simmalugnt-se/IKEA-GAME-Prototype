@@ -4,7 +4,13 @@ import { GameMusicDirector } from "@/audio/GameMusicDirector";
 import { ContagionRuntime } from "@/gameplay/ContagionRuntime";
 import { GroundBallWaveRuntime } from "@/gameplay/GroundBallWaveRuntime";
 import { TrackSweeperRuntime } from "@/gameplay/TrackSweeperRuntime";
-import { useGameplayStore } from "@/gameplay/gameplayStore";
+import {
+  getGameplayGravityY,
+  getGameplayTimeScale,
+  getGravityShiftContagionColorIndex,
+  getGravityShiftActivationToken,
+  useGameplayStore,
+} from "@/gameplay/gameplayStore";
 import { ItemSpawner } from "@/gameplay/ItemSpawner";
 import { LevelTileManager } from "@/levels/LevelTileManager";
 import { LiveLevelSync } from "@/LiveLevelSync";
@@ -26,14 +32,87 @@ import { BalloonGroup } from "@/geometry/BalloonGroup";
 import { ExternalCursorBridge } from "@/input/ExternalCursorBridge";
 import { Stats } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Physics } from "@react-three/rapier";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Physics, useRapier } from "@react-three/rapier";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import * as THREE from "three";
 import { LevelRenderer } from "@/LevelRenderer";
 import { applyEasing } from "@/utils/easing";
 
 const IDLE_BALLOON_TARGET_POSITION: [number, number, number] = [.65, 1.3, .65];
 const IDLE_BALLOON_ENTRY_SPEED_Z = 0.4;
+
+function PhysicsRuntimeController({
+  setPhysicsTimeStep,
+}: {
+  setPhysicsTimeStep: Dispatch<SetStateAction<number>>;
+}) {
+  const { world } = useRapier();
+  const { camera } = useThree();
+  const previousActivationTokenRef = useRef(0);
+  const affectedBodyHandlesRef = useRef<Set<number>>(new Set());
+  const projectionScratchRef = useRef(new THREE.Vector3());
+
+  useFrame(() => {
+    const nowMs = performance.now();
+    const nextGravityY = getGameplayGravityY(nowMs);
+    const activationToken = getGravityShiftActivationToken();
+    const activationChanged = activationToken > 0 && activationToken !== previousActivationTokenRef.current;
+    const activeGravityShift = Math.abs(nextGravityY + 9.81) > 0.01;
+
+    if (activationChanged) {
+      previousActivationTokenRef.current = activationToken;
+      affectedBodyHandlesRef.current.forEach((handle) => {
+        world.getRigidBody(handle)?.setGravityScale(1, true);
+      });
+      affectedBodyHandlesRef.current.clear();
+
+      const projectionScratch = projectionScratchRef.current;
+      const contagionColorIndex = getGravityShiftContagionColorIndex();
+      const queueGravityShiftContagionCarrier = useGameplayStore.getState().queueGravityShiftContagionCarrier;
+      world.forEachRigidBody((body) => {
+        if (!body.isDynamic()) return;
+        const translation = body.translation();
+        projectionScratch.set(translation.x, translation.y, translation.z).project(camera);
+        const isInView = projectionScratch.z >= -1
+          && projectionScratch.z <= 1
+          && projectionScratch.x >= -1.15
+          && projectionScratch.x <= 1.15
+          && projectionScratch.y >= -1.15
+          && projectionScratch.y <= 1.15;
+        if (!isInView) return;
+        affectedBodyHandlesRef.current.add(body.handle);
+        if (contagionColorIndex !== null) {
+          const userData = (body.userData ?? {}) as Record<string, unknown>;
+          const entityId = typeof userData.entityId === 'string' ? userData.entityId : '';
+          if (entityId) queueGravityShiftContagionCarrier(entityId, contagionColorIndex);
+        }
+        body.wakeUp();
+      });
+    }
+
+    if (affectedBodyHandlesRef.current.size > 0) {
+      const gravityScale = activeGravityShift ? nextGravityY / -9.81 : 1;
+      affectedBodyHandlesRef.current.forEach((handle) => {
+        const body = world.getRigidBody(handle);
+        if (!body) {
+          affectedBodyHandlesRef.current.delete(handle);
+          return;
+        }
+        body.setGravityScale(gravityScale, activeGravityShift);
+        if (!activeGravityShift) {
+          affectedBodyHandlesRef.current.delete(handle);
+        }
+      });
+    }
+
+    const nextPhysicsTimeStep = (1 / 60) * getGameplayTimeScale(nowMs);
+    setPhysicsTimeStep((current) => (
+      Math.abs(nextPhysicsTimeStep - current) > 0.0001 ? nextPhysicsTimeStep : current
+    ));
+  });
+
+  return null;
+}
 
 export function Scene() {
   useSettingsVersion();
@@ -47,6 +126,7 @@ export function Scene() {
   const trackerTravelEaseStartMsRef = useRef<number | null>(null);
   const previousFlowStateRef = useRef(flowState);
   const [idleBalloonVersion, setIdleBalloonVersion] = useState(0);
+  const [physicsTimeStep, setPhysicsTimeStep] = useState(1 / 60);
   const isDebug = SETTINGS.debug.enabled;
   const bootstrapIdle = useGameplayStore((state) => state.bootstrapIdle);
 
@@ -121,9 +201,11 @@ export function Scene() {
       <ExternalCursorBridge />
       <Physics
         gravity={[0, -9.81, 0]}
+        timeStep={physicsTimeStep}
         paused={paused}
         debug={isDebug && SETTINGS.debug.showColliders}
       >
+        <PhysicsRuntimeController setPhysicsTimeStep={setPhysicsTimeStep} />
         <GameRunClockRuntime />
         <ContagionRuntime />
         <GroundBallWaveRuntime />

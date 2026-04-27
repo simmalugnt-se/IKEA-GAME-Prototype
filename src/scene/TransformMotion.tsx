@@ -13,7 +13,7 @@ import {
 import { useFrame, type ThreeElements } from '@react-three/fiber'
 import type { Vec3 } from '@/settings/GameSettings'
 import { applyEasing, type EasingName } from '@/utils/easing'
-import { isMotionSystemFlowActive } from '@/gameplay/gameplayStore'
+import { getGameplayTimeScale, isMotionSystemFlowActive } from '@/gameplay/gameplayStore'
 import { getGameRunClockSeconds } from '@/game/GameRunClock'
 import {
   ACCELERATION_CURVE_NAMES,
@@ -583,6 +583,7 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
 
       const config = track.configRef.current
       const runtimeScale = resolveRuntimeTimeScaleMultiplier(config.runtimeTimeScaleMultiplierRef?.current)
+        * getGameplayTimeScale()
       const baseDelta = delta * config.timeScale * runtimeScale
       if (baseDelta === 0) return
 
@@ -853,6 +854,7 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
       const config = configRef.current
       const state = stateRef.current
       const runtimeScale = resolveRuntimeTimeScaleMultiplier(config.runtimeTimeScaleMultiplierRef?.current)
+        * getGameplayTimeScale()
       const localLinearVelocity = resolveInstantVelocityVector(
         config.positionVelocity,
         config.positionRange,

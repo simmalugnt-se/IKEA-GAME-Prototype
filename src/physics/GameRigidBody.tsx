@@ -7,10 +7,10 @@ import {
   type RapierRigidBody,
   type RigidBodyProps,
 } from '@react-three/rapier'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SETTINGS } from '@/settings/GameSettings'
-import { useGameplayStore, type ContagionCollisionEntity, type ScreenPos } from '@/gameplay/gameplayStore'
+import { getGravityShiftActivationToken, useGameplayStore, type ContagionCollisionEntity, type ScreenPos } from '@/gameplay/gameplayStore'
 import { useEntityRegistration, generateEntityId } from '@/entities/entityStore'
 import {
   isCollisionActivatedPhysicsType,
@@ -110,7 +110,9 @@ export function GameRigidBody({
   const solidNoneActivated = isSolidNoneActivatedPhysicsType(type)
   const [activated, setActivated] = useState(false)
   const activationFiredRef = useRef(false)
+  const gravityShiftActivationTokenRef = useRef(0)
   const enqueueContagionPair = useGameplayStore((state) => state.enqueueCollisionPair)
+  const activateQueuedGravityShiftContagionCarrier = useGameplayStore((state) => state.activateQueuedGravityShiftContagionCarrier)
   const contagionEnabled = SETTINGS.gameplay.contagion.enabled
   const [autoContagionEntityId] = useState(createAutoContagionEntityId)
   const childArray = useMemo(() => Children.toArray(children), [children])
@@ -138,28 +140,25 @@ export function GameRigidBody({
 
   useEntityRegistration(resolvedEntityId, 'rigid_body')
 
-  const mergedUserDataRef = useRef<Record<string, unknown>>({})
   useEffect(() => {
     cameraRef.current = camera
     sizeRef.current = size
   }, [camera, size])
 
-  useEffect(() => {
+  const mergedUserData = useMemo(() => {
     const baseUserData = (userData && typeof userData === 'object')
       ? userData as Record<string, unknown>
       : {}
-    const target = mergedUserDataRef.current
-    for (const key of Object.keys(target)) {
-      if (!(key in baseUserData)) delete target[key]
-    }
-    Object.assign(target, baseUserData)
+    const nextUserData = { ...baseUserData }
 
     if (contagion && resolvedEntityId) {
-      target.entityId = resolvedEntityId
-      target.contagionCarrier = contagion.carrier === true
-      target.contagionInfectable = contagion.infectable !== false
-      target.contagionColorIndex = contagion.colorIndex ?? 0
+      nextUserData.entityId = resolvedEntityId
+      nextUserData.contagionCarrier = contagion.carrier === true
+      nextUserData.contagionInfectable = contagion.infectable !== false
+      nextUserData.contagionColorIndex = contagion.colorIndex ?? 0
     }
+
+    return nextUserData
   }, [userData, resolvedEntityId, contagion])
 
   useEffect(() => {
@@ -226,6 +225,19 @@ export function GameRigidBody({
     body.wakeUp()
   }, [applyBodyType, applyAdditionalMass])
 
+  useFrame(() => {
+    if (!collisionActivated || activationFiredRef.current) return
+    const activationToken = getGravityShiftActivationToken()
+    if (activationToken <= 0 || activationToken === gravityShiftActivationTokenRef.current) return
+    gravityShiftActivationTokenRef.current = activationToken
+    activationFiredRef.current = true
+    if (sensorPreCollision) {
+      setAttachedCollidersSensor(false)
+    }
+    promoteToDynamicImmediately()
+    setActivated(true)
+  })
+
   useEffect(() => {
     if (collisionActivated && activationFiredRef.current && !activated) return
     applyBodyType(resolvedType)
@@ -253,6 +265,10 @@ export function GameRigidBody({
   }, [collisionActivated, onCollisionActivated, sensorPreCollision, setAttachedCollidersSensor, promoteToDynamicImmediately])
 
   const dispatchCollisionEnter = useCallback((payload: CollisionEnterPayload) => {
+    if (resolvedEntityId) {
+      activateQueuedGravityShiftContagionCarrier(resolvedEntityId)
+    }
+
     if (contagionEnabled) {
       const targetEntity = resolveCollisionEntity(payload, 'target')
       const otherEntity = resolveCollisionEntity(payload, 'other')
@@ -267,7 +283,7 @@ export function GameRigidBody({
       enqueueContagionPair(targetEntity, otherEntity)
     }
     onCollisionEnter?.(payload)
-  }, [contagionEnabled, enqueueContagionPair, onCollisionEnter])
+  }, [activateQueuedGravityShiftContagionCarrier, contagionEnabled, enqueueContagionPair, onCollisionEnter, resolvedEntityId])
 
   const handleCollisionEnter = useCallback((payload: CollisionEnterPayload) => {
     activate(payload)
@@ -334,7 +350,7 @@ export function GameRigidBody({
       {...(rotation !== undefined ? { rotation } : {})}
       {...(quaternion !== undefined ? { quaternion } : {})}
       {...(scale !== undefined ? { scale } : {})}
-      userData={mergedUserDataRef.current}
+      userData={mergedUserData}
       sensor={sensor}
       onCollisionEnter={handleCollisionEnter}
       onIntersectionEnter={handleIntersectionEnter}

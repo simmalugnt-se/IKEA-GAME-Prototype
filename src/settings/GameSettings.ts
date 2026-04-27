@@ -82,7 +82,7 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: false, // Master-toggle för allt debug
+    enabled: true, // Master-toggle för allt debug
     showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
     showStats: false, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
@@ -387,8 +387,8 @@ export const SETTINGS: Settings = {
         timeDeltaMs: 0,
       },
       {
-        id: "hazard_balloon",
-        label: "Hazard Balloon",
+        id: "time_balloon",
+        label: "Time Balloon",
         enabled: true,
         includeInDefaultPool: true,
         minScoreToSpawn: 20000,
@@ -401,28 +401,53 @@ export const SETTINGS: Settings = {
         maxConcurrentAccelerationCurve: "linear",
         maxConcurrentCap: 5,
         canTriggerSpawnEvents: false,
-        itemMarker: "hazard",
+        itemMarker: "time",
         color: -1,
         randomizeColor: false,
         randomizeDropType: true,
         lifeLossEnabled: false,
         scoreMode: "direct",
-        scoreDelta: -500,
-        timeDeltaMs: -5000,
-        feedbackText: "BAD POP!",
+        scoreDelta: 0,
+        timeDeltaMs: 5000,
+        feedbackText: "+5 SEC!",
       },
+      // {
+      //   id: "hazard_balloon",
+      //   label: "Hazard Balloon",
+      //   enabled: true,
+      //   includeInDefaultPool: true,
+      //   minScoreToSpawn: 20000,
+      //   weight: 0.1,
+      //   weightAcceleration: 0.008,
+      //   weightAccelerationCurve: "linear",
+      //   weightMaxMultiplier: 2,
+      //   maxConcurrent: 3,
+      //   maxConcurrentAcceleration: 0.02,
+      //   maxConcurrentAccelerationCurve: "linear",
+      //   maxConcurrentCap: 5,
+      //   canTriggerSpawnEvents: false,
+      //   itemMarker: "hazard",
+      //   color: -1,
+      //   randomizeColor: false,
+      //   randomizeDropType: true,
+      //   lifeLossEnabled: false,
+      //   scoreMode: "direct",
+      //   scoreDelta: -500,
+      //   timeDeltaMs: -5000,
+      //   feedbackText: "BAD POP!",
+      // },
       {
-        id: "bonus_balloon",
-        label: "Bonus Balloon",
+        id: "gift_balloon",
+        label: "Gift Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        weight: 0.035,
+        weight: 0.35,
         weightAcceleration: 0,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 1,
         maxConcurrent: 1,
         canTriggerSpawnEvents: false,
-        itemMarker: "bonus",
+        itemMarker: "gift",
         color: 2,
         randomizeColor: false,
         randomizeDropType: true,
@@ -431,7 +456,14 @@ export const SETTINGS: Settings = {
         scoreDelta: 0,
         timeDeltaMs: 0,
         feedbackText: "POWER UP!",
-        triggerEventRuleId: "big_cursor_reward",
+        triggerEventRuleIds: [
+          "combo_cluster_reward",
+          "big_cursor_reward",
+          "ground_ball_wave_reward",
+          "slowmo_reward",
+          "track_sweeper_reward",
+          "gravity_loss_reward",
+        ],
       },
       {
         id: "combo_cluster_balloon",
@@ -548,6 +580,25 @@ export const SETTINGS: Settings = {
         },
       },
       {
+        id: "slowmo_reward",
+        enabled: true,
+        selectionWeight: 1,
+        trigger: {
+          type: "combo_multiplier",
+          minMultiplier: 4,
+          maxMultiplier: 4,
+          cooldownMs: 10000,
+        },
+        action: {
+          type: "time_scale_boost",
+          scaleMultiplier: 0.35,
+          durationMs: 9000,
+          easeInMs: 250,
+          easeOutMs: 600,
+          feedbackText: "SLOWMO!",
+        },
+      },
+      {
         id: "track_sweeper_reward",
         enabled: true,
         selectionWeight: 1,
@@ -574,6 +625,26 @@ export const SETTINGS: Settings = {
           feedbackText: "ROLLER!",
         },
       },
+      {
+        id: "gravity_loss_reward",
+        enabled: true,
+        selectionWeight: 1,
+        trigger: {
+          type: "combo_multiplier",
+          minMultiplier: 3,
+          maxMultiplier: 3,
+          cooldownMs: 12000,
+        },
+        action: {
+          type: "gravity_shift",
+          gravityY: 1.25,
+          durationMs: 1800,
+          easeInMs: 250,
+          easeOutMs: 550,
+          contagionColorIndex: 7,
+          feedbackText: "GRAVITY LOSS!",
+        },
+      },
     ],
   },
 
@@ -591,12 +662,12 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "external", // "mouse" or "external"
+    inputSource: "mouse", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 1.5,
     hitRadiusPx: 12,
     external: {
-      enabled: true,
+      enabled: false,
       websocket: {
         // url: "ws://127.0.0.1:5173/ws/cursor",
         // url: "ws://localhost:5173/ws/cursor",

@@ -4,6 +4,8 @@ import { Balloon20 } from "@/assets/models/Balloon20";
 import { Balloon24 } from "@/assets/models/Balloon24";
 import { Balloon28 } from "@/assets/models/Balloon28";
 import { Balloon32 } from "@/assets/models/Balloon32";
+import { GIFTBALLOON } from "@/assets/models/GIFTBALLOON";
+import { TIMEBALLOON } from "@/assets/models/TIMEBALLOON";
 import { playGameSound } from "@/audio/GameAudioRouter";
 import {
   useBalloonLifecycleRegistry,
@@ -71,7 +73,7 @@ export type SpawnItemHitCallbackEvent = {
   timeMs: number;
 };
 
-type BalloonItemMarker = "none" | "hazard" | "bonus";
+type BalloonItemMarker = "none" | "hazard" | "bonus" | "time" | "gift";
 
 const POP_RELEASE_CURVE_NAMES = [
   "power_1_25",
@@ -293,36 +295,15 @@ const POP_HIT_DEBUG_MATERIAL = new THREE.MeshBasicMaterial({
   opacity: 0.9,
   depthWrite: false,
 });
+const SPECIAL_BALLOON_VISUAL_OFFSET = [0, 0.32, 0] as Vec3;
+const SPECIAL_BALLOON_POP_HIT_LOCAL_CENTER = [0, 0.38, 0] as Vec3;
+const SPECIAL_BALLOON_POP_HIT_RADIUS_X = 0.13;
+const SPECIAL_BALLOON_POP_HIT_RADIUS_Y = 0.17;
 const RESERVED_RANDOM_BALLOON_COLORS = new Set([
   HAZARD_BALLOON_COLOR_HEX.trim().toLowerCase(),
   "#e1d4bd",
   "#d9b5a3",
 ]);
-const HAZARD_MARKER_POINTS_A: [number, number, number][] = [
-  [-0.09, 0.3, -0.09],
-  [0.09, 0.3, 0.09],
-];
-const HAZARD_MARKER_POINTS_B: [number, number, number][] = [
-  [0.09, 0.3, -0.09],
-  [-0.09, 0.3, 0.09],
-];
-const BONUS_MARKER_POINTS_VERTICAL: [number, number, number][] = [
-  [0, 0.302, -0.105],
-  [0, 0.302, 0.105],
-];
-const BONUS_MARKER_POINTS_HORIZONTAL: [number, number, number][] = [
-  [-0.105, 0.302, 0],
-  [0.105, 0.302, 0],
-];
-const BONUS_MARKER_POINTS_DIAGONAL_A: [number, number, number][] = [
-  [-0.074, 0.302, -0.074],
-  [0.074, 0.302, 0.074],
-];
-const BONUS_MARKER_POINTS_DIAGONAL_B: [number, number, number][] = [
-  [0.074, 0.302, -0.074],
-  [-0.074, 0.302, 0.074],
-];
-
 type PopRelease = {
   linearVelocity: Vec3;
   angularVelocity: Vec3;
@@ -560,11 +541,23 @@ export function BalloonGroup({
   const configuredRandomizeColor = randomizeColor;
   const configuredRandomizeDropType = randomizeDropType;
   const configuredDropType = dropType;
+  const isTimeBalloon = itemMarker === "time" || itemMarker === "hazard";
+  const isGiftBalloon = itemMarker === "gift" || itemMarker === "bonus";
+  const isSpecialBalloon = isTimeBalloon || isGiftBalloon;
   const resolvedLifeLossEnabled = lifeLossEnabled ?? (flowRole === "run_spawn");
   const resolvedColor = configuredRandomizeColor ? initialRandomColor : configuredColor;
   const resolvedDropType = configuredRandomizeDropType
     ? initialRandomDropType
     : configuredDropType;
+  const popHitLocalCenter = isSpecialBalloon
+    ? SPECIAL_BALLOON_POP_HIT_LOCAL_CENTER
+    : POP_HIT_LOCAL_CENTER;
+  const popHitRadiusX = isSpecialBalloon
+    ? SPECIAL_BALLOON_POP_HIT_RADIUS_X
+    : POP_HIT_RADIUS_X;
+  const popHitRadiusY = isSpecialBalloon
+    ? SPECIAL_BALLOON_POP_HIT_RADIUS_Y
+    : POP_HIT_RADIUS_Y;
   const isBurstImmune = useCallback(
     () => itemMarker === "hazard",
     [itemMarker],
@@ -597,18 +590,18 @@ export function BalloonGroup({
       const probe = probeRef.current;
       if (!probe) return false;
       out.set(
-        POP_HIT_LOCAL_CENTER[0],
-        POP_HIT_LOCAL_CENTER[1],
-        POP_HIT_LOCAL_CENTER[2],
+        popHitLocalCenter[0],
+        popHitLocalCenter[1],
+        popHitLocalCenter[2],
       );
       probe.localToWorld(out);
       return true;
     },
-    [],
+    [popHitLocalCenter],
   );
 
-  const getWorldPopRadiusX = useCallback(() => POP_HIT_RADIUS_X, []);
-  const getWorldPopRadiusY = useCallback(() => POP_HIT_RADIUS_Y, []);
+  const getWorldPopRadiusX = useCallback(() => popHitRadiusX, [popHitRadiusX]);
+  const getWorldPopRadiusY = useCallback(() => popHitRadiusY, [popHitRadiusY]);
 
   const isPopped = useCallback(() => poppedRef.current, []);
   const isLifeLossEnabled = useCallback(
@@ -700,11 +693,25 @@ export function BalloonGroup({
           timeMs: hitEvent.timeMs,
         });
       }
+      if (isSpecialBalloon) {
+        setSuppressPayload(true);
+      }
       setPopped(true);
       playGameSound({ type: "balloon_pop" });
       onPopped?.();
+
+      if (isSpecialBalloon) {
+        if (cleanupTimerRef.current !== null) {
+          clearTimeout(cleanupTimerRef.current);
+          cleanupTimerRef.current = null;
+        }
+        cleanupTimerRef.current = setTimeout(() => {
+          cleanupTimerRef.current = null;
+          onCleanupRequested?.();
+        }, AUTO_POP_CLEANUP_DELAY_MS);
+      }
     },
-    [camera, flowRole, flowState, getWorldPopCenter, onPopped, onSpawnItemHit, popCenterNdc, popCenterWorld, popRelease, tuning],
+    [camera, flowRole, flowState, getWorldPopCenter, isSpecialBalloon, onCleanupRequested, onPopped, onSpawnItemHit, popCenterNdc, popCenterWorld, popRelease, tuning],
   );
 
   const triggerAutoPop = useCallback(() => {
@@ -829,7 +836,7 @@ export function BalloonGroup({
       playGameSound({ type: "payload_landed" });
     }
   });
-  const renderPayload = !popped || !suppressPayload;
+  const renderPayload = !isSpecialBalloon && (!popped || !suppressPayload);
 
   const payloadElement = resolvedDropType === "ball" ? (
     <BallElement
@@ -897,10 +904,10 @@ export function BalloonGroup({
         positionRangeStart={positionRangeStart}
         positionEasing={positionEasing}
         positionLoopMode={positionLoopMode}
-        rotationVelocity={rotationVelocity ?? BALLOON_GROUP_SETTINGS.motion.rotationVelocity}
-        rotationEasing={rotationEasing ?? BALLOON_GROUP_SETTINGS.motion.rotationEasing}
-        rotationLoopMode={rotationLoopMode ?? BALLOON_GROUP_SETTINGS.motion.rotationLoopMode}
-        rotationRange={rotationRange ?? BALLOON_GROUP_SETTINGS.motion.rotationRange}
+        rotationVelocity={rotationVelocity ?? (isSpecialBalloon ? { y: 36, z: 15 } : BALLOON_GROUP_SETTINGS.motion.rotationVelocity)}
+        rotationEasing={rotationEasing ?? (isSpecialBalloon ? { y: "linear", z: "easeInOutSine" } : BALLOON_GROUP_SETTINGS.motion.rotationEasing)}
+        rotationLoopMode={rotationLoopMode ?? (isSpecialBalloon ? { y: "loop", z: "pingpong" } : BALLOON_GROUP_SETTINGS.motion.rotationLoopMode)}
+        rotationRange={rotationRange ?? (isSpecialBalloon ? { y: [0, 360], z: [-15, 15] } : BALLOON_GROUP_SETTINGS.motion.rotationRange)}
         rotationRangeStart={rotationRangeStart ?? BALLOON_GROUP_SETTINGS.motion.rotationRangeStart}
         rotationOffset={rotationOffset ?? (configuredRandomizeColor ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetBase : undefined)}
         randomRotationOffset={randomRotationOffset ?? (configuredRandomizeColor ? BALLOON_GROUP_SETTINGS.randomize.rotationOffsetAmplitude : undefined)}
@@ -911,89 +918,45 @@ export function BalloonGroup({
         <group ref={probeRef}>
         {showPopHitDebug && !popped ? (
           <mesh
-            position={POP_HIT_LOCAL_CENTER}
+            position={popHitLocalCenter}
             geometry={POP_HIT_DEBUG_GEOMETRY}
             material={POP_HIT_DEBUG_MATERIAL}
-            scale={[POP_HIT_RADIUS_X, POP_HIT_RADIUS_Y, POP_HIT_RADIUS_X]}
+            scale={[popHitRadiusX, popHitRadiusY, popHitRadiusX]}
             renderOrder={999}
           />
         ) : null}
         {!popped ? (
           <>
-            <BalloonComponent materialColor0={resolvedColor} />
-            {itemMarker === "hazard" ? (
-              <>
-                <SplineElement
-                  points={HAZARD_MARKER_POINTS_A}
-                  segments={1}
-                  curveType="linear"
-                  lineWidth={5}
-                  color="#111111"
-                  castShadow={false}
-                />
-                <SplineElement
-                  points={HAZARD_MARKER_POINTS_B}
-                  segments={1}
-                  curveType="linear"
-                  lineWidth={5}
-                  color="#111111"
-                  castShadow={false}
-                />
-              </>
-            ) : null}
-            {itemMarker === "bonus" ? (
-              <>
-                <SplineElement
-                  points={BONUS_MARKER_POINTS_VERTICAL}
-                  segments={1}
-                  curveType="linear"
-                  color="#fff4a3"
-                  castShadow={false}
-                />
-                <SplineElement
-                  points={BONUS_MARKER_POINTS_HORIZONTAL}
-                  segments={1}
-                  curveType="linear"
-                  color="#fff4a3"
-                  castShadow={false}
-                />
-                <SplineElement
-                  points={BONUS_MARKER_POINTS_DIAGONAL_A}
-                  segments={1}
-                  curveType="linear"
-                  color="#fff4a3"
-                  castShadow={false}
-                />
-                <SplineElement
-                  points={BONUS_MARKER_POINTS_DIAGONAL_B}
-                  segments={1}
-                  curveType="linear"
-                  color="#fff4a3"
-                  castShadow={false}
-                />
-              </>
-            ) : null}
-            <SplineElement
-              points={[
-                [0, 0, 0],
-                [0, wrapConnectorY, 0],
-              ]}
-              segments={1}
-            />
-            {resolvedDropType === "ball" ? (
-              <SplineElement
-                points={BALL_WRAP_POINTS}
-                segments={1}
-                curveType="linear"
-                castShadow={false}
-              />
+            {isTimeBalloon ? (
+              <TIMEBALLOON position={SPECIAL_BALLOON_VISUAL_OFFSET} />
+            ) : isGiftBalloon ? (
+              <GIFTBALLOON position={SPECIAL_BALLOON_VISUAL_OFFSET} />
             ) : (
-              <SplineElement
-                points={BLOCK_WRAP_POINTS}
-                segments={1}
-                curveType="linear"
-                castShadow={false}
-              />
+              <>
+                <BalloonComponent materialColor0={resolvedColor} />
+                <SplineElement
+                  points={[
+                    [0, 0, 0],
+                    [0, wrapConnectorY, 0],
+                  ]}
+                  segments={1}
+                />
+                {resolvedDropType === "ball" ? (
+                  <SplineElement
+                    points={BALL_WRAP_POINTS}
+                    segments={1}
+                    curveType="linear"
+                    castShadow={false}
+                  />
+                ) : (
+                  <SplineElement
+                    points={BLOCK_WRAP_POINTS}
+                    segments={1}
+                    curveType="linear"
+                    castShadow={false}
+                  />
+                )}
+              </>
             )}
           </>
         ) : null}

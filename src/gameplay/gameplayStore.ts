@@ -133,6 +133,9 @@ type GameplayState = {
     entityA: ContagionCollisionEntity | null | undefined,
     entityB: ContagionCollisionEntity | null | undefined,
   ) => void
+  queueGravityShiftContagionCarrier: (entityId: string, colorIndex: number) => void
+  activateQueuedGravityShiftContagionCarrier: (entityId: string) => void
+  seedContagionCarrier: (entityId: string, colorIndex: number) => void
   flushContagionQueue: () => void
 }
 
@@ -278,6 +281,24 @@ type CursorBurstRingRuntimeState = {
   easeOutMs: number
 }
 
+type TimeScaleBoostRuntimeState = {
+  activatedAtMs: number
+  endsAtMs: number
+  scaleMultiplier: number
+  easeInMs: number
+  easeOutMs: number
+}
+
+type GravityShiftRuntimeState = {
+  activatedAtMs: number
+  endsAtMs: number
+  gravityY: number
+  easeInMs: number
+  easeOutMs: number
+  activationToken: number
+  contagionColorIndex: number | null
+}
+
 type PendingSpawnEvent = {
   id: string
   ruleId: string
@@ -336,6 +357,28 @@ function createCursorBurstRingRuntimeState(): CursorBurstRingRuntimeState {
   }
 }
 
+function createTimeScaleBoostRuntimeState(): TimeScaleBoostRuntimeState {
+  return {
+    activatedAtMs: 0,
+    endsAtMs: 0,
+    scaleMultiplier: 1,
+    easeInMs: 0,
+    easeOutMs: 0,
+  }
+}
+
+function createGravityShiftRuntimeState(): GravityShiftRuntimeState {
+  return {
+    activatedAtMs: 0,
+    endsAtMs: 0,
+    gravityY: -9.81,
+    easeInMs: 0,
+    easeOutMs: 0,
+    activationToken: 0,
+    contagionColorIndex: null,
+  }
+}
+
 function createSpawnEventQueueRuntimeState(): SpawnEventQueueRuntimeState {
   return {
     queue: [],
@@ -354,6 +397,10 @@ let maps = createContagionMaps()
 let comboRuntime = createComboRuntimeState()
 let cursorSizeBoostRuntime = createCursorSizeBoostRuntimeState()
 let cursorBurstRingRuntime = createCursorBurstRingRuntimeState()
+let timeScaleBoostRuntime = createTimeScaleBoostRuntimeState()
+let gravityShiftRuntime = createGravityShiftRuntimeState()
+let gravityShiftActivationSequence = 0
+const pendingGravityShiftContagionByEntityId = new Map<string, number>()
 let spawnEventQueueRuntime = createSpawnEventQueueRuntimeState()
 let popStreakRuntime = createPopStreakRuntimeState()
 let gameOverInputInactivityTimer: ReturnType<typeof setTimeout> | null = null
@@ -441,6 +488,15 @@ function resetCursorBurstRingRuntime(): void {
   cursorBurstRingRuntime = createCursorBurstRingRuntimeState()
 }
 
+function resetTimeScaleBoostRuntime(): void {
+  timeScaleBoostRuntime = createTimeScaleBoostRuntimeState()
+}
+
+function resetGravityShiftRuntime(): void {
+  gravityShiftRuntime = createGravityShiftRuntimeState()
+  pendingGravityShiftContagionByEntityId.clear()
+}
+
 function activateCursorSizeBoost(
   action: {
     scaleMultiplier: number
@@ -459,6 +515,75 @@ function activateCursorSizeBoost(
     scaleMultiplier: Math.max(1, action.scaleMultiplier),
     easeInMs: normalizeNonNegativeInt(action.easeInMs, 0),
     easeOutMs: normalizeNonNegativeInt(action.easeOutMs, 0),
+  }
+
+  if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
+    emitScorePop({
+      text: action.feedbackText.trim(),
+      x: origin.x,
+      y: origin.y,
+      burst: false,
+      style: 'style5',
+    })
+  }
+}
+
+function activateTimeScaleBoost(
+  action: {
+    scaleMultiplier: number
+    durationMs: number
+    easeInMs: number
+    easeOutMs: number
+    contagionColorIndex?: number
+    feedbackText?: string
+  },
+  origin?: ScreenPos,
+): void {
+  const nowMs = resolveHighResNowMs()
+  const durationMs = Math.max(1, normalizeNonNegativeInt(action.durationMs, 0))
+  timeScaleBoostRuntime = {
+    activatedAtMs: nowMs,
+    endsAtMs: nowMs + durationMs,
+    scaleMultiplier: Math.max(0, action.scaleMultiplier),
+    easeInMs: normalizeNonNegativeInt(action.easeInMs, 0),
+    easeOutMs: normalizeNonNegativeInt(action.easeOutMs, 0),
+  }
+
+  if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
+    emitScorePop({
+      text: action.feedbackText.trim(),
+      x: origin.x,
+      y: origin.y,
+      burst: false,
+      style: 'style5',
+    })
+  }
+}
+
+function activateGravityShift(
+  action: {
+    gravityY: number
+    durationMs: number
+    easeInMs: number
+    easeOutMs: number
+    contagionColorIndex?: number
+    feedbackText?: string
+  },
+  origin?: ScreenPos,
+): void {
+  const nowMs = resolveHighResNowMs()
+  const durationMs = Math.max(1, normalizeNonNegativeInt(action.durationMs, 0))
+  gravityShiftActivationSequence += 1
+  gravityShiftRuntime = {
+    activatedAtMs: nowMs,
+    endsAtMs: nowMs + durationMs,
+    gravityY: Number.isFinite(action.gravityY) ? action.gravityY : -9.81,
+    easeInMs: normalizeNonNegativeInt(action.easeInMs, 0),
+    easeOutMs: normalizeNonNegativeInt(action.easeOutMs, 0),
+    activationToken: gravityShiftActivationSequence,
+    contagionColorIndex: typeof action.contagionColorIndex === 'number' && Number.isFinite(action.contagionColorIndex)
+      ? action.contagionColorIndex
+      : null,
   }
 
   if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
@@ -636,6 +761,16 @@ function executeSpawnEventAction(
 
   if (action.type === 'cursor_burst_ring') {
     activateCursorBurstRing(action, origin)
+    return
+  }
+
+  if (action.type === 'time_scale_boost') {
+    activateTimeScaleBoost(action, origin)
+    return
+  }
+
+  if (action.type === 'gravity_shift') {
+    activateGravityShift(action, origin)
   }
 }
 
@@ -692,6 +827,77 @@ export function getCursorSizeBoostScale(nowMs = resolveHighResNowMs()): number {
   }
 
   return scaleMultiplier
+}
+
+export function getGameplayTimeScale(nowMs = resolveHighResNowMs()): number {
+  const {
+    activatedAtMs,
+    endsAtMs,
+    scaleMultiplier,
+    easeInMs,
+    easeOutMs,
+  } = timeScaleBoostRuntime
+
+  if (!(endsAtMs > activatedAtMs) || scaleMultiplier === 1) return 1
+  if (nowMs <= activatedAtMs || nowMs >= endsAtMs) return 1
+
+  const totalDurationMs = endsAtMs - activatedAtMs
+  const introDurationMs = Math.max(0, Math.min(easeInMs, totalDurationMs))
+  const outroDurationMs = Math.max(0, Math.min(easeOutMs, totalDurationMs))
+  const plateauStartMs = activatedAtMs + introDurationMs
+  const plateauEndMs = endsAtMs - outroDurationMs
+
+  if (introDurationMs > 0 && nowMs < plateauStartMs) {
+    const t = (nowMs - activatedAtMs) / introDurationMs
+    return 1 + (scaleMultiplier - 1) * easeInOutSine01(t)
+  }
+
+  if (outroDurationMs > 0 && nowMs > plateauEndMs) {
+    const t = (nowMs - plateauEndMs) / outroDurationMs
+    return 1 + (scaleMultiplier - 1) * (1 - easeInOutSine01(t))
+  }
+
+  return scaleMultiplier
+}
+
+export function getGameplayGravityY(nowMs = resolveHighResNowMs()): number {
+  const baseGravityY = -9.81
+  const {
+    activatedAtMs,
+    endsAtMs,
+    gravityY,
+    easeInMs,
+    easeOutMs,
+  } = gravityShiftRuntime
+
+  if (!(endsAtMs > activatedAtMs) || gravityY === baseGravityY) return baseGravityY
+  if (nowMs <= activatedAtMs || nowMs >= endsAtMs) return baseGravityY
+
+  const totalDurationMs = endsAtMs - activatedAtMs
+  const introDurationMs = Math.max(0, Math.min(easeInMs, totalDurationMs))
+  const outroDurationMs = Math.max(0, Math.min(easeOutMs, totalDurationMs))
+  const plateauStartMs = activatedAtMs + introDurationMs
+  const plateauEndMs = endsAtMs - outroDurationMs
+
+  if (introDurationMs > 0 && nowMs < plateauStartMs) {
+    const t = (nowMs - activatedAtMs) / introDurationMs
+    return baseGravityY + (gravityY - baseGravityY) * easeInOutSine01(t)
+  }
+
+  if (outroDurationMs > 0 && nowMs > plateauEndMs) {
+    const t = (nowMs - plateauEndMs) / outroDurationMs
+    return baseGravityY + (gravityY - baseGravityY) * (1 - easeInOutSine01(t))
+  }
+
+  return gravityY
+}
+
+export function getGravityShiftActivationToken(): number {
+  return gravityShiftRuntime.activationToken
+}
+
+export function getGravityShiftContagionColorIndex(): number | null {
+  return gravityShiftRuntime.contagionColorIndex
 }
 
 export function getCursorBurstRingSample(nowMs = resolveHighResNowMs()): {
@@ -1238,6 +1444,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
     resetCursorBurstRingRuntime()
+    resetTimeScaleBoostRuntime()
+    resetGravityShiftRuntime()
     clearGameOverInputTimers()
     advanceRunTimerScope()
 
@@ -1386,6 +1594,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
     resetCursorBurstRingRuntime()
+    resetTimeScaleBoostRuntime()
+    resetGravityShiftRuntime()
     clearGameOverInputTimers()
     advanceRunTimerScope()
 
@@ -1439,6 +1649,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
     resetCursorBurstRingRuntime()
+    resetTimeScaleBoostRuntime()
+    resetGravityShiftRuntime()
     clearGameOverInputTimers()
     const runScopeToken = advanceRunTimerScope()
 
@@ -1585,6 +1797,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
     resetCursorBurstRingRuntime()
+    resetTimeScaleBoostRuntime()
+    resetGravityShiftRuntime()
     advanceRunTimerScope()
     setGameRunClockRunning(false)
     resetGameRunClock()
@@ -1945,6 +2159,70 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       lastTimeMs: popEvent.timeMs,
     }
     scheduleComboStrikeFlush()
+  },
+
+  queueGravityShiftContagionCarrier: (entityId, colorIndex) => {
+    if (get().flowState !== 'run') return
+    if (!SETTINGS.gameplay.contagion.enabled) return
+
+    const normalizedEntityId = typeof entityId === 'string' ? entityId.trim() : ''
+    if (!normalizedEntityId) return
+    pendingGravityShiftContagionByEntityId.set(normalizedEntityId, normalizeInt(colorIndex, 0))
+  },
+
+  activateQueuedGravityShiftContagionCarrier: (entityId) => {
+    if (get().flowState !== 'run') return
+
+    const normalizedEntityId = typeof entityId === 'string' ? entityId.trim() : ''
+    if (!normalizedEntityId) return
+
+    const colorIndex = pendingGravityShiftContagionByEntityId.get(normalizedEntityId)
+    if (colorIndex === undefined) return
+
+    pendingGravityShiftContagionByEntityId.delete(normalizedEntityId)
+    get().seedContagionCarrier(normalizedEntityId, colorIndex)
+  },
+
+  seedContagionCarrier: (entityId, colorIndex) => {
+    if (get().flowState !== 'run') return
+    if (!SETTINGS.gameplay.contagion.enabled) return
+
+    const normalizedEntityId = typeof entityId === 'string' ? entityId.trim() : ''
+    if (!normalizedEntityId) return
+    const normalizedColorIndex = normalizeInt(colorIndex, 0)
+
+    set((state) => {
+      if (state.flowState !== 'run') return state
+
+      const current = maps.records.get(normalizedEntityId)
+      if (
+        current
+        && current.carrier
+        && current.colorIndex === normalizedColorIndex
+        && current.lineageId === normalizedEntityId
+      ) {
+        return state
+      }
+
+      const nextSequence = state.sequence + 1
+      maps.records.set(normalizedEntityId, {
+        lineageId: normalizedEntityId,
+        colorIndex: normalizedColorIndex,
+        carrier: true,
+        activatedAt: nextSequence,
+        seededFrom: 'gravity_shift',
+      })
+
+      return {
+        ...state,
+        sequence: nextSequence,
+        contagionEpoch: state.contagionEpoch + 1,
+        contagionColorsByEntityId: {
+          ...state.contagionColorsByEntityId,
+          [normalizedEntityId]: normalizedColorIndex,
+        },
+      }
+    })
   },
 
   enqueueCollisionPair: (rawA, rawB) => {
