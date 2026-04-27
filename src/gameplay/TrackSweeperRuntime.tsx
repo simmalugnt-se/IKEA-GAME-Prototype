@@ -4,7 +4,7 @@ import {
   pointOnSegment,
   type FrustumCorners,
 } from '@/gameplay/frustumBounds'
-import { useGameplayStore } from '@/gameplay/gameplayStore'
+import { getGameplayTimeScale, useGameplayStore } from '@/gameplay/gameplayStore'
 import { CylinderElement } from '@/primitives/CylinderElement'
 import { resolveMaterialColorIndex } from '@/settings/GameSettings'
 import type {
@@ -12,7 +12,7 @@ import type {
   SpawnEventActionTrackSweeper,
 } from '@/settings/GameSettings.types'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 const FLOOR_Y = 0
@@ -167,9 +167,11 @@ export function TrackSweeperRuntime() {
   const removeActiveSweeper = useTrackSweeperStore((state) => state.removeActiveSweeper)
   const clearAll = useTrackSweeperStore((state) => state.clearAll)
   const { camera } = useThree()
+  const elapsedGameplayMsBySweeperIdRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
     if (flowState === 'run') return
+    elapsedGameplayMsBySweeperIdRef.current.clear()
     clearAll()
   }, [clearAll, flowState])
 
@@ -192,14 +194,27 @@ export function TrackSweeperRuntime() {
     addActiveSweepers(nextSweepers)
   }, [addActiveSweepers, camera, consumeRequests, flowState, paused, queuedRequests])
 
-  useFrame(() => {
+  useFrame((_, deltaSeconds) => {
     if (paused) return
     if (activeSweepers.length <= 0) return
-    const nowMs = performance.now()
+    const elapsedGameplayMsBySweeperId = elapsedGameplayMsBySweeperIdRef.current
+    const gameplayDeltaMs = Math.max(0, deltaSeconds * 1000 * getGameplayTimeScale())
+    const activeSweeperIds = new Set(activeSweepers.map((sweeper) => sweeper.id))
+    for (const trackedId of elapsedGameplayMsBySweeperId.keys()) {
+      if (!activeSweeperIds.has(trackedId)) {
+        elapsedGameplayMsBySweeperId.delete(trackedId)
+      }
+    }
     for (let i = 0; i < activeSweepers.length; i += 1) {
       const sweeper = activeSweepers[i]
       if (!sweeper) continue
-      if (nowMs - sweeper.spawnedAtMs < sweeper.lifetimeMs) continue
+      const previousElapsedMs = elapsedGameplayMsBySweeperId.get(sweeper.id) ?? 0
+      const nextElapsedMs = previousElapsedMs + gameplayDeltaMs
+      if (nextElapsedMs < sweeper.lifetimeMs) {
+        elapsedGameplayMsBySweeperId.set(sweeper.id, nextElapsedMs)
+        continue
+      }
+      elapsedGameplayMsBySweeperId.delete(sweeper.id)
       removeActiveSweeper(sweeper.id)
     }
   })

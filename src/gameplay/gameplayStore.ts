@@ -117,6 +117,7 @@ type GameplayState = {
   setGameOverTravelTargetZ: (targetZ: number | null) => void
   addScore: (delta: number, source?: ScoreboardEventSource) => void
   addRunTimeMs: (deltaMs: number, reason?: RunTimeBonusReason) => void
+  advanceRunTimeWithTimeScale: (deltaMs: number) => void
   applySpawnItemHitEffect: (event: SpawnItemHitEffectEvent) => void
   triggerSpawnEventRuleById: (ruleId: string, origin?: ScreenPos) => void
   flushPendingSpawnEvents: () => void
@@ -208,6 +209,10 @@ function resolveGameOverInputInactivityMs(): number {
 
 function resolveGameOverInputCountdownMs(): number {
   return normalizeNonNegativeInt(SETTINGS.gameplay.flow.gameOverInputCountdownMs, 15000)
+}
+
+function isSlowmoAffectsRunTimerEnabled(): boolean {
+  return SETTINGS.gameplay.flow.slowmoAffectsRunTimer === true
 }
 
 function normalizeCollisionEntity(raw: ContagionCollisionEntity | null | undefined): NormalizedCollisionEntity | null {
@@ -1404,6 +1409,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
   }
 
   const scheduleRunEndTimer = (scopeToken: number, endsAtMs: number): void => {
+    if (isSlowmoAffectsRunTimerEnabled()) return
     clearRunEndTimer()
     const delayMs = Math.max(0, endsAtMs - Date.now())
     runEndTimer = setTimeout(() => {
@@ -1623,7 +1629,11 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
 
     if (!shouldResumeClock) return
     setGameRunClockRunning(true)
-    if (resumeEndsAtMs > 0 && isRunTimerScopeActive(scopeToken)) {
+    if (
+      resumeEndsAtMs > 0
+      && isRunTimerScopeActive(scopeToken)
+      && !isSlowmoAffectsRunTimerEnabled()
+    ) {
       scheduleRunEndTimer(scopeToken, resumeEndsAtMs)
     }
   }
@@ -1743,7 +1753,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
 
     resetGameRunClock()
     setGameRunClockRunning(true)
-    if (runMode === 'time') {
+    if (runMode === 'time' && !isSlowmoAffectsRunTimerEnabled()) {
       scheduleRunEndTimer(runScopeToken, runTimeEndsAtMs)
     }
 
@@ -2011,10 +2021,52 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     if (stateBefore.paused) return
 
     if (lerpMs <= 0) {
-      scheduleRunEndTimer(scopeToken, nextEndsAtMs)
+      if (!isSlowmoAffectsRunTimerEnabled()) {
+        scheduleRunEndTimer(scopeToken, nextEndsAtMs)
+      }
       return
     }
     scheduleRunTimePauseResume(scopeToken, nextPauseEndsAtMs)
+  },
+
+  advanceRunTimeWithTimeScale: (deltaMs) => {
+    if (!isSlowmoAffectsRunTimerEnabled()) return
+    if (!(deltaMs > 0) || !Number.isFinite(deltaMs)) return
+
+    const nowMs = Date.now()
+    const clampedTimeScale = Math.max(0, getGameplayTimeScale())
+    const wallClockDeltaMs = Math.max(0, deltaMs)
+    const gameplayDeltaMs = wallClockDeltaMs * clampedTimeScale
+    const deadlineShiftMs = wallClockDeltaMs - gameplayDeltaMs
+    if (!Number.isFinite(deadlineShiftMs)) return
+
+    let shouldEndRun = false
+    set((state) => {
+      if (state.flowState !== 'run' || state.runMode !== 'time') return state
+      if (state.paused) return state
+      if (state.runTimePauseEndsAtMs > nowMs) return state
+      if (!(state.runTimeEndsAtMs > 0)) return state
+
+      const nextEndsAtMs = state.runTimeEndsAtMs + deadlineShiftMs
+      if (nextEndsAtMs <= nowMs) {
+        shouldEndRun = true
+        return {
+          ...state,
+          ...createClearedRunTimeStateFields(),
+          runTimeEndsAtMs: nowMs,
+        }
+      }
+
+      if (Math.abs(deadlineShiftMs) <= 0.01) return state
+      return {
+        ...state,
+        runTimeEndsAtMs: nextEndsAtMs,
+      }
+    })
+
+    if (shouldEndRun) {
+      endRun('time_elapsed')
+    }
   },
 
   applySpawnItemHitEffect: (event) => {

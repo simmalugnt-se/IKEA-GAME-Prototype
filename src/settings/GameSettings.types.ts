@@ -345,6 +345,7 @@ export type Settings = {
       databaseFallbackMode: HighScoreDatabaseFallbackMode
     }
     flow: {
+      slowmoAffectsRunTimer: boolean
       gameOverInputInactivityMs: number
       gameOverInputCountdownMs: number
       highScoreEntryMode: HighScoreEntryMode

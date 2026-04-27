@@ -4,7 +4,7 @@ import {
   pointOnSegment,
   type FrustumCorners,
 } from '@/gameplay/frustumBounds'
-import { useGameplayStore } from '@/gameplay/gameplayStore'
+import { getGameplayTimeScale, useGameplayStore } from '@/gameplay/gameplayStore'
 import { BallElement } from '@/primitives/BallElement'
 import { resolveMaterialColorIndex } from '@/settings/GameSettings'
 import type {
@@ -13,7 +13,7 @@ import type {
   Vec3,
 } from '@/settings/GameSettings.types'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 const FLOOR_Y = 0
@@ -160,9 +160,11 @@ export function GroundBallWaveRuntime() {
   const removeActiveBall = useGroundBallWaveStore((state) => state.removeActiveBall)
   const clearAll = useGroundBallWaveStore((state) => state.clearAll)
   const { camera } = useThree()
+  const elapsedGameplayMsByBallIdRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
     if (flowState === 'run') return
+    elapsedGameplayMsByBallIdRef.current.clear()
     clearAll()
   }, [clearAll, flowState])
 
@@ -185,14 +187,27 @@ export function GroundBallWaveRuntime() {
     addActiveBalls(nextBalls)
   }, [addActiveBalls, camera, consumeWaveRequests, flowState, paused, queuedRequests])
 
-  useFrame(() => {
+  useFrame((_, deltaSeconds) => {
     if (paused) return
     if (activeBalls.length <= 0) return
-    const nowMs = performance.now()
+    const elapsedGameplayMsByBallId = elapsedGameplayMsByBallIdRef.current
+    const gameplayDeltaMs = Math.max(0, deltaSeconds * 1000 * getGameplayTimeScale())
+    const activeBallIds = new Set(activeBalls.map((ball) => ball.id))
+    for (const trackedId of elapsedGameplayMsByBallId.keys()) {
+      if (!activeBallIds.has(trackedId)) {
+        elapsedGameplayMsByBallId.delete(trackedId)
+      }
+    }
     for (let i = 0; i < activeBalls.length; i += 1) {
       const ball = activeBalls[i]
       if (!ball) continue
-      if (nowMs - ball.spawnedAtMs < ball.lifetimeMs) continue
+      const previousElapsedMs = elapsedGameplayMsByBallId.get(ball.id) ?? 0
+      const nextElapsedMs = previousElapsedMs + gameplayDeltaMs
+      if (nextElapsedMs < ball.lifetimeMs) {
+        elapsedGameplayMsByBallId.set(ball.id, nextElapsedMs)
+        continue
+      }
+      elapsedGameplayMsByBallId.delete(ball.id)
       removeActiveBall(ball.id)
     }
   })

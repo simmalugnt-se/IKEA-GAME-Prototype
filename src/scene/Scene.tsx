@@ -60,12 +60,14 @@ function PhysicsRuntimeController({
 }) {
   const { world } = useRapier();
   const { camera } = useThree();
+  const advanceRunTimeWithTimeScale = useGameplayStore((state) => state.advanceRunTimeWithTimeScale);
   const previousActivationTokenRef = useRef(0);
   const affectedBodyHandlesRef = useRef<Map<number, GravityShiftBodyTuning>>(new Map());
   const projectionScratchRef = useRef(new THREE.Vector3());
 
-  useFrame(() => {
+  useFrame((_, deltaSeconds) => {
     const nowMs = performance.now();
+    advanceRunTimeWithTimeScale(deltaSeconds * 1000);
     const nextGravityY = getGameplayGravityY(nowMs);
     const activationToken = getGravityShiftActivationToken();
     const activationChanged = activationToken > 0 && activationToken !== previousActivationTokenRef.current;
