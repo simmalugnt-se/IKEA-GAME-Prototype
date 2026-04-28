@@ -393,7 +393,7 @@ export const SETTINGS: Settings = {
         enabled: true,
         includeInDefaultPool: true,
         minScoreToSpawn: 20000,
-        weight: 0.05,
+        weight: 0.01,
         weightAcceleration: 0.008,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 2,
