@@ -133,7 +133,7 @@ const BALLOON_GROUP_SETTINGS = {
   randomize: {
     excludedColorIndices: [0, 1, 2, 3] as number[],
     positionVelocityZBase: 0.5,
-    positionVelocityZAmplitude: 0.2,
+    positionVelocityZAmplitude: 0.05,
     rotationOffsetBase: 0,
     rotationOffsetAmplitude: 2.0,
   },
