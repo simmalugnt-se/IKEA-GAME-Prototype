@@ -42,7 +42,7 @@ export function ScoreHud() {
   const secondaryColor = SETTINGS.colors.outline
   const margin = '1.5rem'
   const isTopHudHidden = flowState !== 'run'
-  const topHudTransform = isTopHudHidden ? 'translateY(calc(-100% - ' + margin + '))' : 'translateY(0%)'
+  const topHudTransform = isTopHudHidden ? 'translateY(calc(-100% - var(--edgeDistance)))' : 'translateY(0%)'
   const isAudioOn = AUDIO_SETTINGS.enabled === true && audioUnlocked
   const previousLivesRef = useRef(lives)
   const blinkTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())

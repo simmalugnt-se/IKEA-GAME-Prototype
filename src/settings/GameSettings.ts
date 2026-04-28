@@ -271,7 +271,7 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 45000,
+      timeLimitMs: 450000,
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,
       popStreakTimeBonusMs: 3000,
@@ -316,8 +316,8 @@ export const SETTINGS: Settings = {
       },
       combo: {
         enabled: true,
-        strikeWindowMs: 300,
-        chainWindowMs: 900,
+        strikeWindowMs: 100,
+        chainWindowMs: 800,
         chainBonusCap: 2,
       },
     },
@@ -667,7 +667,7 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "external", // "mouse" or "external"
+    inputSource: "mouse", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 1.5,
     hitRadiusPx: 12,
