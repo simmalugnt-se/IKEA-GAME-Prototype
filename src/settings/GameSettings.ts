@@ -393,7 +393,7 @@ export const SETTINGS: Settings = {
         enabled: true,
         includeInDefaultPool: true,
         minScoreToSpawn: 20000,
-        weight: 0.01,
+        weight: 0.05,
         weightAcceleration: 0.008,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 2,
@@ -442,7 +442,7 @@ export const SETTINGS: Settings = {
         label: "Gift Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        weight: 0.01,
+        weight: 0.05,
         weightAcceleration: 0,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 1,
@@ -508,25 +508,25 @@ export const SETTINGS: Settings = {
           ],
         },
       },
-      {
-        id: "big_cursor_reward",
-        enabled: true,
-        selectionWeight: 1,
-        trigger: {
-          type: "combo_multiplier",
-          minMultiplier: 3,
-          maxMultiplier: 3,
-          cooldownMs: 5000,
-        },
-        action: {
-          type: "cursor_size_boost",
-          scaleMultiplier: 3,
-          durationMs: 5000,
-          easeInMs: 350,
-          easeOutMs: 450,
-          feedbackText: "BIG CURSOR!",
-        },
-      },
+      // {
+      //   id: "big_cursor_reward",
+      //   enabled: true,
+      //   selectionWeight: 1,
+      //   trigger: {
+      //     type: "combo_multiplier",
+      //     minMultiplier: 3,
+      //     maxMultiplier: 3,
+      //     cooldownMs: 5000,
+      //   },
+      //   action: {
+      //     type: "cursor_size_boost",
+      //     scaleMultiplier: 3,
+      //     durationMs: 5000,
+      //     easeInMs: 350,
+      //     easeOutMs: 450,
+      //     feedbackText: "BIG CURSOR!",
+      //   },
+      // },
       // {
       //   id: "cursor_burst_reward",
       //   enabled: true,
@@ -556,7 +556,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 3,
+          minMultiplier: 2,
           maxMultiplier: 3,
           cooldownMs: 10000,
         },
@@ -632,7 +632,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 3,
+          minMultiplier: 2,
           maxMultiplier: 3,
           cooldownMs: 12000,
         },
@@ -671,8 +671,8 @@ export const SETTINGS: Settings = {
   cursor: {
     inputSource: "external", // "mouse" or "external"
     minPopVelocity: 220,
-    pointerRadiusPx: 1.5,
-    hitRadiusPx: 12,
+    pointerRadiusPx: 4.5,
+    hitRadiusPx: 36,
     external: {
       enabled: true,
       websocket: {
@@ -688,7 +688,7 @@ export const SETTINGS: Settings = {
     trail: {
       maxAge: 0.25,
       color: "#ffffff",
-      lineWidth: 3,
+      lineWidth: 9,
       followSmoothing: 0.7,
       smoothing: 0.25,
     },
