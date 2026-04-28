@@ -1314,28 +1314,13 @@ function flushPendingComboStrike(): void {
   const baseScorePerPop = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
   const perPopScore = baseScorePerPop * finalMultiplier
   const totalStrikeScore = perPopScore * strikeSize
-  const scoreSource: ScoreboardEventSource = strikeSize >= 2
-    ? 'balloon_combo'
-    : 'balloon_pop'
+  const baseStrikeScore = baseScorePerPop * strikeSize
+  const comboBonusScore = Math.max(0, totalStrikeScore - baseStrikeScore)
 
-  if (totalStrikeScore > 0) {
-    useGameplayStore.getState().addScore(totalStrikeScore, scoreSource)
+  if (comboBonusScore > 0) {
+    useGameplayStore.getState().addScore(comboBonusScore, 'balloon_combo')
   }
   const totalScoreAfterStrike = useGameplayStore.getState().score
-
-  if (perPopScore > 0) {
-    const scoreText = `+${perPopScore}`
-    for (let i = 0; i < strike.pops.length; i += 1) {
-      const pop = strike.pops[i]
-      if (!pop) continue
-      emitScorePop({
-        text: scoreText,
-        x: pop.x,
-        y: pop.y,
-        style: 'style3',
-      })
-    }
-  }
 
   if (strikeSize >= 2) {
     let sumX = 0
@@ -2217,6 +2202,17 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     if (get().flowState !== 'run') return
 
     const popEvent = normalizeComboPopEvent(rawEvent)
+    const baseScore = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
+    if (baseScore > 0) {
+      get().addScore(baseScore, 'balloon_pop')
+      emitScorePop({
+        text: `+${baseScore}`,
+        x: popEvent.x,
+        y: popEvent.y,
+        style: 'style3',
+      })
+    }
+
     const previousPopStreakCount = popStreakRuntime.withoutMissCount
     popStreakRuntime.withoutMissCount = previousPopStreakCount + 1
     maybeApplyPopStreakTimeBonus(
@@ -2233,16 +2229,6 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     const comboSettings = SETTINGS.gameplay.balloons.combo
     if (!comboSettings.enabled) {
       resetComboRuntimeState()
-      const baseScore = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
-      if (baseScore > 0) {
-        get().addScore(baseScore, 'balloon_pop')
-        emitScorePop({
-          text: `+${baseScore}`,
-          x: popEvent.x,
-          y: popEvent.y,
-          style: 'style3',
-        })
-      }
       return
     }
 
