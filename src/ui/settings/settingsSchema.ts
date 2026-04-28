@@ -650,6 +650,12 @@ export const settingsSections: SectionDescriptor[] = [
                 options: ACCELERATION_CURVE_NAMES,
             },
             {
+                type: 'number', label: 'camera.timeScaleAccelMaxMult',
+                get: () => SETTINGS.motionAcceleration.cameraTracker.timeScaleAccelerationMaxMultiplier,
+                set: (v) => { SETTINGS.motionAcceleration.cameraTracker.timeScaleAccelerationMaxMultiplier = v; bump() },
+                min: 0, max: 20, step: 0.1,
+            },
+            {
                 type: 'number', label: 'balloons.timeScaleAccel',
                 get: () => SETTINGS.motionAcceleration.balloons.timeScaleAcceleration,
                 set: (v) => { SETTINGS.motionAcceleration.balloons.timeScaleAcceleration = v; bump() },
@@ -660,6 +666,12 @@ export const settingsSections: SectionDescriptor[] = [
                 get: () => SETTINGS.motionAcceleration.balloons.timeScaleAccelerationCurve,
                 set: (v) => { SETTINGS.motionAcceleration.balloons.timeScaleAccelerationCurve = v as typeof SETTINGS.motionAcceleration.balloons.timeScaleAccelerationCurve; bump() },
                 options: ACCELERATION_CURVE_NAMES,
+            },
+            {
+                type: 'number', label: 'balloons.timeScaleAccelMaxMult',
+                get: () => SETTINGS.motionAcceleration.balloons.timeScaleAccelerationMaxMultiplier,
+                set: (v) => { SETTINGS.motionAcceleration.balloons.timeScaleAccelerationMaxMultiplier = v; bump() },
+                min: 0, max: 20, step: 0.1,
             },
         ],
     },

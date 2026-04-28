@@ -52,6 +52,8 @@ export type TransformMotionProps = Omit<ThreeElements['group'], 'ref'> & {
   timeScaleAcceleration?: number
   /** Curve used when resolving timeScaleAcceleration growth over global motion clock. */
   timeScaleAccelerationCurve?: TimeScaleAccelerationCurve
+  /** Optional upper cap for acceleration multipliers (1 = no growth, 2 = up to 2x, etc.). */
+  timeScaleAccelerationMaxMultiplier?: number
   /** Override acceleration for position channel (number = all axes, object = per-axis). */
   timeScaleAccelerationPosition?: PerAxisOverride<number>
   /** Override acceleration for rotation channel (number = all axes, object = per-axis). */
@@ -136,6 +138,7 @@ type MotionTrackConfig = {
   timeScale: number
   runtimeTimeScaleMultiplierRef?: MutableRefObject<number>
   timeScaleAccelerationCurve: TimeScaleAccelerationCurve
+  timeScaleAccelerationMaxMultiplier: number | null
   positionTimeScaleAcceleration: Vec3
   rotationTimeScaleAcceleration: Vec3
   scaleTimeScaleAcceleration: Vec3
@@ -290,6 +293,11 @@ function resolveTimeScaleAcceleration(value: number | undefined): number {
   return value
 }
 
+function resolveTimeScaleAccelerationMaxMultiplier(value: number | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return Math.max(0, value)
+}
+
 function resolvePerAxisAcceleration(
   globalAcceleration: number,
   override?: PerAxisOverride<number>,
@@ -315,6 +323,16 @@ function resolveAccelerationMultipliers(
   out[0] = resolveCurveAccelerationMultiplier(accelerationByAxis[0], curve, clockSeconds)
   out[1] = resolveCurveAccelerationMultiplier(accelerationByAxis[1], curve, clockSeconds)
   out[2] = resolveCurveAccelerationMultiplier(accelerationByAxis[2], curve, clockSeconds)
+}
+
+function clampAccelerationMultipliers(
+  multipliers: Vec3,
+  maxMultiplier: number | null,
+): void {
+  if (maxMultiplier === null) return
+  multipliers[0] = Math.min(multipliers[0], maxMultiplier)
+  multipliers[1] = Math.min(multipliers[1], maxMultiplier)
+  multipliers[2] = Math.min(multipliers[2], maxMultiplier)
 }
 
 function applyAxisMultipliers(base: Vec3, multipliers: Vec3, out: Vec3): void {
@@ -593,17 +611,29 @@ export function MotionSystemProvider({ children }: { children: ReactNode }) {
         clockSeconds,
         track.state.positionAccelerationMultiplierScratch,
       )
+      clampAccelerationMultipliers(
+        track.state.positionAccelerationMultiplierScratch,
+        config.timeScaleAccelerationMaxMultiplier,
+      )
       resolveAccelerationMultipliers(
         config.rotationTimeScaleAcceleration,
         config.timeScaleAccelerationCurve,
         clockSeconds,
         track.state.rotationAccelerationMultiplierScratch,
       )
+      clampAccelerationMultipliers(
+        track.state.rotationAccelerationMultiplierScratch,
+        config.timeScaleAccelerationMaxMultiplier,
+      )
       resolveAccelerationMultipliers(
         config.scaleTimeScaleAcceleration,
         config.timeScaleAccelerationCurve,
         clockSeconds,
         track.state.scaleAccelerationMultiplierScratch,
+      )
+      clampAccelerationMultipliers(
+        track.state.scaleAccelerationMultiplierScratch,
+        config.timeScaleAccelerationMaxMultiplier,
       )
       applyAxisMultipliers(
         config.positionVelocity,
@@ -672,6 +702,7 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
   randomTimeScale,
   timeScaleAcceleration,
   timeScaleAccelerationCurve,
+  timeScaleAccelerationMaxMultiplier,
   timeScaleAccelerationPosition,
   timeScaleAccelerationRotation,
   timeScaleAccelerationScale,
@@ -764,6 +795,9 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
   const baseTimeScale = resolveTimeScale(timeScale ?? 1)
   const effectiveTimeScale = Math.max(0, baseTimeScale + randomProfile.timeScaleDelta)
   const effectiveTimeScaleAccelerationCurve: TimeScaleAccelerationCurve = timeScaleAccelerationCurve ?? 'linear'
+  const effectiveTimeScaleAccelerationMaxMultiplier = resolveTimeScaleAccelerationMaxMultiplier(
+    timeScaleAccelerationMaxMultiplier,
+  )
   const globalTimeScaleAcceleration = resolveTimeScaleAcceleration(timeScaleAcceleration)
   const resolvedPositionTimeScaleAcceleration = resolvePerAxisAcceleration(
     globalTimeScaleAcceleration,
@@ -791,6 +825,7 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
     timeScale: effectiveTimeScale,
     runtimeTimeScaleMultiplierRef,
     timeScaleAccelerationCurve: effectiveTimeScaleAccelerationCurve,
+    timeScaleAccelerationMaxMultiplier: effectiveTimeScaleAccelerationMaxMultiplier,
     positionTimeScaleAcceleration: resolvedPositionTimeScaleAcceleration,
     rotationTimeScaleAcceleration: resolvedRotationTimeScaleAcceleration,
     scaleTimeScaleAcceleration: resolvedScaleTimeScaleAcceleration,
@@ -806,6 +841,7 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
     effectiveTimeScale,
     runtimeTimeScaleMultiplierRef,
     effectiveTimeScaleAccelerationCurve,
+    effectiveTimeScaleAccelerationMaxMultiplier,
     resolvedPositionTimeScaleAcceleration,
     resolvedRotationTimeScaleAcceleration,
     resolvedScaleTimeScaleAcceleration,
@@ -878,11 +914,19 @@ export const TransformMotion = forwardRef<TransformMotionHandle, TransformMotion
         clockSeconds,
         state.positionAccelerationMultiplierScratch,
       )
+      clampAccelerationMultipliers(
+        state.positionAccelerationMultiplierScratch,
+        config.timeScaleAccelerationMaxMultiplier,
+      )
       resolveAccelerationMultipliers(
         config.rotationTimeScaleAcceleration,
         config.timeScaleAccelerationCurve,
         clockSeconds,
         state.rotationAccelerationMultiplierScratch,
+      )
+      clampAccelerationMultipliers(
+        state.rotationAccelerationMultiplierScratch,
+        config.timeScaleAccelerationMaxMultiplier,
       )
       applyAxisMultipliers(
         localLinearVelocity,

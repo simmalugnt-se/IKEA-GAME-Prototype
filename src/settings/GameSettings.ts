@@ -658,10 +658,12 @@ export const SETTINGS: Settings = {
     cameraTracker: {
       timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
+      timeScaleAccelerationMaxMultiplier: 2,
     },
     balloons: {
       timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
+      timeScaleAccelerationMaxMultiplier: 2,
     },
   },
 

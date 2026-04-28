@@ -502,6 +502,7 @@ export function BalloonGroup({
   timeScale,
   timeScaleAcceleration,
   timeScaleAccelerationCurve,
+  timeScaleAccelerationMaxMultiplier,
   ...transformMotionProps
 }: BalloonGroupProps) {
   const BalloonComponent = BALLOONS[detailLevel];
@@ -914,6 +915,7 @@ export function BalloonGroup({
         timeScale={timeScale ?? 1.5}
         timeScaleAcceleration={timeScaleAcceleration ?? SETTINGS.motionAcceleration.balloons.timeScaleAcceleration}
         timeScaleAccelerationCurve={timeScaleAccelerationCurve ?? SETTINGS.motionAcceleration.balloons.timeScaleAccelerationCurve}
+        timeScaleAccelerationMaxMultiplier={timeScaleAccelerationMaxMultiplier ?? SETTINGS.motionAcceleration.balloons.timeScaleAccelerationMaxMultiplier}
       >
         <group ref={probeRef}>
         {showPopHitDebug && !popped ? (

@@ -257,6 +257,7 @@ export function Scene() {
                 runtimeTimeScaleMultiplierRef={trackerTravelSpeedMultiplierRef}
                 timeScaleAcceleration={SETTINGS.motionAcceleration.cameraTracker.timeScaleAcceleration}
                 timeScaleAccelerationCurve={SETTINGS.motionAcceleration.cameraTracker.timeScaleAccelerationCurve}
+                timeScaleAccelerationMaxMultiplier={SETTINGS.motionAcceleration.cameraTracker.timeScaleAccelerationMaxMultiplier}
               >
                 {/* Spawn marker */}
                 <CubeElement
