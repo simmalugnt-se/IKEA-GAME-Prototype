@@ -68,10 +68,16 @@ let eventTimeline: NormalizedEventStep[] = []
 let eventNextIndex = 0
 let eventCompletedLoops = 0
 let eventLoopTimer: ReturnType<typeof setTimeout> | null = null
+let musicPlaybackRateScale = 1
 
 function normalizeNonNegative(value: number | undefined, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.max(0, value)
+}
+
+function normalizePlaybackRateScale(value: number | undefined, fallback = 1): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.max(0.001, value)
 }
 
 function normalizeMarkers(markers: number[] | undefined, durationSec: number): number[] {
@@ -148,6 +154,7 @@ function createLoopPlayback(
   const source = audioCtx.createBufferSource()
   source.buffer = loop.buffer
   source.loop = true
+  source.playbackRate.value = musicPlaybackRateScale
 
   const gain = audioCtx.createGain()
   gain.gain.value = resolveLoopGain(loop, sequenceVolume)
@@ -161,6 +168,18 @@ function createLoopPlayback(
   }
   source.start(startCtxSec)
   return { source, gain }
+}
+
+export function setMusicPlaybackRateScale(scale: number): void {
+  const nextScale = normalizePlaybackRateScale(scale, 1)
+  if (Math.abs(nextScale - musicPlaybackRateScale) <= 0.0001) return
+  musicPlaybackRateScale = nextScale
+  if (activeSource) {
+    activeSource.playbackRate.value = nextScale
+  }
+  if (scheduledSwitch) {
+    scheduledSwitch.source.playbackRate.value = nextScale
+  }
 }
 
 function clearEventLoopTimer(): void {

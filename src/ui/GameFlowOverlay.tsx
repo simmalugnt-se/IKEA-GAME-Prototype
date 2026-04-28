@@ -29,16 +29,13 @@ import {
 } from '@/scoreboard/highScoreSubmissionRuntime'
 import './GameFlowOverlay.css'
 
-function resolveCountdownSeconds(endsAtMs: number, nowMs: number): number {
-  if (!(endsAtMs > 0)) return 0
-  const remainingMs = endsAtMs - nowMs
+function resolveCountdownSeconds(remainingMs: number): number {
   if (remainingMs <= 0) return 0
   return Math.ceil(remainingMs / 1000)
 }
 
-function resolveRemainingRatio(endsAtMs: number, nowMs: number, durationMs: number): number {
-  if (!(endsAtMs > 0) || !(durationMs > 0)) return 0
-  const remainingMs = endsAtMs - nowMs
+function resolveRemainingRatio(remainingMs: number, durationMs: number): number {
+  if (!(durationMs > 0)) return 0
   if (remainingMs <= 0) return 0
   return Math.max(0, Math.min(1, remainingMs / durationMs))
 }
@@ -219,6 +216,8 @@ export function GameFlowOverlay() {
 
   const flowState = useGameplayStore((state) => state.flowState)
   const gameOverInputEndsAtMs = useGameplayStore((state) => state.gameOverInputEndsAtMs)
+  const gameOverInputCountdownRemainingMs = useGameplayStore((state) => state.gameOverInputCountdownRemainingMs)
+  const gameOverInputCountdownDurationMs = useGameplayStore((state) => state.gameOverInputCountdownDurationMs)
   const gameOverInitials = useGameplayStore((state) => state.gameOverInitials)
   const lastRunScore = useGameplayStore((state) => state.lastRunScore)
   const setGameOverInitials = useGameplayStore((state) => state.setGameOverInitials)
@@ -304,6 +303,7 @@ export function GameFlowOverlay() {
   const previewModeRef = useRef<GameOverPreviewMode>(previewMode)
   // TEMP_GAME_OVER_PREVIEW_END
 
+  const timerDurationMs = Math.max(1, SETTINGS.gameplay.flow.gameOverInputCountdownMs)
   const effectiveFlowState =
     previewMode === 'state1'
       ? 'game_over_travel'
@@ -311,6 +311,12 @@ export function GameFlowOverlay() {
         ? 'game_over_input'
         : flowState
   const effectiveInputEndsAtMs = previewMode === 'state2' ? previewInputEndsAtMs : gameOverInputEndsAtMs
+  const effectiveCountdownRemainingMs = previewMode === 'state2'
+    ? Math.max(0, effectiveInputEndsAtMs - nowMs)
+    : Math.max(0, gameOverInputCountdownRemainingMs)
+  const effectiveCountdownDurationMs = previewMode === 'state2'
+    ? timerDurationMs
+    : Math.max(1, gameOverInputCountdownDurationMs)
   const isGameOverView = effectiveFlowState === 'game_over_travel' || effectiveFlowState === 'game_over_input'
   const [visualFlowState, setVisualFlowState] = useState(effectiveFlowState)
   const lastCommittedFlowRef = useRef(effectiveFlowState)
@@ -320,7 +326,6 @@ export function GameFlowOverlay() {
     Math.trunc(previewMode === 'off' ? lastRunScore : GAME_OVER_PREVIEW_SCORE),
   )
 
-  const timerDurationMs = Math.max(1, SETTINGS.gameplay.flow.gameOverInputCountdownMs)
   const swipeConfig = SETTINGS.gameplay.flow.highScoreEntrySwipe
   const highScoreEntryMode = SETTINGS.gameplay.flow.highScoreEntryMode
   const isAlphabetGridMode = highScoreEntryMode === 'alphabet_grid'
@@ -595,7 +600,7 @@ export function GameFlowOverlay() {
   }, [visualFlowState])
 
   useEffect(() => {
-    const shouldTickTime = effectiveFlowState === 'game_over_input' && effectiveInputEndsAtMs > 0
+    const shouldTickTime = previewMode === 'state2' && effectiveFlowState === 'game_over_input'
     if (!shouldTickTime) return
 
     const rafId = requestAnimationFrame(() => {
@@ -609,7 +614,7 @@ export function GameFlowOverlay() {
       cancelAnimationFrame(rafId)
       clearInterval(timer)
     }
-  }, [effectiveFlowState, effectiveInputEndsAtMs])
+  }, [effectiveFlowState, previewMode])
 
   useEffect(() => {
     const wasGameOverView = previousIsGameOverViewRef.current
@@ -996,13 +1001,13 @@ export function GameFlowOverlay() {
   }
 
   if (visualFlowState === 'game_over_input') {
-    const countdown = resolveCountdownSeconds(effectiveInputEndsAtMs, nowMs)
-    const remainingRatio = resolveRemainingRatio(effectiveInputEndsAtMs, nowMs, timerDurationMs)
+    const countdown = resolveCountdownSeconds(effectiveCountdownRemainingMs)
+    const remainingRatio = resolveRemainingRatio(effectiveCountdownRemainingMs, effectiveCountdownDurationMs)
     const timerRadius = 28
     const timerStroke = 8
     const timerCircumference = 2 * Math.PI * timerRadius
     const timerDashOffset = timerCircumference * (1 - remainingRatio)
-    const isTimerVisible = effectiveInputEndsAtMs > nowMs
+    const isTimerVisible = effectiveCountdownRemainingMs > 0
 
     return (
       <div

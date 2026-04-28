@@ -296,7 +296,7 @@ export function CursorTrailCanvas() {
       ctx.clearRect(0, 0, w, h)
 
       const smoothing = SETTINGS.cursor.trail.smoothing ?? 0.5
-      const cursorScale = getCursorSizeBoostScale(now)
+      const cursorScale = getCursorSizeBoostScale()
       const lineWidth = (SETTINGS.cursor.trail.lineWidth ?? 4) * cursorScale
       const color = SETTINGS.cursor.trail.color
 
@@ -325,7 +325,7 @@ export function CursorTrailCanvas() {
       const headRadius = Number.isFinite(pointerRadiusPx)
         ? Math.max(0, pointerRadiusPx) * cursorScale
         : 0
-      const burstSample = getCursorBurstRingSample(now)
+      const burstSample = getCursorBurstRingSample()
       if (headRadius > 0) {
         ctx.fillStyle = color
         ctx.globalAlpha = 1
