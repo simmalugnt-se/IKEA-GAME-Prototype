@@ -236,8 +236,8 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 120000,
-      comboTimeBonusStepMs: 5000,
+      timeLimitMs: 900000,
+      comboTimeBonusStepMs: 2000,
       timeBonusLerpMs: 500,
       pulseSlowStartMs: 10000,
       pulseFastStartMs: 5000,
@@ -314,20 +314,20 @@ export const SETTINGS: Settings = {
     spawnXRange: 2,
     spawnXRangeOffset: 0.8,
     cullOffset: 6,
-    spawnAcceleration: 0.003,
+    spawnAcceleration: 0.0015,
     spawnAccelerationCurve: "exponential",
-    maxItemsAcceleration: 0.003,
+    maxItemsAcceleration: 0.0015,
     maxItemsAccelerationCurve: "exponential",
   },
 
   // --- MOTION ACCELERATION ---
   motionAcceleration: {
     cameraTracker: {
-      timeScaleAcceleration: 0.003,
+      timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
     },
     balloons: {
-      timeScaleAcceleration: 0.003,
+      timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
     },
   },

@@ -1,25 +1,27 @@
 .score-hud-panel {
+  --edgeDistance: 1.5rem;
   position: absolute;
   z-index: 30;
   pointer-events: none;
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.25rem;
-  border-radius: 0.75rem;
+  gap: 0.25em;
+  padding: 0.125em;
+  border-radius: 0.375em;
+  font-size: 2rem;
 }
 
 .score-hud-panel--score {
-  top: 1.5rem;
-  left: 1.5rem;
+  top: var(--edgeDistance);
+  left: var(--edgeDistance);
   background-color: var(--hud-outline, #141414);
   color: var(--hud-white, #ffffff);
   transition: transform 2s cubic-bezier(0.6, 0, 0, 1);
 }
 
 .score-hud-panel--lives {
-  top: 1.5rem;
-  right: 1.5rem;
+  top: var(--edgeDistance);
+  right: var(--edgeDistance);
   align-items: center;
   background-color: var(--ui-shadow-color, #141414);
   color: var(--hud-white, #ffffff);
@@ -28,9 +30,8 @@
 
 .score-hud-chip {
   display: flex;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.5rem;
-  font-size: 2rem;
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
   text-transform: uppercase;
 }
 
