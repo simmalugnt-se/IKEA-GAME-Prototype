@@ -82,7 +82,7 @@ export const SETTINGS: Settings = {
 
   // --- DEBUG ---
   debug: {
-    enabled: true, // Master-toggle för allt debug
+    enabled: false, // Master-toggle för allt debug
     showColliders: false, // Visa fysik-kollisions-proxys (wireframe)
     showStats: false, // Visa FPS / MS / MB
     showGrid: false, // Visa rutnät på marken
@@ -669,7 +669,7 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "mouse", // "mouse" or "external"
+    inputSource: "external", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 4.5,
     hitRadiusPx: 36,
