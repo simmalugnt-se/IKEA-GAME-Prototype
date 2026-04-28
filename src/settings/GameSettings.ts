@@ -656,11 +656,11 @@ export const SETTINGS: Settings = {
   // --- MOTION ACCELERATION ---
   motionAcceleration: {
     cameraTracker: {
-      timeScaleAcceleration: 0.003,
+      timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
     },
     balloons: {
-      timeScaleAcceleration: 0.003,
+      timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
     },
   },
