@@ -656,21 +656,21 @@ export const SETTINGS: Settings = {
     cameraTracker: {
       timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
-      timeScaleAccelerationMaxMultiplier: 2,
+      timeScaleAccelerationMaxMultiplier: 1.2,
     },
     balloons: {
       timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
-      timeScaleAccelerationMaxMultiplier: 2,
+      timeScaleAccelerationMaxMultiplier: 1.2,
     },
   },
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "mouse", // "mouse" or "external"
+    inputSource: "external", // "mouse" or "external"
     minPopVelocity: 220,
-    pointerRadiusPx: 6,
-    hitRadiusPx: 48,
+    pointerRadiusPx: 4,
+    hitRadiusPx: 28,
     external: {
       enabled: true,
       websocket: {
@@ -686,9 +686,9 @@ export const SETTINGS: Settings = {
     trail: {
       maxAge: 0.25,
       color: "#ffffff",
-      lineWidth: 12,
-      followSmoothing: 0.7,
-      smoothing: 0.25,
+      lineWidth: 8,
+      followSmoothing: 0.1,
+      smoothing: 0.1,
     },
   },
 };
