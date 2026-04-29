@@ -1,6 +1,8 @@
 import { BalloonLifecycleRuntime } from "@/gameplay/BalloonLifecycleRuntime";
 import { CameraSystemProvider } from "@/camera/CameraSystem";
 import { GameMusicDirector } from "@/audio/GameMusicDirector";
+import { setMusicPlaybackRateScale } from "@/audio/BackgroundMusicManager";
+import { setSfxPlaybackRateScale } from "@/audio/SoundManager";
 import { ContagionRuntime } from "@/gameplay/ContagionRuntime";
 import { GroundBallWaveRuntime } from "@/gameplay/GroundBallWaveRuntime";
 import { TrackSweeperRuntime } from "@/gameplay/TrackSweeperRuntime";
@@ -34,7 +36,7 @@ import { ExternalCursorBridge } from "@/input/ExternalCursorBridge";
 import { Stats } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Physics, useRapier } from "@react-three/rapier";
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { LevelRenderer } from "@/LevelRenderer";
 import { applyEasing } from "@/utils/easing";
@@ -53,22 +55,24 @@ function randomRange(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-function PhysicsRuntimeController({
-  setPhysicsTimeStep,
-}: {
-  setPhysicsTimeStep: Dispatch<SetStateAction<number>>;
-}) {
-  const { world } = useRapier();
+function PhysicsRuntimeController() {
+  const { world, step } = useRapier();
   const { camera } = useThree();
   const advanceRunTimeWithTimeScale = useGameplayStore((state) => state.advanceRunTimeWithTimeScale);
+  const paused = useGameplayStore((state) => state.paused);
   const previousActivationTokenRef = useRef(0);
   const affectedBodyHandlesRef = useRef<Map<number, GravityShiftBodyTuning>>(new Map());
   const projectionScratchRef = useRef(new THREE.Vector3());
 
   useFrame((_, deltaSeconds) => {
     const nowMs = performance.now();
-    advanceRunTimeWithTimeScale(deltaSeconds * 1000);
-    const nextGravityY = getGameplayGravityY(nowMs);
+    const gameplayTimeScale = Math.max(0, getGameplayTimeScale(nowMs));
+    const physicsStepDelta = paused ? 0 : Math.max(0, deltaSeconds * gameplayTimeScale);
+    step(physicsStepDelta);
+    advanceRunTimeWithTimeScale(deltaSeconds * 1000, gameplayTimeScale);
+    setSfxPlaybackRateScale(gameplayTimeScale);
+    setMusicPlaybackRateScale(gameplayTimeScale);
+    const nextGravityY = getGameplayGravityY();
     const activationToken = getGravityShiftActivationToken();
     const activationChanged = activationToken > 0 && activationToken !== previousActivationTokenRef.current;
     const activeGravityShift = Math.abs(nextGravityY - BASE_GRAVITY_Y) > 0.01;
@@ -135,10 +139,6 @@ function PhysicsRuntimeController({
       });
     }
 
-    const nextPhysicsTimeStep = (1 / 60) * getGameplayTimeScale(nowMs);
-    setPhysicsTimeStep((current) => (
-      Math.abs(nextPhysicsTimeStep - current) > 0.0001 ? nextPhysicsTimeStep : current
-    ));
   });
 
   return null;
@@ -151,12 +151,10 @@ export function Scene() {
   const spawnMarkerRef = useRef<PositionTargetHandle | null>(null);
   const cullMarkerRef = useRef<PositionTargetHandle | null>(null);
   const flowState = useGameplayStore((state) => state.flowState);
-  const paused = useGameplayStore((state) => state.paused);
   const trackerTravelSpeedMultiplierRef = useRef(1);
   const trackerTravelEaseStartMsRef = useRef<number | null>(null);
   const previousFlowStateRef = useRef(flowState);
   const [idleBalloonVersion, setIdleBalloonVersion] = useState(0);
-  const [physicsTimeStep, setPhysicsTimeStep] = useState(1 / 60);
   const isDebug = SETTINGS.debug.enabled;
   const bootstrapIdle = useGameplayStore((state) => state.bootstrapIdle);
 
@@ -231,11 +229,10 @@ export function Scene() {
       <ExternalCursorBridge />
       <Physics
         gravity={[0, -9.81, 0]}
-        timeStep={physicsTimeStep}
-        paused={paused}
+        paused
         debug={isDebug && SETTINGS.debug.showColliders}
       >
-        <PhysicsRuntimeController setPhysicsTimeStep={setPhysicsTimeStep} />
+        <PhysicsRuntimeController />
         <GameRunClockRuntime />
         <ContagionRuntime />
         <GroundBallWaveRuntime />
@@ -257,6 +254,7 @@ export function Scene() {
                 runtimeTimeScaleMultiplierRef={trackerTravelSpeedMultiplierRef}
                 timeScaleAcceleration={SETTINGS.motionAcceleration.cameraTracker.timeScaleAcceleration}
                 timeScaleAccelerationCurve={SETTINGS.motionAcceleration.cameraTracker.timeScaleAccelerationCurve}
+                timeScaleAccelerationMaxMultiplier={SETTINGS.motionAcceleration.cameraTracker.timeScaleAccelerationMaxMultiplier}
               >
                 {/* Spawn marker */}
                 <CubeElement

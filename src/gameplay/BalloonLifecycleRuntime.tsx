@@ -331,11 +331,11 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
           const y1Local = sweepSegment.y1 - canvasRect.top
 
           const hitPadRaw = SETTINGS.cursor.hitRadiusPx
-          const hitPadScale = getCursorSizeBoostScale(sweepSegment.timeMs)
+          const hitPadScale = getCursorSizeBoostScale()
           const hitPad = Number.isFinite(hitPadRaw)
             ? Math.max(0, hitPadRaw) * hitPadScale
             : 0
-          const burstSample = getCursorBurstRingSample(sweepSegment.timeMs)
+          const burstSample = getCursorBurstRingSample()
 
           const segmentMinX = (x0Local < x1Local ? x0Local : x1Local) - hitPad
           const segmentMaxX = (x0Local > x1Local ? x0Local : x1Local) + hitPad
@@ -458,7 +458,7 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
       lastSweepSeqRef.current = latestSweepSeq
     }
 
-    const burstSample = getCursorBurstRingSample(performance.now())
+    const burstSample = getCursorBurstRingSample()
     if (burstSample && burstSample.probeCount > 0 && burstSample.waves.length > 0) {
       const canvasRect = canvasRectRef.current
       const canvasWidth = canvasRect.width

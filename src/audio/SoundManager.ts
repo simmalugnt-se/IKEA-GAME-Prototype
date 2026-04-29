@@ -18,10 +18,17 @@ const unlockListeners = new Set<AudioUnlockedListener>()
 let masterGain: GainNode | null = null
 let sfxBusGain: GainNode | null = null
 let musicBusGain: GainNode | null = null
+let sfxPlaybackRateScale = 1
+const activeSfxSources = new Set<AudioBufferSourceNode>()
 
 function normalizeVolume(value: number | undefined, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.max(0, value)
+}
+
+function normalizePlaybackRateScale(value: number | undefined, fallback = 1): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.max(0.001, value)
 }
 
 function notifyAudioUnlockedOnce(): void {
@@ -191,6 +198,7 @@ export function playAudioBank(bankId: AudioBankId, volumeScale = 1): void {
 
   const source = audioCtx.createBufferSource()
   source.buffer = buffer
+  source.playbackRate.value = sfxPlaybackRateScale
 
   const gain = audioCtx.createGain()
   const bankVolume = AUDIO_SETTINGS.banks[bankId].volume
@@ -201,7 +209,22 @@ export function playAudioBank(bankId: AudioBankId, volumeScale = 1): void {
     throw new Error('SFX bus is not initialized.')
   }
   gain.connect(sfxBusGain)
+  activeSfxSources.add(source)
+  source.onended = () => {
+    activeSfxSources.delete(source)
+    source.disconnect()
+    gain.disconnect()
+  }
   source.start()
+}
+
+export function setSfxPlaybackRateScale(scale: number): void {
+  const nextScale = normalizePlaybackRateScale(scale, 1)
+  if (Math.abs(nextScale - sfxPlaybackRateScale) <= 0.0001) return
+  sfxPlaybackRateScale = nextScale
+  activeSfxSources.forEach((source) => {
+    source.playbackRate.value = nextScale
+  })
 }
 
 export function hasLoadedAudioBank(bankId: AudioBankId): boolean {

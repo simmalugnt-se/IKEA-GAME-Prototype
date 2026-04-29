@@ -102,6 +102,9 @@ type GameplayState = {
   flowEpoch: number
   gameOverInitials: string
   gameOverInputEndsAtMs: number
+  gameOverInputInactivityRemainingMs: number
+  gameOverInputCountdownRemainingMs: number
+  gameOverInputCountdownDurationMs: number
   gameOverTravelTargetZ: number | null
   sequence: number
   contagionEpoch: number
@@ -117,7 +120,7 @@ type GameplayState = {
   setGameOverTravelTargetZ: (targetZ: number | null) => void
   addScore: (delta: number, source?: ScoreboardEventSource) => void
   addRunTimeMs: (deltaMs: number, reason?: RunTimeBonusReason) => void
-  advanceRunTimeWithTimeScale: (deltaMs: number) => void
+  advanceRunTimeWithTimeScale: (deltaMs: number, timeScale?: number) => void
   applySpawnItemHitEffect: (event: SpawnItemHitEffectEvent) => void
   triggerSpawnEventRuleById: (ruleId: string, origin?: ScreenPos) => void
   flushPendingSpawnEvents: () => void
@@ -196,6 +199,34 @@ function createClearedRunTimeStateFields(): RunTimeStateFields {
     runTimePauseToMs: 0,
     runTimePauseStartedAtMs: 0,
     runTimePauseEndsAtMs: 0,
+  }
+}
+
+type GameOverInputTimerStateFields = Pick<
+  GameplayState,
+  | 'gameOverInputEndsAtMs'
+  | 'gameOverInputInactivityRemainingMs'
+  | 'gameOverInputCountdownRemainingMs'
+  | 'gameOverInputCountdownDurationMs'
+>
+
+function createClearedGameOverInputTimerStateFields(): GameOverInputTimerStateFields {
+  return {
+    gameOverInputEndsAtMs: 0,
+    gameOverInputInactivityRemainingMs: 0,
+    gameOverInputCountdownRemainingMs: 0,
+    gameOverInputCountdownDurationMs: 0,
+  }
+}
+
+function createActiveGameOverInputTimerStateFields(): GameOverInputTimerStateFields {
+  const inactivityMs = resolveGameOverInputInactivityMs()
+  const countdownMs = resolveGameOverInputCountdownMs()
+  return {
+    gameOverInputEndsAtMs: 0,
+    gameOverInputInactivityRemainingMs: inactivityMs,
+    gameOverInputCountdownRemainingMs: 0,
+    gameOverInputCountdownDurationMs: countdownMs,
   }
 }
 
@@ -416,11 +447,10 @@ let gravityShiftActivationSequence = 0
 const pendingGravityShiftContagionByEntityId = new Map<string, number>()
 let spawnEventQueueRuntime = createSpawnEventQueueRuntimeState()
 let popStreakRuntime = createPopStreakRuntimeState()
-let gameOverInputInactivityTimer: ReturnType<typeof setTimeout> | null = null
-let gameOverInputCountdownTimer: ReturnType<typeof setTimeout> | null = null
 let runEndTimer: ReturnType<typeof setTimeout> | null = null
 let timeBonusPauseTimer: ReturnType<typeof setTimeout> | null = null
 const spawnEventCooldownsByRuleId = new Map<string, number>()
+let gameplayEffectClockMs = 0
 
 function clearComboFlushTimer(): void {
   if (comboRuntime.flushTimer === null) return
@@ -433,23 +463,6 @@ function resetComboRuntimeState(): void {
   comboRuntime.pendingStrike = null
   comboRuntime.chainBonus = 0
   comboRuntime.lastMultiStrikeTimeMs = Number.NEGATIVE_INFINITY
-}
-
-function clearGameOverInputInactivityTimer(): void {
-  if (gameOverInputInactivityTimer === null) return
-  clearTimeout(gameOverInputInactivityTimer)
-  gameOverInputInactivityTimer = null
-}
-
-function clearGameOverInputCountdownTimer(): void {
-  if (gameOverInputCountdownTimer === null) return
-  clearTimeout(gameOverInputCountdownTimer)
-  gameOverInputCountdownTimer = null
-}
-
-function clearGameOverInputTimers(): void {
-  clearGameOverInputInactivityTimer()
-  clearGameOverInputCountdownTimer()
 }
 
 function clearRunEndTimer(): void {
@@ -488,6 +501,15 @@ function resolveHighResNowMs(): number {
   return Date.now()
 }
 
+function resolveGameplayEffectNowMs(): number {
+  return gameplayEffectClockMs
+}
+
+function advanceGameplayEffectClock(deltaMs: number): void {
+  if (!(deltaMs > 0) || !Number.isFinite(deltaMs)) return
+  gameplayEffectClockMs += deltaMs
+}
+
 function easeInOutSine01(t: number): number {
   const clamped = Math.min(1, Math.max(0, t))
   return -(Math.cos(Math.PI * clamped) - 1) * 0.5
@@ -520,7 +542,7 @@ function activateCursorSizeBoost(
   },
   origin?: ScreenPos,
 ): void {
-  const nowMs = resolveHighResNowMs()
+  const nowMs = resolveGameplayEffectNowMs()
   const durationMs = Math.max(1, normalizeNonNegativeInt(action.durationMs, 0))
   cursorSizeBoostRuntime = {
     activatedAtMs: nowMs,
@@ -608,7 +630,7 @@ function activateGravityShift(
   },
   origin?: ScreenPos,
 ): void {
-  const nowMs = resolveHighResNowMs()
+  const nowMs = resolveGameplayEffectNowMs()
   const durationMs = Math.max(1, normalizeNonNegativeInt(action.durationMs, 0))
   const gravityY = Number.isFinite(action.gravityY) ? action.gravityY : -9.81
   const delayA = normalizeNonNegativeInt(action.bodyDelayMinMs ?? 0, 0)
@@ -660,7 +682,7 @@ function activateCursorBurstRing(
   },
   origin?: ScreenPos,
 ): void {
-  const nowMs = resolveHighResNowMs()
+  const nowMs = resolveGameplayEffectNowMs()
   const durationMs = Math.max(1, normalizeNonNegativeInt(action.durationMs, 0))
   cursorBurstRingRuntime = {
     activatedAtMs: nowMs,
@@ -846,7 +868,7 @@ function flushQueuedSpawnEvents(nowMs = Date.now()): void {
   spawnEventQueueRuntime.nextAvailableAtMs = nowMs + resolveSpawnEventQueueGapMs()
 }
 
-export function getCursorSizeBoostScale(nowMs = resolveHighResNowMs()): number {
+export function getCursorSizeBoostScale(nowMs = resolveGameplayEffectNowMs()): number {
   const {
     activatedAtMs,
     endsAtMs,
@@ -908,7 +930,7 @@ export function getGameplayTimeScale(nowMs = resolveHighResNowMs()): number {
   return scaleMultiplier
 }
 
-export function getGameplayGravityY(nowMs = resolveHighResNowMs()): number {
+export function getGameplayGravityY(nowMs = resolveGameplayEffectNowMs()): number {
   const baseGravityY = -9.81
   const {
     activatedAtMs,
@@ -964,7 +986,7 @@ export function getGravityShiftContagionColorIndex(): number | null {
   return gravityShiftRuntime.contagionColorIndex
 }
 
-export function getCursorBurstRingSample(nowMs = resolveHighResNowMs()): {
+export function getCursorBurstRingSample(nowMs = resolveGameplayEffectNowMs()): {
   probeCount: number
   probeRadiusPx: number
   waves: Array<{
@@ -1232,32 +1254,6 @@ function maybeApplyPopStreakTimeBonus(
   })
 }
 
-function scheduleGameOverInputInactivityTimer(): void {
-  clearGameOverInputTimers()
-  const inactivityMs = resolveGameOverInputInactivityMs()
-  gameOverInputInactivityTimer = setTimeout(() => {
-    gameOverInputInactivityTimer = null
-    const state = useGameplayStore.getState()
-    if (state.flowState !== 'game_over_input') return
-
-    const countdownMs = resolveGameOverInputCountdownMs()
-    const endsAtMs = Date.now() + countdownMs
-    useGameplayStore.setState((previousState) => {
-      if (previousState.flowState !== 'game_over_input') return previousState
-      return {
-        ...previousState,
-        gameOverInputEndsAtMs: endsAtMs,
-      }
-    })
-
-    clearGameOverInputCountdownTimer()
-    gameOverInputCountdownTimer = setTimeout(() => {
-      gameOverInputCountdownTimer = null
-      useGameplayStore.getState().submitGameOverInitials('timeout')
-    }, countdownMs)
-  }, inactivityMs)
-}
-
 function resolveComboStrikeWindowMs(): number {
   return normalizeNonNegativeInt(SETTINGS.gameplay.balloons.combo.strikeWindowMs, 100)
 }
@@ -1314,28 +1310,13 @@ function flushPendingComboStrike(): void {
   const baseScorePerPop = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
   const perPopScore = baseScorePerPop * finalMultiplier
   const totalStrikeScore = perPopScore * strikeSize
-  const scoreSource: ScoreboardEventSource = strikeSize >= 2
-    ? 'balloon_combo'
-    : 'balloon_pop'
+  const baseStrikeScore = baseScorePerPop * strikeSize
+  const comboBonusScore = Math.max(0, totalStrikeScore - baseStrikeScore)
 
-  if (totalStrikeScore > 0) {
-    useGameplayStore.getState().addScore(totalStrikeScore, scoreSource)
+  if (comboBonusScore > 0) {
+    useGameplayStore.getState().addScore(comboBonusScore, 'balloon_combo')
   }
   const totalScoreAfterStrike = useGameplayStore.getState().score
-
-  if (perPopScore > 0) {
-    const scoreText = `+${perPopScore}`
-    for (let i = 0; i < strike.pops.length; i += 1) {
-      const pop = strike.pops[i]
-      if (!pop) continue
-      emitScorePop({
-        text: scoreText,
-        x: pop.x,
-        y: pop.y,
-        style: 'style3',
-      })
-    }
-  }
 
   if (strikeSize >= 2) {
     let sumX = 0
@@ -1496,7 +1477,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         flowState: 'game_over_travel',
         flowEpoch: state.flowEpoch + 1,
         gameOverInitials: getDefaultGameOverInitials(),
-        gameOverInputEndsAtMs: 0,
+        ...createClearedGameOverInputTimerStateFields(),
         gameOverTravelTargetZ: previewTravelTargetZ,
         ...createClearedRunTimeStateFields(),
       }
@@ -1509,9 +1490,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
     resetCursorBurstRingRuntime()
-    resetTimeScaleBoostRuntime()
     resetGravityShiftRuntime()
-    clearGameOverInputTimers()
     advanceRunTimerScope()
 
     setGameRunClockRunning(false)
@@ -1649,7 +1628,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
   flowState: 'idle',
   flowEpoch: 0,
   gameOverInitials: getDefaultGameOverInitials(),
-  gameOverInputEndsAtMs: 0,
+  ...createClearedGameOverInputTimerStateFields(),
   gameOverTravelTargetZ: null,
   sequence: 0,
   contagionEpoch: 0,
@@ -1665,7 +1644,6 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     resetCursorBurstRingRuntime()
     resetTimeScaleBoostRuntime()
     resetGravityShiftRuntime()
-    clearGameOverInputTimers()
     advanceRunTimerScope()
 
     let didTransition = false
@@ -1680,7 +1658,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         flowState: 'idle',
         flowEpoch: state.flowEpoch + 1,
         gameOverInitials: getDefaultGameOverInitials(),
-        gameOverInputEndsAtMs: 0,
+        ...createClearedGameOverInputTimerStateFields(),
         gameOverTravelTargetZ: null,
         ...createClearedRunTimeStateFields(),
         sequence: 0,
@@ -1720,7 +1698,6 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     resetCursorBurstRingRuntime()
     resetTimeScaleBoostRuntime()
     resetGravityShiftRuntime()
-    clearGameOverInputTimers()
     const runScopeToken = advanceRunTimerScope()
 
     const newRunId = rotateRunId()
@@ -1743,7 +1720,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         flowState: 'run',
         flowEpoch: state.flowEpoch + 1,
         gameOverInitials: getDefaultGameOverInitials(),
-        gameOverInputEndsAtMs: 0,
+        ...createClearedGameOverInputTimerStateFields(),
         gameOverTravelTargetZ: null,
         sequence: 0,
         contagionEpoch: 0,
@@ -1795,12 +1772,10 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         ...state,
         flowState: 'game_over_input',
         flowEpoch: state.flowEpoch + 1,
-        gameOverInputEndsAtMs: 0,
+        ...createActiveGameOverInputTimerStateFields(),
       }
     })
     if (!didTransition) return
-
-    scheduleGameOverInputInactivityTimer()
 
     sendScoreboardEvent({
       type: 'initials_step_started',
@@ -1823,19 +1798,13 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
   },
 
   registerGameOverInputInteraction: () => {
-    let shouldSchedule = false
     set((state) => {
       if (state.flowState !== 'game_over_input') return state
-      shouldSchedule = true
-      if (!(state.gameOverInputEndsAtMs > 0)) return state
       return {
         ...state,
-        gameOverInputEndsAtMs: 0,
+        ...createActiveGameOverInputTimerStateFields(),
       }
     })
-
-    if (!shouldSchedule) return
-    scheduleGameOverInputInactivityTimer()
   },
 
   submitGameOverInitials: (reason) => {
@@ -1855,14 +1824,13 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         paused: false,
         flowState: 'idle',
         flowEpoch: state.flowEpoch + 1,
-        gameOverInputEndsAtMs: 0,
+        ...createClearedGameOverInputTimerStateFields(),
         gameOverTravelTargetZ: null,
         ...createClearedRunTimeStateFields(),
       }
     })
     if (!didTransition) return
 
-    clearGameOverInputTimers()
     resetPopStreakRuntime()
     resetCursorSizeBoostRuntime()
     resetCursorBurstRingRuntime()
@@ -2029,43 +1997,114 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     scheduleRunTimePauseResume(scopeToken, nextPauseEndsAtMs)
   },
 
-  advanceRunTimeWithTimeScale: (deltaMs) => {
-    if (!isSlowmoAffectsRunTimerEnabled()) return
+  advanceRunTimeWithTimeScale: (deltaMs, timeScale) => {
     if (!(deltaMs > 0) || !Number.isFinite(deltaMs)) return
 
     const nowMs = Date.now()
-    const clampedTimeScale = Math.max(0, getGameplayTimeScale())
+    const clampedTimeScale = Math.max(
+      0,
+      Number.isFinite(timeScale) ? (timeScale as number) : getGameplayTimeScale(),
+    )
     const wallClockDeltaMs = Math.max(0, deltaMs)
     const gameplayDeltaMs = wallClockDeltaMs * clampedTimeScale
     const deadlineShiftMs = wallClockDeltaMs - gameplayDeltaMs
-    if (!Number.isFinite(deadlineShiftMs)) return
+    if (!Number.isFinite(deadlineShiftMs) || !Number.isFinite(gameplayDeltaMs)) return
+
+    if (!get().paused) {
+      advanceGameplayEffectClock(gameplayDeltaMs)
+    }
 
     let shouldEndRun = false
-    set((state) => {
-      if (state.flowState !== 'run' || state.runMode !== 'time') return state
-      if (state.paused) return state
-      if (state.runTimePauseEndsAtMs > nowMs) return state
-      if (!(state.runTimeEndsAtMs > 0)) return state
+    let shouldSubmitGameOverInitials = false
+    const affectsRunTimer = isSlowmoAffectsRunTimerEnabled()
 
-      const nextEndsAtMs = state.runTimeEndsAtMs + deadlineShiftMs
-      if (nextEndsAtMs <= nowMs) {
-        shouldEndRun = true
-        return {
-          ...state,
-          ...createClearedRunTimeStateFields(),
-          runTimeEndsAtMs: nowMs,
+    set((state) => {
+      let nextState = state
+
+      if (affectsRunTimer) {
+        if (
+          state.flowState === 'run'
+          && state.runMode === 'time'
+          && !state.paused
+          && state.runTimePauseEndsAtMs <= nowMs
+          && state.runTimeEndsAtMs > 0
+        ) {
+          const nextEndsAtMs = state.runTimeEndsAtMs + deadlineShiftMs
+          if (nextEndsAtMs <= nowMs) {
+            shouldEndRun = true
+            nextState = {
+              ...nextState,
+              ...createClearedRunTimeStateFields(),
+              runTimeEndsAtMs: nowMs,
+            }
+          } else if (Math.abs(deadlineShiftMs) > 0.01) {
+            nextState = {
+              ...nextState,
+              runTimeEndsAtMs: nextEndsAtMs,
+            }
+          }
         }
       }
 
-      if (Math.abs(deadlineShiftMs) <= 0.01) return state
+      if (state.flowState !== 'game_over_input') {
+        return nextState
+      }
+
+      if (!(gameplayDeltaMs > 0.01)) return nextState
+
+      const inactivityRemainingMs = Math.max(0, state.gameOverInputInactivityRemainingMs)
+      const countdownRemainingMs = Math.max(0, state.gameOverInputCountdownRemainingMs)
+      const countdownDurationMs = Math.max(0, state.gameOverInputCountdownDurationMs)
+
+      if (inactivityRemainingMs > 0) {
+        const nextInactivityRemainingMs = Math.max(0, inactivityRemainingMs - gameplayDeltaMs)
+        if (nextInactivityRemainingMs > 0) {
+          return {
+            ...nextState,
+            gameOverInputInactivityRemainingMs: nextInactivityRemainingMs,
+          }
+        }
+
+        if (!(countdownDurationMs > 0)) {
+          shouldSubmitGameOverInitials = true
+          return {
+            ...nextState,
+            ...createClearedGameOverInputTimerStateFields(),
+          }
+        }
+
+        return {
+          ...nextState,
+          gameOverInputEndsAtMs: nowMs + countdownDurationMs,
+          gameOverInputInactivityRemainingMs: 0,
+          gameOverInputCountdownRemainingMs: countdownDurationMs,
+          gameOverInputCountdownDurationMs: countdownDurationMs,
+        }
+      }
+
+      if (countdownRemainingMs <= 0) return nextState
+      const nextCountdownRemainingMs = Math.max(0, countdownRemainingMs - gameplayDeltaMs)
+      if (nextCountdownRemainingMs <= 0) {
+        shouldSubmitGameOverInitials = true
+        return {
+          ...nextState,
+          ...createClearedGameOverInputTimerStateFields(),
+        }
+      }
+
       return {
-        ...state,
-        runTimeEndsAtMs: nextEndsAtMs,
+        ...nextState,
+        gameOverInputEndsAtMs: nowMs + nextCountdownRemainingMs,
+        gameOverInputCountdownRemainingMs: nextCountdownRemainingMs,
       }
     })
 
     if (shouldEndRun) {
       endRun('time_elapsed')
+      return
+    }
+    if (shouldSubmitGameOverInitials) {
+      get().submitGameOverInitials('timeout')
     }
   },
 
@@ -2217,6 +2256,17 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     if (get().flowState !== 'run') return
 
     const popEvent = normalizeComboPopEvent(rawEvent)
+    const baseScore = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
+    if (baseScore > 0) {
+      get().addScore(baseScore, 'balloon_pop')
+      emitScorePop({
+        text: `+${baseScore}`,
+        x: popEvent.x,
+        y: popEvent.y,
+        style: 'style3',
+      })
+    }
+
     const previousPopStreakCount = popStreakRuntime.withoutMissCount
     popStreakRuntime.withoutMissCount = previousPopStreakCount + 1
     maybeApplyPopStreakTimeBonus(
@@ -2233,16 +2283,6 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     const comboSettings = SETTINGS.gameplay.balloons.combo
     if (!comboSettings.enabled) {
       resetComboRuntimeState()
-      const baseScore = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
-      if (baseScore > 0) {
-        get().addScore(baseScore, 'balloon_pop')
-        emitScorePop({
-          text: `+${baseScore}`,
-          x: popEvent.x,
-          y: popEvent.y,
-          style: 'style3',
-        })
-      }
       return
     }
 

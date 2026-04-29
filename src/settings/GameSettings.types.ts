@@ -426,10 +426,12 @@ export type Settings = {
     cameraTracker: {
       timeScaleAcceleration: number
       timeScaleAccelerationCurve: AccelerationCurveName
+      timeScaleAccelerationMaxMultiplier: number
     }
     balloons: {
       timeScaleAcceleration: number
       timeScaleAccelerationCurve: AccelerationCurveName
+      timeScaleAccelerationMaxMultiplier: number
     }
   }
   cursor: {

@@ -133,7 +133,7 @@ const BALLOON_GROUP_SETTINGS = {
   randomize: {
     excludedColorIndices: [0, 1, 2, 3] as number[],
     positionVelocityZBase: 0.5,
-    positionVelocityZAmplitude: 0.2,
+    positionVelocityZAmplitude: 0.05,
     rotationOffsetBase: 0,
     rotationOffsetAmplitude: 2.0,
   },
@@ -502,6 +502,7 @@ export function BalloonGroup({
   timeScale,
   timeScaleAcceleration,
   timeScaleAccelerationCurve,
+  timeScaleAccelerationMaxMultiplier,
   ...transformMotionProps
 }: BalloonGroupProps) {
   const BalloonComponent = BALLOONS[detailLevel];
@@ -914,6 +915,7 @@ export function BalloonGroup({
         timeScale={timeScale ?? 1.5}
         timeScaleAcceleration={timeScaleAcceleration ?? SETTINGS.motionAcceleration.balloons.timeScaleAcceleration}
         timeScaleAccelerationCurve={timeScaleAccelerationCurve ?? SETTINGS.motionAcceleration.balloons.timeScaleAccelerationCurve}
+        timeScaleAccelerationMaxMultiplier={timeScaleAccelerationMaxMultiplier ?? SETTINGS.motionAcceleration.balloons.timeScaleAccelerationMaxMultiplier}
       >
         <group ref={probeRef}>
         {showPopHitDebug && !popped ? (
