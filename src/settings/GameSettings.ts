@@ -32,6 +32,7 @@ export type {
   CameraMode,
   CursorInputSource,
   GameRunMode,
+  GroundBallEntrySide,
   MaterialColorIndex,
   PaletteAutoMidSettings,
   PaletteEntry,
@@ -46,9 +47,8 @@ export type {
   SpawnEventActionSpawnBurst,
   SpawnEventActionTrackSweeper,
   SpawnEventBallSizePreset,
-  GroundBallEntrySide,
-  SpawnEventSelectionMode,
   SpawnEventRule,
+  SpawnEventSelectionMode,
   SpawnEventTrigger,
   SpawnEventTriggerComboMultiplier,
   SpawnItemDefinition,
@@ -503,9 +503,7 @@ export const SETTINGS: Settings = {
           spacingY: 0.28,
           randomXJitter: 0.04,
           randomYJitter: 0.03,
-          entries: [
-            { itemId: "combo_cluster_balloon", count: 7 },
-          ],
+          entries: [{ itemId: "combo_cluster_balloon", count: 7 }],
         },
       },
       // {
@@ -671,8 +669,8 @@ export const SETTINGS: Settings = {
   cursor: {
     inputSource: "mouse", // "mouse" or "external"
     minPopVelocity: 220,
-    pointerRadiusPx: 4.5,
-    hitRadiusPx: 36,
+    pointerRadiusPx: 6,
+    hitRadiusPx: 48,
     external: {
       enabled: true,
       websocket: {
@@ -688,7 +686,7 @@ export const SETTINGS: Settings = {
     trail: {
       maxAge: 0.25,
       color: "#ffffff",
-      lineWidth: 9,
+      lineWidth: 12,
       followSmoothing: 0.7,
       smoothing: 0.25,
     },
