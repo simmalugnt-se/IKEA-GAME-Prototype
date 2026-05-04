@@ -782,3 +782,13 @@ export const getPaletteEntry = (
   if (palette.colors.length === 0) return FALLBACK_PALETTE_ENTRY;
   return palette.colors[resolveMaterialColorIndex(index)];
 };
+
+// Current spawn event summary:
+// - combo_cluster_reward: 15 pops without miss -> spawn 7 cluster balloons.
+// - ten_pop_cluster_reward: 10 pops without miss + score >= 50000 -> spawn 7 cluster balloons.
+// - ground_ball_wave_reward: combo multiplier 2-3 -> ground ball wave.
+// - slowmo_reward: combo multiplier 4 -> slow motion.
+// - track_sweeper_reward: combo multiplier 5+ -> track sweeper.
+// - gravity_loss_reward: combo multiplier 2-3 -> gravity loss.
+// - eventSelectionMode "one_random": pick one eligible event if several qualify together.
+// - globalEventCooldownMs: shared cooldown after any event; 0 disables the global lockout.
