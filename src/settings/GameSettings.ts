@@ -271,7 +271,7 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 450000,
+      timeLimitMs: 45000,
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,
       popStreakTimeBonusMs: 3000,
@@ -364,6 +364,8 @@ export const SETTINGS: Settings = {
     eventQueueEnabled: true,
     eventQueueGapMs: 4500,
     eventQueueMaxLength: 2,
+    // Global event cooldown in milliseconds to prevent spamming events
+    globalEventCooldownMs: 0,
     spawnAcceleration: 0.003,
     spawnAccelerationCurve: "exponential",
     maxItemsAcceleration: 0.0015,
@@ -494,6 +496,27 @@ export const SETTINGS: Settings = {
           type: "pop_streak_without_miss",
           requiredPops: 15,
           cooldownMs: 5000,
+        },
+        action: {
+          type: "spawn_burst",
+          layout: "bouquet",
+          spawnXOffset: 0,
+          spacingX: 0.42,
+          spacingY: 0.28,
+          randomXJitter: 0.04,
+          randomYJitter: 0.03,
+          entries: [{ itemId: "combo_cluster_balloon", count: 7 }],
+        },
+      },
+      {
+        id: "ten_pop_cluster_reward",
+        enabled: true,
+        selectionWeight: 1,
+        trigger: {
+          type: "pop_streak_without_miss",
+          requiredPops: 10,
+          minScore: 50000,
+          cooldownMs: 10000,
         },
         action: {
           type: "spawn_burst",

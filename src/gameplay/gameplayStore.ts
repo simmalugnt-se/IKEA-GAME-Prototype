@@ -10,7 +10,7 @@ import {
 import { useGroundBallWaveStore } from '@/gameplay/groundBallWaveStore'
 import { useTrackSweeperStore } from '@/gameplay/trackSweeperStore'
 import { SETTINGS, resolveMaterialColorIndex } from '@/settings/GameSettings'
-import type { GameRunMode, SpawnEventAction } from '@/settings/GameSettings.types'
+import type { GameRunMode, SpawnEventAction, SpawnEventRule } from '@/settings/GameSettings.types'
 import { onEntityUnregister } from '@/entities/entityStore'
 import { emitScorePop } from '@/input/scorePopEmitter'
 import { sendExternalCursorLifecycleEvent } from '@/input/externalCursorLifecycle'
@@ -450,6 +450,7 @@ let popStreakRuntime = createPopStreakRuntimeState()
 let runEndTimer: ReturnType<typeof setTimeout> | null = null
 let timeBonusPauseTimer: ReturnType<typeof setTimeout> | null = null
 const spawnEventCooldownsByRuleId = new Map<string, number>()
+let nextGlobalSpawnEventAllowedAtMs = 0
 let gameplayEffectClockMs = 0
 
 function clearComboFlushTimer(): void {
@@ -484,6 +485,7 @@ function clearRunModeTimers(): void {
 
 function resetSpawnEventCooldowns(): void {
   spawnEventCooldownsByRuleId.clear()
+  nextGlobalSpawnEventAllowedAtMs = 0
 }
 
 function resetSpawnEventQueueRuntime(): void {
@@ -754,6 +756,30 @@ function resolveSpawnEventQueueMaxLength(): number {
   return Math.max(0, normalizeNonNegativeInt(SETTINGS.spawner.eventQueueMaxLength, 0))
 }
 
+function resolveGlobalSpawnEventCooldownMs(): number {
+  return normalizeNonNegativeInt(SETTINGS.spawner.globalEventCooldownMs, 0)
+}
+
+function canTriggerGlobalSpawnEvent(nowMs: number): boolean {
+  return nowMs >= nextGlobalSpawnEventAllowedAtMs
+}
+
+function markGlobalSpawnEventTriggered(nowMs = Date.now()): void {
+  const cooldownMs = resolveGlobalSpawnEventCooldownMs()
+  if (cooldownMs <= 0) return
+  nextGlobalSpawnEventAllowedAtMs = nowMs + cooldownMs
+}
+
+function isSpawnEventRuleScoreEligible(
+  rule: SpawnEventRule,
+  currentScore: number,
+): boolean {
+  const minScore = typeof rule.trigger.minScore === 'number' && Number.isFinite(rule.trigger.minScore)
+    ? Math.max(0, Math.trunc(rule.trigger.minScore))
+    : 0
+  return currentScore >= minScore
+}
+
 function enqueueSpawnEventAction(
   ruleId: string,
   action: SpawnEventAction,
@@ -777,6 +803,8 @@ function executeSpawnEventAction(
   action: SpawnEventAction,
   origin?: ScreenPos,
 ): void {
+  markGlobalSpawnEventTriggered()
+
   const scoreboardPayload: Record<string, unknown> = {
     actionType: action.type,
   }
@@ -847,11 +875,14 @@ function executeSpawnEventAction(
 function executeSpawnEventRuleById(ruleId: string, origin?: ScreenPos): boolean {
   const normalizedRuleId = typeof ruleId === 'string' ? ruleId.trim() : ''
   if (!normalizedRuleId) return false
+  const nowMs = Date.now()
+  if (!canTriggerGlobalSpawnEvent(nowMs)) return false
 
   const rule = getSpawnEventRules().find((candidate) => (
     candidate.enabled === true && candidate.id.trim() === normalizedRuleId
   ))
   if (!rule) return false
+  if (!isSpawnEventRuleScoreEligible(rule, useGameplayStore.getState().score)) return false
 
   executeSpawnEventAction(rule.action, origin)
   return true
@@ -860,6 +891,7 @@ function executeSpawnEventRuleById(ruleId: string, origin?: ScreenPos): boolean 
 function flushQueuedSpawnEvents(nowMs = Date.now()): void {
   if (spawnEventQueueRuntime.queue.length <= 0) return
   if (nowMs < spawnEventQueueRuntime.nextAvailableAtMs) return
+  if (!canTriggerGlobalSpawnEvent(nowMs)) return
 
   const nextEvent = spawnEventQueueRuntime.queue.shift()
   if (!nextEvent) return
@@ -1106,11 +1138,14 @@ function normalizeSelectionWeight(value: number | undefined): number {
 
 function resolveEligibleSpawnEventRules(multiplier: number, nowMs: number) {
   const rules = getSpawnEventRules()
+  if (!canTriggerGlobalSpawnEvent(nowMs)) return []
+  const currentScore = useGameplayStore.getState().score
   return rules.filter((rule) => {
     if (!rule || rule.enabled !== true) return false
     const ruleId = typeof rule.id === 'string' ? rule.id.trim() : ''
     if (!ruleId) return false
     if (rule.trigger.type !== 'combo_multiplier') return false
+    if (!isSpawnEventRuleScoreEligible(rule, currentScore)) return false
     const minMultiplier = Math.max(2, Math.trunc(rule.trigger.minMultiplier))
     const maxMultiplier = typeof rule.trigger.maxMultiplier === 'number'
       && Number.isFinite(rule.trigger.maxMultiplier)
@@ -1133,11 +1168,14 @@ function resolveEligibleSpawnEventRulesForPopStreak(
   nowMs: number,
 ) {
   const rules = getSpawnEventRules()
+  if (!canTriggerGlobalSpawnEvent(nowMs)) return []
+  const currentScore = useGameplayStore.getState().score
   return rules.filter((rule) => {
     if (!rule || rule.enabled !== true) return false
     const ruleId = typeof rule.id === 'string' ? rule.id.trim() : ''
     if (!ruleId) return false
     if (rule.trigger.type !== 'pop_streak_without_miss') return false
+    if (!isSpawnEventRuleScoreEligible(rule, currentScore)) return false
 
     const requiredPops = Math.max(1, Math.trunc(rule.trigger.requiredPops))
     const crossedThreshold = previousCount < requiredPops && currentCount >= requiredPops
