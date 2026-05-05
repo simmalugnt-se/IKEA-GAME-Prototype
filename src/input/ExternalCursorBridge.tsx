@@ -17,12 +17,6 @@ const TELEMETRY_SUBSCRIBE_TTL_MS = 2500
 
 type AnyPacket = Record<string, unknown>
 
-function clamp01(value: number): number {
-  if (value < 0) return 0
-  if (value > 1) return 1
-  return value
-}
-
 function asRecord(value: unknown): AnyPacket | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   return value as AnyPacket
@@ -99,7 +93,7 @@ export function ExternalCursorBridge() {
 
     const pointerBuffer: ExternalCursorPointerSample[] = Array.from(
       { length: POINTER_BUFFER_SIZE },
-      () => ({ id: '', xPx: 0, yPx: 0 }),
+      () => ({ id: '', xPx: 0, yPx: 0, visible: true, interactable: true }),
     )
 
     const frameAckPayload = {
@@ -273,6 +267,8 @@ export function ExternalCursorBridge() {
               to.id = from.id
               to.xPx = from.xPx
               to.yPx = from.yPx
+              to.visible = from.visible
+              to.interactable = from.interactable
             }
             targetIndex = maxPointers - 1
           }
@@ -281,8 +277,10 @@ export function ExternalCursorBridge() {
           if (!pointer) continue
 
           pointer.id = id
-          pointer.xPx = clamp01(xNorm) * width
-          pointer.yPx = clamp01(yNorm) * height
+          pointer.xPx = xNorm * width
+          pointer.yPx = yNorm * height
+          pointer.visible = rawPointer.visible !== false
+          pointer.interactable = rawPointer.interactable !== false
           validCount += 1
         }
 

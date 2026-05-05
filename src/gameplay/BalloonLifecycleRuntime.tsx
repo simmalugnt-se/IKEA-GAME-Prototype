@@ -155,6 +155,7 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
     velocityScreenXPx: 0,
     velocityScreenYPx: 0,
     pointerSlot: 0,
+    interactable: true,
   })
   const popMetaRef = useRef<BalloonLifecyclePopMeta>({
     worldDirX: 0,
@@ -169,6 +170,8 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
       x: 0,
       y: 0,
       velocityPx: 0,
+      visible: true,
+      interactable: true,
     },
     {
       slot: 1,
@@ -176,6 +179,8 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
       x: 0,
       y: 0,
       velocityPx: 0,
+      visible: true,
+      interactable: true,
     },
   ])
   const frozenScreenRightOnFloorRef = useRef({ x: 0, z: 0 })
@@ -323,6 +328,7 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
           sweepSeq += 1
         ) {
           if (!readCursorSweepSegment(sweepSeq, sweepSegment)) continue
+          if (!sweepSegment.interactable) continue
           if (sweepSegment.velocityPx < SETTINGS.cursor.minPopVelocity) continue
 
           const x0Local = sweepSegment.x0 - canvasRect.left
@@ -506,10 +512,10 @@ export function BalloonLifecycleRuntime({ children }: { children: ReactNode }) {
           const activePointerStates: CursorPointerRenderState[] = []
 
           if (readCursorPointerRenderState(0, performance.now(), pointerStates[0])) {
-            activePointerStates.push(pointerStates[0])
+            if (pointerStates[0].interactable) activePointerStates.push(pointerStates[0])
           }
           if (readCursorPointerRenderState(1, performance.now(), pointerStates[1])) {
-            activePointerStates.push(pointerStates[1])
+            if (pointerStates[1].interactable) activePointerStates.push(pointerStates[1])
           }
 
           if (activePointerStates.length > 0) {
