@@ -90,6 +90,8 @@ type GameplayState = {
   lastRunScore: number
   sessionHighScore: number
   lives: number
+  runTimeFeedbackText: string
+  runTimeFeedbackSequence: number
   paused: boolean
   runMode: GameRunMode
   runTimeEndsAtMs: number
@@ -1665,6 +1667,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
   lastRunScore: 0,
   sessionHighScore: 0,
   lives: getInitialLives(),
+  runTimeFeedbackText: '',
+  runTimeFeedbackSequence: 0,
   paused: false,
   runMode: resolveRunModeFromSettings(),
   ...createClearedRunTimeStateFields(),
@@ -1696,6 +1700,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       return {
         ...state,
         lives: getInitialLives(),
+        runTimeFeedbackText: '',
+        runTimeFeedbackSequence: 0,
         paused: false,
         runMode: resolveRunModeFromSettings(),
         flowState: 'idle',
@@ -1756,6 +1762,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         ...state,
         score: 0,
         lives: initialLives,
+        runTimeFeedbackText: '',
+        runTimeFeedbackSequence: 0,
         paused: false,
         runMode,
         ...createClearedRunTimeStateFields(),
@@ -2175,9 +2183,16 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     }
     if (timeDeltaMs !== 0) {
       get().addRunTimeMs(timeDeltaMs, 'spawn_item')
+      set((state) => ({
+        ...state,
+        runTimeFeedbackText: formatTimeDeltaLabel(timeDeltaMs),
+        runTimeFeedbackSequence: state.runTimeFeedbackSequence + 1,
+      }))
     }
 
-    const text = buildSpawnItemEffectLabel(appliedScoreDelta, timeDeltaMs, event.feedbackText)
+    if (timeDeltaMs !== 0 && appliedScoreDelta === 0) return
+
+    const text = buildSpawnItemEffectLabel(appliedScoreDelta, 0, event.feedbackText)
     if (!text) return
 
     emitScorePop({
