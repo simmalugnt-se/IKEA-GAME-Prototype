@@ -452,6 +452,7 @@ let timeBonusPauseTimer: ReturnType<typeof setTimeout> | null = null
 const spawnEventCooldownsByRuleId = new Map<string, number>()
 let nextGlobalSpawnEventAllowedAtMs = 0
 let gameplayEffectClockMs = 0
+const COMBO_EVENT_FEEDBACK_OFFSET_Y = 52
 
 function clearComboFlushTimer(): void {
   if (comboRuntime.flushTimer === null) return
@@ -1366,10 +1367,14 @@ function flushPendingComboStrike(): void {
       sumY += pop.y
     }
     const invCount = 1 / strikeSize
-    emitScorePop({
-      text: `X${finalMultiplier}\nCOMBO!`,
+    const comboOrigin = {
       x: sumX * invCount,
       y: sumY * invCount,
+    }
+    emitScorePop({
+      text: `X${finalMultiplier}\nCOMBO!`,
+      x: comboOrigin.x,
+      y: comboOrigin.y,
       burst: false,
       style: 'style5',
     })
@@ -1388,8 +1393,8 @@ function flushPendingComboStrike(): void {
     const canTriggerSpawnEvents = strike.pops.every((pop) => pop?.canTriggerSpawnEvents !== false)
     if (canTriggerSpawnEvents) {
       maybeTriggerSpawnEventsForComboMultiplier(finalMultiplier, {
-        x: sumX * invCount,
-        y: sumY * invCount,
+        x: comboOrigin.x,
+        y: comboOrigin.y + COMBO_EVENT_FEEDBACK_OFFSET_Y,
       })
     }
   }
