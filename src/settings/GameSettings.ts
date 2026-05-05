@@ -444,11 +444,11 @@ export const SETTINGS: Settings = {
         label: "Gift Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        weight: 0.05,
+        weight: 0.12,
         weightAcceleration: 0,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 1,
-        maxConcurrent: 1,
+        maxConcurrent: 2,
         canTriggerSpawnEvents: false,
         itemMarker: "gift",
         color: 2,
@@ -461,7 +461,6 @@ export const SETTINGS: Settings = {
         feedbackText: "POWER UP!",
         triggerEventRuleIds: [
           "combo_cluster_reward",
-          "big_cursor_reward",
           "ground_ball_wave_reward",
           "slowmo_reward",
           "track_sweeper_reward",
@@ -577,8 +576,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 2,
-          maxMultiplier: 3,
+          minMultiplier: 4,
           cooldownMs: 10000,
         },
         action: {
@@ -608,7 +606,6 @@ export const SETTINGS: Settings = {
         trigger: {
           type: "combo_multiplier",
           minMultiplier: 4,
-          maxMultiplier: 4,
           cooldownMs: 10000,
         },
         action: {
@@ -626,7 +623,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 5,
+          minMultiplier: 4,
           cooldownMs: 10000,
         },
         action: {
@@ -653,8 +650,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 2,
-          maxMultiplier: 3,
+          minMultiplier: 4,
           cooldownMs: 12000,
         },
         action: {
@@ -690,12 +686,12 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "external", // "mouse" or "external"
+    inputSource: "mouse", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 4,
     hitRadiusPx: 28,
     external: {
-      enabled: true,
+      enabled: false,
       websocket: {
         // url: "ws://127.0.0.1:5173/ws/cursor",
         // url: "ws://localhost:5173/ws/cursor",
@@ -786,9 +782,10 @@ export const getPaletteEntry = (
 // Current spawn event summary:
 // - combo_cluster_reward: 15 pops without miss -> spawn 7 cluster balloons.
 // - ten_pop_cluster_reward: 10 pops without miss + score >= 50000 -> spawn 7 cluster balloons.
-// - ground_ball_wave_reward: combo multiplier 2-3 -> ground ball wave.
-// - slowmo_reward: combo multiplier 4 -> slow motion.
-// - track_sweeper_reward: combo multiplier 5+ -> track sweeper.
-// - gravity_loss_reward: combo multiplier 2-3 -> gravity loss.
+// - ground_ball_wave_reward: combo multiplier 4+ -> ground ball wave.
+// - slowmo_reward: combo multiplier 4+ -> slow motion.
+// - track_sweeper_reward: combo multiplier 4+ -> track sweeper.
+// - gravity_loss_reward: combo multiplier 4+ -> gravity loss.
+// - gift_balloon: higher-weight direct reward; pops one random enabled effect from triggerEventRuleIds.
 // - eventSelectionMode "one_random": pick one eligible event if several qualify together.
 // - globalEventCooldownMs: shared cooldown after any event; 0 disables the global lockout.
