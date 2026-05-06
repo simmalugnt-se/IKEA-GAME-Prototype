@@ -11,12 +11,15 @@ export type CursorSweepSegment = {
   velocityScreenXPx: number
   velocityScreenYPx: number
   pointerSlot: 0 | 1
+  interactable: boolean
 }
 
 export type ExternalCursorPointerSample = {
   id: string
   xPx: number
   yPx: number
+  visible?: boolean
+  interactable?: boolean
 }
 
 export type CursorPointerRenderState = {
@@ -25,6 +28,8 @@ export type CursorPointerRenderState = {
   x: number
   y: number
   velocityPx: number
+  visible: boolean
+  interactable: boolean
 }
 
 type PointerSlotState = {
@@ -35,6 +40,8 @@ type PointerSlotState = {
   velocityPx: number
   velocityScreenXPx: number
   velocityScreenYPx: number
+  visible: boolean
+  interactable: boolean
   lastMoveTime: number
   lastPacketMs: number
 }
@@ -60,6 +67,7 @@ const sweepBuffer: CursorSweepSegment[] = Array.from(
     velocityScreenXPx: 0,
     velocityScreenYPx: 0,
     pointerSlot: 0,
+    interactable: true,
   }),
 )
 
@@ -73,6 +81,8 @@ const pointerSlots: PointerSlotState[] = Array.from(
     velocityPx: 0,
     velocityScreenXPx: 0,
     velocityScreenYPx: 0,
+    visible: true,
+    interactable: true,
     lastMoveTime: 0,
     lastPacketMs: 0,
   }),
@@ -126,6 +136,8 @@ function resetSlot(slot: PointerSlotState): void {
   slot.velocityPx = 0
   slot.velocityScreenXPx = 0
   slot.velocityScreenYPx = 0
+  slot.visible = true
+  slot.interactable = true
   slot.lastMoveTime = 0
   slot.lastPacketMs = 0
 }
@@ -147,6 +159,7 @@ function markSweepSegment(
   velocityPx: number,
   velocityScreenXPx: number,
   velocityScreenYPx: number,
+  interactable: boolean,
 ): void {
   latestSweepSeq += 1
   const segment = sweepBuffer[latestSweepSeq % SWEEP_BUFFER_SIZE]
@@ -162,6 +175,7 @@ function markSweepSegment(
   segment.velocityScreenXPx = velocityScreenXPx
   segment.velocityScreenYPx = velocityScreenYPx
   segment.pointerSlot = slotIndex
+  segment.interactable = interactable
 }
 
 function updateStaleExternalPointers(nowMs: number): void {
@@ -181,6 +195,8 @@ function pushSampleToSlot(
   y: number,
   timeMs: number,
   packetTimeMs: number,
+  visible = true,
+  interactable = true,
 ): void {
   const slot = pointerSlots[slotIndex]
   if (!slot) return
@@ -222,12 +238,15 @@ function pushSampleToSlot(
       slot.velocityPx,
       slot.velocityScreenXPx,
       slot.velocityScreenYPx,
+      slot.interactable && interactable,
     )
   }
 
   slot.active = true
   slot.x = x
   slot.y = y
+  slot.visible = visible
+  slot.interactable = interactable
   slot.lastMoveTime = timeMs
   slot.lastPacketMs = packetTimeMs
 }
@@ -353,7 +372,15 @@ export function submitExternalCursorFrame(
     const predictedY = pointer.yPx + slot.velocityScreenYPx * predictScale
     const predictedTimeMs = sampleTimeMs + predictMs
 
-    pushSampleToSlot(slotIndex, predictedX, predictedY, predictedTimeMs, now)
+    pushSampleToSlot(
+      slotIndex,
+      predictedX,
+      predictedY,
+      predictedTimeMs,
+      now,
+      pointer.visible !== false,
+      pointer.interactable !== false,
+    )
   }
 }
 
@@ -426,6 +453,7 @@ export function readCursorSweepSegment(seq: number, out: CursorSweepSegment): bo
   out.velocityScreenXPx = segment.velocityScreenXPx
   out.velocityScreenYPx = segment.velocityScreenYPx
   out.pointerSlot = segment.pointerSlot
+  out.interactable = segment.interactable
   return true
 }
 
@@ -456,6 +484,8 @@ export function readCursorPointerRenderState(
   out.x = x
   out.y = y
   out.velocityPx = slot.velocityPx
+  out.visible = slot.visible
+  out.interactable = slot.interactable
   return true
 }
 

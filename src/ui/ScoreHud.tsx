@@ -13,6 +13,7 @@ const SCORE_LERP_MAX_DT_SEC = 0.05
 const HEART_LIGATURE = '#heart'
 const CLOCK_LIGATURE = '#CLOCK'
 const TIME_TICK_INTERVAL_MS = 100
+const TIME_FEEDBACK_VISIBLE_MS = 1200
 
 function formatClockValue(remainingMs: number): string {
   const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
@@ -37,6 +38,8 @@ export function ScoreHud() {
   const runTimePauseToMs = useGameplayStore((state) => state.runTimePauseToMs)
   const runTimePauseStartedAtMs = useGameplayStore((state) => state.runTimePauseStartedAtMs)
   const runTimePauseEndsAtMs = useGameplayStore((state) => state.runTimePauseEndsAtMs)
+  const runTimeFeedbackText = useGameplayStore((state) => state.runTimeFeedbackText)
+  const runTimeFeedbackSequence = useGameplayStore((state) => state.runTimeFeedbackSequence)
   const flowState = useGameplayStore((state) => state.flowState)
   const maxLives = Math.max(0, Math.trunc(SETTINGS.gameplay.lives.initial))
   const secondaryColor = SETTINGS.colors.outline
@@ -52,7 +55,9 @@ export function ScoreHud() {
   const lastScoreFrameTimeRef = useRef<number | null>(null)
   const timeTickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const timeTickRafIdRef = useRef<number | null>(null)
+  const timeFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [timeNowMs, setTimeNowMs] = useState(() => Date.now())
+  const [visibleTimeFeedback, setVisibleTimeFeedback] = useState('')
   const scorePanelStyle: CSSProperties = {
     transform: topHudTransform,
     ['--hud-outline' as any]: secondaryColor,
@@ -230,9 +235,31 @@ export function ScoreHud() {
         cancelAnimationFrame(timeTickRafIdRef.current)
         timeTickRafIdRef.current = null
       }
+      if (timeFeedbackTimerRef.current !== null) {
+        clearTimeout(timeFeedbackTimerRef.current)
+        timeFeedbackTimerRef.current = null
+      }
       lastScoreFrameTimeRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    if (timeFeedbackTimerRef.current !== null) {
+      clearTimeout(timeFeedbackTimerRef.current)
+      timeFeedbackTimerRef.current = null
+    }
+
+    if (flowState !== 'run' || runMode !== 'time' || runTimeFeedbackText.length === 0) {
+      setVisibleTimeFeedback('')
+      return
+    }
+
+    setVisibleTimeFeedback(runTimeFeedbackText)
+    timeFeedbackTimerRef.current = setTimeout(() => {
+      timeFeedbackTimerRef.current = null
+      setVisibleTimeFeedback('')
+    }, TIME_FEEDBACK_VISIBLE_MS)
+  }, [flowState, runMode, runTimeFeedbackSequence, runTimeFeedbackText])
 
   const blinkingLifeSlotSet = new Set(blinkingLifeSlots)
   let displayRemainingTimeMs = 0
@@ -337,6 +364,14 @@ export function ScoreHud() {
                 </span>
               )
             })}
+          </span>
+        )}
+        {runMode === 'time' && visibleTimeFeedback.length > 0 && (
+          <span
+            key={runTimeFeedbackSequence}
+            className="score-hud-time-feedback popdot-text-base popdot-style-5 popdot-shadow-4"
+          >
+            {visibleTimeFeedback}
           </span>
         )}
       </div>

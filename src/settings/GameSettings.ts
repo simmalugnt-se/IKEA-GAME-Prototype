@@ -32,6 +32,7 @@ export type {
   CameraMode,
   CursorInputSource,
   GameRunMode,
+  GroundBallEntrySide,
   MaterialColorIndex,
   PaletteAutoMidSettings,
   PaletteEntry,
@@ -46,9 +47,8 @@ export type {
   SpawnEventActionSpawnBurst,
   SpawnEventActionTrackSweeper,
   SpawnEventBallSizePreset,
-  GroundBallEntrySide,
-  SpawnEventSelectionMode,
   SpawnEventRule,
+  SpawnEventSelectionMode,
   SpawnEventTrigger,
   SpawnEventTriggerComboMultiplier,
   SpawnItemDefinition,
@@ -268,7 +268,7 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 9000,
+      timeLimitMs: 45000,
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,
       popStreakTimeBonusMs: 3000,
@@ -361,6 +361,8 @@ export const SETTINGS: Settings = {
     eventQueueEnabled: true,
     eventQueueGapMs: 4500,
     eventQueueMaxLength: 2,
+    // Global event cooldown in milliseconds to prevent spamming events
+    globalEventCooldownMs: 0,
     spawnAcceleration: 0.003,
     spawnAccelerationCurve: "exponential",
     maxItemsAcceleration: 0.0015,
@@ -389,8 +391,8 @@ export const SETTINGS: Settings = {
         label: "Time Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        minScoreToSpawn: 20000,
-        weight: 0.01,
+        minScoreToSpawn: 10000,
+        weight: 0.1,
         weightAcceleration: 0.008,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 2,
@@ -407,7 +409,6 @@ export const SETTINGS: Settings = {
         scoreMode: "direct",
         scoreDelta: 0,
         timeDeltaMs: 5000,
-        feedbackText: "+5 SEC!",
       },
       // {
       //   id: "hazard_balloon",
@@ -439,7 +440,7 @@ export const SETTINGS: Settings = {
         label: "Gift Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        weight: 0.05,
+        weight: 0.1,
         weightAcceleration: 0,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 1,
@@ -456,7 +457,6 @@ export const SETTINGS: Settings = {
         feedbackText: "POWER UP!",
         triggerEventRuleIds: [
           "combo_cluster_reward",
-          "big_cursor_reward",
           "ground_ball_wave_reward",
           "slowmo_reward",
           "track_sweeper_reward",
@@ -500,9 +500,28 @@ export const SETTINGS: Settings = {
           spacingY: 0.28,
           randomXJitter: 0.04,
           randomYJitter: 0.03,
-          entries: [
-            { itemId: "combo_cluster_balloon", count: 7 },
-          ],
+          entries: [{ itemId: "combo_cluster_balloon", count: 7 }],
+        },
+      },
+      {
+        id: "ten_pop_cluster_reward",
+        enabled: true,
+        selectionWeight: 1,
+        trigger: {
+          type: "pop_streak_without_miss",
+          requiredPops: 10,
+          minScore: 50000,
+          cooldownMs: 10000,
+        },
+        action: {
+          type: "spawn_burst",
+          layout: "bouquet",
+          spawnXOffset: 0,
+          spacingX: 0.42,
+          spacingY: 0.28,
+          randomXJitter: 0.04,
+          randomYJitter: 0.03,
+          entries: [{ itemId: "combo_cluster_balloon", count: 7 }],
         },
       },
       // {
@@ -553,8 +572,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 2,
-          maxMultiplier: 3,
+          minMultiplier: 4,
           cooldownMs: 10000,
         },
         action: {
@@ -584,7 +602,6 @@ export const SETTINGS: Settings = {
         trigger: {
           type: "combo_multiplier",
           minMultiplier: 4,
-          maxMultiplier: 4,
           cooldownMs: 10000,
         },
         action: {
@@ -602,7 +619,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 5,
+          minMultiplier: 4,
           cooldownMs: 10000,
         },
         action: {
@@ -629,8 +646,7 @@ export const SETTINGS: Settings = {
         selectionWeight: 1,
         trigger: {
           type: "combo_multiplier",
-          minMultiplier: 2,
-          maxMultiplier: 3,
+          minMultiplier: 4,
           cooldownMs: 12000,
         },
         action: {
@@ -655,21 +671,21 @@ export const SETTINGS: Settings = {
     cameraTracker: {
       timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
-      timeScaleAccelerationMaxMultiplier: 2,
+      timeScaleAccelerationMaxMultiplier: 1.2,
     },
     balloons: {
       timeScaleAcceleration: 0.0015,
       timeScaleAccelerationCurve: "exponential",
-      timeScaleAccelerationMaxMultiplier: 2,
+      timeScaleAccelerationMaxMultiplier: 1.2,
     },
   },
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "mouse", // "mouse" or "external"
+    inputSource: "external", // "mouse" or "external"
     minPopVelocity: 220,
-    pointerRadiusPx: 4.5,
-    hitRadiusPx: 36,
+    pointerRadiusPx: 4,
+    hitRadiusPx: 28,
     external: {
       enabled: true,
       websocket: {
@@ -685,9 +701,9 @@ export const SETTINGS: Settings = {
     trail: {
       maxAge: 0.25,
       color: "#ffffff",
-      lineWidth: 9,
-      followSmoothing: 0.7,
-      smoothing: 0.25,
+      lineWidth: 8,
+      followSmoothing: 0.1,
+      smoothing: 0.1,
     },
   },
 };
@@ -758,3 +774,14 @@ export const getPaletteEntry = (
   if (palette.colors.length === 0) return FALLBACK_PALETTE_ENTRY;
   return palette.colors[resolveMaterialColorIndex(index)];
 };
+
+// Current spawn event summary:
+// - combo_cluster_reward: 15 pops without miss -> spawn 7 cluster balloons.
+// - ten_pop_cluster_reward: 10 pops without miss + score >= 50000 -> spawn 7 cluster balloons.
+// - ground_ball_wave_reward: combo multiplier 4+ -> ground ball wave.
+// - slowmo_reward: combo multiplier 4+ -> slow motion.
+// - track_sweeper_reward: combo multiplier 4+ -> track sweeper.
+// - gravity_loss_reward: combo multiplier 4+ -> gravity loss.
+// - gift_balloon: higher-weight direct reward; pops one random enabled effect from triggerEventRuleIds.
+// - eventSelectionMode "one_random": pick one eligible event if several qualify together.
+// - globalEventCooldownMs: shared cooldown after any event; 0 disables the global lockout.

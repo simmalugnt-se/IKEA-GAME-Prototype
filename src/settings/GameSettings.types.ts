@@ -112,12 +112,14 @@ export type SpawnEventTriggerComboMultiplier = {
   type: 'combo_multiplier'
   minMultiplier: number
   maxMultiplier?: number
+  minScore?: number
   cooldownMs: number
 }
 
 export type SpawnEventTriggerPopStreakWithoutMiss = {
   type: 'pop_streak_without_miss'
   requiredPops: number
+  minScore?: number
   cooldownMs: number
 }
 
@@ -416,6 +418,7 @@ export type Settings = {
     eventQueueEnabled: boolean
     eventQueueGapMs: number
     eventQueueMaxLength: number
+    globalEventCooldownMs: number
     itemDefinitions: SpawnItemDefinition[]
     eventRules: SpawnEventRule[]
   }

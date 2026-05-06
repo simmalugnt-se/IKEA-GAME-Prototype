@@ -619,6 +619,7 @@ export const settingsSections: SectionDescriptor[] = [
             { type: 'boolean', label: 'eventQueueEnabled', get: () => SETTINGS.spawner.eventQueueEnabled, set: (v) => { SETTINGS.spawner.eventQueueEnabled = v; bump() } },
             { type: 'number', label: 'eventQueueGapMs', get: () => SETTINGS.spawner.eventQueueGapMs, set: (v) => { SETTINGS.spawner.eventQueueGapMs = v; bump() }, min: 0, max: 30000, step: 100 },
             { type: 'number', label: 'eventQueueMaxLength', get: () => SETTINGS.spawner.eventQueueMaxLength, set: (v) => { SETTINGS.spawner.eventQueueMaxLength = v; bump() }, min: 0, max: 20, step: 1 },
+            { type: 'number', label: 'globalEventCooldownMs', get: () => SETTINGS.spawner.globalEventCooldownMs, set: (v) => { SETTINGS.spawner.globalEventCooldownMs = v; bump() }, min: 0, max: 60000, step: 100 },
         ],
     },
 

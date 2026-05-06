@@ -263,10 +263,11 @@ export function GameFlowOverlay() {
     velocityScreenXPx: 0,
     velocityScreenYPx: 0,
     pointerSlot: 0,
+    interactable: true,
   })
   const pointerRenderScratchRef = useRef<[CursorPointerRenderState, CursorPointerRenderState]>([
-    { slot: 0, active: false, x: 0, y: 0, velocityPx: 0 },
-    { slot: 1, active: false, x: 0, y: 0, velocityPx: 0 },
+    { slot: 0, active: false, x: 0, y: 0, velocityPx: 0, visible: true, interactable: true },
+    { slot: 1, active: false, x: 0, y: 0, velocityPx: 0, visible: true, interactable: true },
   ])
   const lastLetterActionAtMsRef = useRef(Number.NEGATIVE_INFINITY)
   const letterPassBySlotRef = useRef<LetterPassBySlot>([
@@ -757,6 +758,7 @@ export function GameFlowOverlay() {
       if (!isAlphabetGridMode && latestSweepSeq > lastSweepSeqRef.current) {
         for (let sweepSeq = lastSweepSeqRef.current + 1; sweepSeq <= latestSweepSeq; sweepSeq += 1) {
           if (!readCursorSweepSegment(sweepSeq, sweepSegment)) continue
+          if (!sweepSegment.interactable) continue
 
           const timeMs = Number.isFinite(sweepSegment.timeMs)
             ? sweepSegment.timeMs
@@ -865,13 +867,13 @@ export function GameFlowOverlay() {
         const pointerX = pointerState.x
         const pointerY = pointerState.y
 
-        const touchingBack = pointerActive && backZone !== null
+        const touchingBack = pointerActive && pointerState.interactable && backZone !== null
           ? pointInScreenRect(pointerX, pointerY, backZone)
           : false
-        const touchingNext = pointerActive && nextZone !== null
+        const touchingNext = pointerActive && pointerState.interactable && nextZone !== null
           ? pointInScreenRect(pointerX, pointerY, nextZone)
           : false
-        const alphabetLetterIndex = pointerActive && isAlphabetGridMode
+        const alphabetLetterIndex = pointerActive && pointerState.interactable && isAlphabetGridMode
           ? resolveAlphabetLetterIndexAtPoint(pointerX, pointerY)
           : -1
 

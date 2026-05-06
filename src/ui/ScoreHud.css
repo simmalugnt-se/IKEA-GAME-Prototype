@@ -52,6 +52,19 @@
   justify-content: center;
 }
 
+.score-hud-time-feedback {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  color: #ffffff;
+  font-size: 2rem;
+  line-height: 1em !important;
+  pointer-events: none;
+  text-align: right;
+  white-space: nowrap;
+  animation: score-hud-time-feedback-pop 1200ms ease-out 1 both;
+}
+
 .score-hud-audio-hint {
   position: absolute;
   bottom: 1.5rem;
@@ -146,4 +159,26 @@
 
 .score-hud-time--pulse-fast {
   animation: score-hud-time-pulse 0.25s ease-in-out infinite;
+}
+
+@keyframes score-hud-time-feedback-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-0.25rem) scale(0.92);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(0.4rem) scale(0.96);
+  }
 }

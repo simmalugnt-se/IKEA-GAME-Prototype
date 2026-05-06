@@ -70,6 +70,8 @@ export function CursorTrailCanvas() {
       x: 0,
       y: 0,
       velocityPx: 0,
+      visible: true,
+      interactable: true,
     }
     const pointerRenderState1: CursorPointerRenderState = {
       slot: 1,
@@ -77,6 +79,8 @@ export function CursorTrailCanvas() {
       x: 0,
       y: 0,
       velocityPx: 0,
+      visible: true,
+      interactable: true,
     }
 
     const clearHistorySlot = (slot: 0 | 1) => {
@@ -119,7 +123,7 @@ export function CursorTrailCanvas() {
 
     const pruneHistorySlot = (slot: 0 | 1, nowMs: number, maxAgeMs: number) => {
       let count = historyCount[slot]
-      while (count > 1) {
+      while (count > 0) {
         const oldestIndex = (historyWriteIndex[slot] - count + MAX_TRAIL_POINTS) % MAX_TRAIL_POINTS
         if (nowMs - historyTime[slot][oldestIndex] <= maxAgeMs) break
         count -= 1
@@ -275,12 +279,12 @@ export function CursorTrailCanvas() {
 
       if (inputSource === 'external') {
         const followSmoothing = SETTINGS.cursor.trail.followSmoothing ?? 0
-        if (pointer0Active) {
+        if (pointer0Active && pointerRenderState0.visible) {
           pushSmoothedTrailPoint(0, pointerRenderState0.x, pointerRenderState0.y, now, delta, followSmoothing)
         } else {
           trailFollowerActive[0] = 0
         }
-        if (pointer1Active) {
+        if (pointer1Active && pointerRenderState1.visible) {
           pushSmoothedTrailPoint(1, pointerRenderState1.x, pointerRenderState1.y, now, delta, followSmoothing)
         } else {
           trailFollowerActive[1] = 0
@@ -307,7 +311,7 @@ export function CursorTrailCanvas() {
         lineWidth,
         pointerRenderState0.x,
         pointerRenderState0.y,
-        pointer0Active,
+        pointer0Active && pointerRenderState0.visible,
       )
       if (inputSource === 'external') {
         drawHistorySlot(
@@ -317,7 +321,7 @@ export function CursorTrailCanvas() {
           lineWidth,
           pointerRenderState1.x,
           pointerRenderState1.y,
-          pointer1Active,
+          pointer1Active && pointerRenderState1.visible,
         )
       }
 
@@ -331,6 +335,7 @@ export function CursorTrailCanvas() {
         ctx.globalAlpha = 1
         const drawHead = (slot: 0 | 1, out: CursorPointerRenderState) => {
           if ((slot === 0 && !pointer0Active) || (slot === 1 && !pointer1Active)) return
+          if (!out.visible) return
           ctx.beginPath()
           ctx.arc(out.x, out.y, headRadius, 0, Math.PI * 2)
           ctx.fill()
@@ -344,6 +349,7 @@ export function CursorTrailCanvas() {
       if (burstSample && burstSample.probeRadiusPx > 0 && burstSample.waves.length > 0) {
         const drawBurst = (slot: 0 | 1, out: CursorPointerRenderState, active: boolean) => {
           if (!active) return
+          if (!out.visible) return
           const step = (Math.PI * 2) / burstSample.probeCount
           const pointerPhase = slot * step * 0.5
           ctx.fillStyle = color
