@@ -282,6 +282,24 @@ export function ScoreboardSettingsPanel({
         </span>
       </div>
 
+      {(['left', 'right', 'top', 'bottom'] as const).map((side) => (
+        <div className="sbsp-row" key={`safeArea-${side}`}>
+          <label>{`safeAreaPx.${side}`}</label>
+          <input
+            type="number"
+            step={1}
+            value={SCOREBOARD_SETTINGS.display.safeAreaPx[side]}
+            onChange={(e) => {
+              SCOREBOARD_SETTINGS.display.safeAreaPx[side] = Math.round(
+                parseNum(e.target.value, SCOREBOARD_SETTINGS.display.safeAreaPx[side]),
+              )
+              onSettingsChanged()
+              setVersion((v) => v + 1)
+            }}
+          />
+        </div>
+      ))}
+
       <div className="sbsp-row">
         <label>dotFill</label>
         <input

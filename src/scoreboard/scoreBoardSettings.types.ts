@@ -7,10 +7,20 @@ export type ScoreboardSourceSettings = {
   riveFit: ScoreboardRiveFit
 }
 
+export type ScoreboardDisplaySettings = {
+  safeAreaPx: {
+    left: number
+    right: number
+    top: number
+    bottom: number
+  }
+}
+
 export type ScoreboardSettings = {
   debug: {
     showOverlayByDefault: boolean
   }
+  display: ScoreboardDisplaySettings
   dmd: {
     source: ScoreboardSourceSettings
     grid: {

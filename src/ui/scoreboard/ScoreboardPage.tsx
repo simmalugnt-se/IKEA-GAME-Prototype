@@ -59,9 +59,18 @@ function resolveCurrentSource(): ResolvedScoreboardSource {
   return resolveScoreboardSource(SCOREBOARD_SETTINGS.dmd.source)
 }
 
-function getViewportCanvasCssSize(): number {
-  if (typeof window === 'undefined') return SCOREBOARD_SETTINGS.dmd.source.size
-  return Math.max(1, Math.max(window.innerWidth, window.innerHeight))
+function getCanvasLayout(): { size: number; offsetX: number; offsetY: number } {
+  const margins = SCOREBOARD_SETTINGS.display.safeAreaPx
+  const fallback = SCOREBOARD_SETTINGS.dmd.source.size
+  const vw = typeof window === 'undefined' ? fallback : window.innerWidth
+  const vh = typeof window === 'undefined' ? fallback : window.innerHeight
+  const safeWidth = vw - margins.left - margins.right
+  const safeHeight = vh - margins.top - margins.bottom
+  return {
+    size: Math.max(1, Math.max(safeWidth, safeHeight)),
+    offsetX: (margins.left - margins.right) / 2,
+    offsetY: (margins.top - margins.bottom) / 2,
+  }
 }
 
 function createInitialScoreboardEvent(): ScoreboardEvent {
@@ -83,7 +92,7 @@ export function ScoreboardPage() {
   )
   const [debugPanelVisible, setDebugPanelVisible] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [, setScoreboardSettingsVersion] = useState(0)
+  const [scoreboardSettingsVersion, setScoreboardSettingsVersion] = useState(0)
   const [sourceConfigVersion, setSourceConfigVersion] = useState(0)
   const [appliedSource, setAppliedSource] = useState<ResolvedScoreboardSource>(() => resolveCurrentSource())
   const appliedSourceRef = useRef(appliedSource)
@@ -159,18 +168,19 @@ export function ScoreboardPage() {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const applyCanvasCssSize = () => {
-      const size = getViewportCanvasCssSize()
+    const applyCanvasLayout = () => {
+      const { size, offsetX, offsetY } = getCanvasLayout()
       canvas.style.width = `${size}px`
       canvas.style.height = `${size}px`
+      canvas.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`
     }
 
-    applyCanvasCssSize()
-    window.addEventListener('resize', applyCanvasCssSize)
+    applyCanvasLayout()
+    window.addEventListener('resize', applyCanvasLayout)
     return () => {
-      window.removeEventListener('resize', applyCanvasCssSize)
+      window.removeEventListener('resize', applyCanvasLayout)
     }
-  }, [sourceConfigVersion])
+  }, [sourceConfigVersion, globalSettingsVersion, scoreboardSettingsVersion])
 
   const handleSave = useCallback(async () => {
     if (!import.meta.env.DEV) return
@@ -441,7 +451,6 @@ const styles = {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: 'translate(-50%, -50%)',
     display: 'block',
   },
   status: {
