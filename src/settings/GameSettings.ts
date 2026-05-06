@@ -75,9 +75,6 @@ export const SETTINGS: Settings = {
       url: "ws://localhost:5175/ws/scoreboard",
       reconnectMs: 1000,
     },
-    ui: {
-      showEventLog: true,
-    },
   },
 
   // --- DEBUG ---
@@ -271,7 +268,7 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 450000,
+      timeLimitMs: 9000,
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,
       popStreakTimeBonusMs: 3000,

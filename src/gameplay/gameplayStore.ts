@@ -15,6 +15,12 @@ import { onEntityUnregister } from '@/entities/entityStore'
 import { emitScorePop } from '@/input/scorePopEmitter'
 import { sendExternalCursorLifecycleEvent } from '@/input/externalCursorLifecycle'
 import { sendScoreboardEvent } from '@/scoreboard/scoreboardSender'
+import {
+  resetHighScoreLiveTracker,
+  sendHighScoresUpdatedEvent,
+  sendLiveRankUpdate,
+  setLivePlayerInitials,
+} from '@/scoreboard/highScoreScoreboardEvents'
 import { getRunId, rotateRunId } from '@/scoreboard/runId'
 import {
   submitHighScoreSubmission,
@@ -1347,6 +1353,7 @@ function flushPendingComboStrike(): void {
       totalPoints: totalStrikeScore,
       totalScore: totalScoreAfterStrike,
     })
+    sendLiveRankUpdate({ score: totalScoreAfterStrike, runId: getRunId() })
     const canTriggerSpawnEvents = strike.pops.every((pop) => pop?.canTriggerSpawnEvents !== false)
     if (canTriggerSpawnEvents) {
       maybeTriggerSpawnEventsForComboMultiplier(finalMultiplier, {
@@ -1748,6 +1755,8 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       runMode,
       timeLimitMs: runTimeLimitMs,
     })
+    resetHighScoreLiveTracker()
+    sendLiveRankUpdate({ score: 0, runId: newRunId })
   },
 
   setPaused: (paused) => {
@@ -1783,18 +1792,24 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       runId: getRunId(),
       durationMs: stepDurationMs,
     })
+    setLivePlayerInitials(get().gameOverInitials)
   },
 
   setGameOverInitials: (initials) => {
     const normalized = normalizeHighScoreInitials(initials)
+    let changed = false
     set((state) => {
       if (state.flowState !== 'game_over_input') return state
       if (state.gameOverInitials === normalized) return state
+      changed = true
       return {
         ...state,
         gameOverInitials: normalized,
       }
     })
+    if (changed) {
+      setLivePlayerInitials(normalized)
+    }
   },
 
   registerGameOverInputInteraction: () => {
@@ -1867,6 +1882,10 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         totalEntries: submission.totalEntries,
         storageMode: submission.storageMode,
       })
+      sendHighScoresUpdatedEvent({
+        latestRunId: submittedRunId,
+        storageMode: submission.storageMode,
+      })
       sendScoreboardEvent({
         type: 'idle_started',
         timestamp: Date.now(),
@@ -1911,6 +1930,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       generatedBy: source,
       totalScore: nextTotal,
     })
+    sendLiveRankUpdate({ score: nextTotal, runId: getRunId() })
   },
 
   addRunTimeMs: (deltaMs, reason = 'unknown') => {
@@ -2537,14 +2557,16 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     })
 
     if (contagionScoreDelta > 0) {
+      const contagionTotalScore = useGameplayStore.getState().score
       sendScoreboardEvent({
         type: 'points_received',
         timestamp: Date.now(),
         runId: getRunId(),
         points: contagionScoreDelta,
         generatedBy: 'contagion',
-        totalScore: useGameplayStore.getState().score,
+        totalScore: contagionTotalScore,
       })
+      sendLiveRankUpdate({ score: contagionTotalScore, runId: getRunId() })
     }
   },
   })

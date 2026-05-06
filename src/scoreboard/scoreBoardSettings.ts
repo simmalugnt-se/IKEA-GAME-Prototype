@@ -6,15 +6,16 @@ export const SCOREBOARD_SETTINGS: ScoreboardSettings = {
   },
   dmd: {
     source: {
-      mode: 'viewport_divider',
-      fixedWidth: 240,
-      fixedHeight: 135,
-      viewportDivider: 8,
+      // Kvadratisk source-canvas i pixlar. Ska matcha Rive-artboardens enhetsstorlek
+      // 1:1 (eller en integer-multiplikator av den) för knivskarp pixel-rendering.
+      size: 400,
       riveFit: 'cover',
     },
     grid: {
       dotFill: 0.8,
-      resolutionMultiplier: 2,
+      // Antal DMD-dots per sida i den kvadratiska griden. Sätter dot-densiteten.
+      // 200 ≈ dagens visuella täthet på en 1600px-viewport.
+      dotsPerSide: 200,
     },
     curve: {
       points: [
@@ -37,6 +38,6 @@ export const SCOREBOARD_SETTINGS: ScoreboardSettings = {
       targetFps: 8,
     },
     // lightest -> darkest
-    palette: ['#669E10', '#006B18', '#0E3420', '#141414'],
+    palette: ['#669E10', '#006B18', '#0E3420', '#000000'],
   },
 }

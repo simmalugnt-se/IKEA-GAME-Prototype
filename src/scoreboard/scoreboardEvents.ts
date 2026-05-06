@@ -13,6 +13,20 @@ export type ScoreboardLifeLossReason = 'balloon_missed' | 'unknown'
 export type InitialsStepFinishReason = 'timeout' | 'submitted'
 export type GameOverEndReason = 'lives_depleted' | 'time_elapsed'
 
+export type HighScoreScoreboardEntry = {
+  rank: number
+  initials: string
+  score: number
+  runId: string
+}
+
+export type HighScoreListSlotEntry = {
+  rank: number
+  initials: string
+  score: number
+  opacity: number
+}
+
 export type GameStartedEvent = {
   type: 'game_started'
   timestamp: number
@@ -95,6 +109,26 @@ export type InitialsStepFinishedEvent = {
   storageMode: HighScoreStorageMode
 }
 
+export type HighScoresUpdatedEvent = {
+  type: 'high_scores_updated'
+  timestamp: number
+  runId: string
+  topEntries: HighScoreScoreboardEntry[]
+  totalEntries: number
+  storageMode: HighScoreStorageMode
+  latestRunId: string | null
+}
+
+export type LiveRankUpdatedEvent = {
+  type: 'live_rank_updated'
+  timestamp: number
+  runId: string
+  score: number
+  rank: number
+  playerInitials: string
+  listSlots: HighScoreListSlotEntry[]
+}
+
 export type ScoreboardEvent =
   | GameStartedEvent
   | PointsReceivedEvent
@@ -105,6 +139,8 @@ export type ScoreboardEvent =
   | IdleStartedEvent
   | InitialsStepStartedEvent
   | InitialsStepFinishedEvent
+  | HighScoresUpdatedEvent
+  | LiveRankUpdatedEvent
 
 export function isScoreboardEvent(value: unknown): value is ScoreboardEvent {
   if (value === null || typeof value !== 'object') return false
@@ -119,6 +155,8 @@ export function isScoreboardEvent(value: unknown): value is ScoreboardEvent {
     || obj.type === 'idle_started'
     || obj.type === 'initials_step_started'
     || obj.type === 'initials_step_finished'
+    || obj.type === 'high_scores_updated'
+    || obj.type === 'live_rank_updated'
   )
 }
 

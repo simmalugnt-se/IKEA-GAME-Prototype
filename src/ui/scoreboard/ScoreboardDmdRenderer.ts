@@ -520,7 +520,9 @@ export class ScoreboardDmdRenderer {
     gl.bindVertexArray(this.vao)
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.sourceTexture)
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas)
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
 
     gl.useProgram(this.edgeProgram)
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.edgeFramebuffer)
@@ -599,24 +601,20 @@ export class ScoreboardDmdRenderer {
 
   private applyLayoutUniforms(width: number, height: number): void {
     const dotFill = clamp01(SCOREBOARD_SETTINGS.dmd.grid.dotFill)
-    const resolutionMultiplier = Math.min(
-      32,
-      Math.max(0.25, clampFinite(SCOREBOARD_SETTINGS.dmd.grid.resolutionMultiplier, 1)),
-    )
-    const gridWidth = Math.max(1, Math.round(this.sourceWidth / resolutionMultiplier))
-    const gridHeight = Math.max(1, Math.round(this.sourceHeight / resolutionMultiplier))
-    const cellPitch = Math.max(0.0001, Math.min(width / gridWidth, height / gridHeight))
-    const activeWidth = gridWidth * cellPitch
-    const activeHeight = gridHeight * cellPitch
-    const activeOriginX = (width - activeWidth) * 0.5
-    const activeOriginY = (height - activeHeight) * 0.5
+    const dotsPerSide = Math.max(1, Math.round(
+      clampFinite(SCOREBOARD_SETTINGS.dmd.grid.dotsPerSide, 1),
+    ))
+    const cellPitch = Math.max(0.0001, Math.min(width / dotsPerSide, height / dotsPerSide))
+    const activeSize = dotsPerSide * cellPitch
+    const activeOriginX = (width - activeSize) * 0.5
+    const activeOriginY = (height - activeSize) * 0.5
     const dotRadiusPx = Math.max(0.25, cellPitch * dotFill * 0.5)
 
     this.gl.useProgram(this.dmdProgram)
-    this.gl.uniform2f(this.uDmdGridSize, gridWidth, gridHeight)
+    this.gl.uniform2f(this.uDmdGridSize, dotsPerSide, dotsPerSide)
     this.gl.uniform2f(this.uDmdViewportSizePx, width, height)
     this.gl.uniform2f(this.uDmdActiveOriginPx, activeOriginX, activeOriginY)
-    this.gl.uniform2f(this.uDmdActiveSizePx, activeWidth, activeHeight)
+    this.gl.uniform2f(this.uDmdActiveSizePx, activeSize, activeSize)
     this.gl.uniform1f(this.uDmdCellPitchPx, cellPitch)
     this.gl.uniform1f(this.uDmdDotRadiusPx, dotRadiusPx)
   }

@@ -6,8 +6,8 @@ import type {
 } from '@/scoreboard/scoreBoardSettings.types'
 import {
   normalizeScoreboardSourceSettings,
-  SCOREBOARD_SOURCE_DIVIDER_MAX,
-  SCOREBOARD_SOURCE_DIVIDER_MIN,
+  SCOREBOARD_SOURCE_SIZE_MAX,
+  SCOREBOARD_SOURCE_SIZE_MIN,
   type ResolvedScoreboardSource,
 } from '@/ui/scoreboard/scoreboardSourceResolution'
 import './scoreboardSettingsPanel.css'
@@ -239,95 +239,25 @@ export function ScoreboardSettingsPanel({
       </div>
 
       <div className="sbsp-row">
-        <label>source.mode</label>
-        <select
-          value={sourceDraft.mode}
+        <label>source.size</label>
+        <input
+          type="number"
+          min={SCOREBOARD_SOURCE_SIZE_MIN}
+          max={SCOREBOARD_SOURCE_SIZE_MAX}
+          step={1}
+          value={sourceDraft.size}
           onChange={(e) => {
             setSourceDraft((prev) => ({
               ...prev,
-              mode: e.target.value === 'viewport_divider' ? 'viewport_divider' : 'fixed',
+              size: Math.floor(clampRange(
+                parseNum(e.target.value, prev.size),
+                SCOREBOARD_SOURCE_SIZE_MIN,
+                SCOREBOARD_SOURCE_SIZE_MAX,
+              )),
             }))
           }}
-        >
-          <option value="fixed">fixed</option>
-          <option value="viewport_divider">viewport_divider</option>
-        </select>
+        />
       </div>
-
-      {sourceDraft.mode === 'fixed' ? (
-        <>
-          <div className="sbsp-row">
-            <label>source.fixedWidth</label>
-            <input
-              type="number"
-              min={1}
-              max={8192}
-              step={1}
-              value={sourceDraft.fixedWidth}
-              onChange={(e) => {
-                setSourceDraft((prev) => ({
-                  ...prev,
-                  fixedWidth: Math.max(1, Math.floor(parseNum(e.target.value, prev.fixedWidth))),
-                }))
-              }}
-            />
-          </div>
-          <div className="sbsp-row">
-            <label>source.fixedHeight</label>
-            <input
-              type="number"
-              min={1}
-              max={8192}
-              step={1}
-              value={sourceDraft.fixedHeight}
-              onChange={(e) => {
-                setSourceDraft((prev) => ({
-                  ...prev,
-                  fixedHeight: Math.max(1, Math.floor(parseNum(e.target.value, prev.fixedHeight))),
-                }))
-              }}
-            />
-          </div>
-        </>
-      ) : (
-        <div className="sbsp-row">
-          <label>source.viewportDivider</label>
-          <input
-            type="range"
-            min={SCOREBOARD_SOURCE_DIVIDER_MIN}
-            max={SCOREBOARD_SOURCE_DIVIDER_MAX}
-            step={0.01}
-            value={sourceDraft.viewportDivider}
-            onChange={(e) => {
-              setSourceDraft((prev) => ({
-                ...prev,
-                viewportDivider: clampRange(
-                  parseNum(e.target.value, prev.viewportDivider),
-                  SCOREBOARD_SOURCE_DIVIDER_MIN,
-                  SCOREBOARD_SOURCE_DIVIDER_MAX,
-                ),
-              }))
-            }}
-          />
-          <input
-            type="number"
-            min={SCOREBOARD_SOURCE_DIVIDER_MIN}
-            max={SCOREBOARD_SOURCE_DIVIDER_MAX}
-            step={0.01}
-            value={sourceDraft.viewportDivider}
-            onChange={(e) => {
-              setSourceDraft((prev) => ({
-                ...prev,
-                viewportDivider: clampRange(
-                  parseNum(e.target.value, prev.viewportDivider),
-                  SCOREBOARD_SOURCE_DIVIDER_MIN,
-                  SCOREBOARD_SOURCE_DIVIDER_MAX,
-                ),
-              }))
-            }}
-          />
-        </div>
-      )}
 
       <div className="sbsp-row">
         <label>source.riveFit</label>
@@ -348,7 +278,6 @@ export function ScoreboardSettingsPanel({
         <label>source.resolved</label>
         <span className="sbsp-readonly">
           {resolvedSource.width} x {resolvedSource.height}
-          {resolvedSource.mode === 'viewport_divider' ? ` | div ${resolvedSource.divider.toFixed(2)}` : ''}
           {` | ${resolvedSource.fit}`}
         </span>
       </div>
@@ -382,35 +311,35 @@ export function ScoreboardSettingsPanel({
       </div>
 
       <div className="sbsp-row">
-        <label>resolutionMultiplier</label>
+        <label>dotsPerSide</label>
         <input
           type="range"
-          min={0.25}
-          max={32}
-          step={0.01}
-          value={dmd.grid.resolutionMultiplier}
+          min={1}
+          max={1024}
+          step={1}
+          value={dmd.grid.dotsPerSide}
           onChange={(e) => {
-            dmd.grid.resolutionMultiplier = clampRange(
-              parseNum(e.target.value, dmd.grid.resolutionMultiplier),
-              0.25,
-              32,
-            )
+            dmd.grid.dotsPerSide = Math.max(1, Math.round(clampRange(
+              parseNum(e.target.value, dmd.grid.dotsPerSide),
+              1,
+              1024,
+            )))
             onSettingsChanged()
             setVersion((v) => v + 1)
           }}
         />
         <input
           type="number"
-          min={0.25}
-          max={32}
-          step={0.01}
-          value={dmd.grid.resolutionMultiplier}
+          min={1}
+          max={1024}
+          step={1}
+          value={dmd.grid.dotsPerSide}
           onChange={(e) => {
-            dmd.grid.resolutionMultiplier = clampRange(
-              parseNum(e.target.value, dmd.grid.resolutionMultiplier),
-              0.25,
-              32,
-            )
+            dmd.grid.dotsPerSide = Math.max(1, Math.round(clampRange(
+              parseNum(e.target.value, dmd.grid.dotsPerSide),
+              1,
+              1024,
+            )))
             onSettingsChanged()
             setVersion((v) => v + 1)
           }}

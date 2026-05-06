@@ -4,30 +4,16 @@ import {
   type ScoreboardCueTemplate,
 } from '@/ui/scoreboard/scoreboardEventCueRegistry'
 import type {
-  ScoreboardEventLogEntry,
   ScoreboardSoundCue,
-  ScoreboardVisualCue,
 } from '@/ui/scoreboard/scoreboardEventRuntime.types'
 
 export type ScoreboardEventOrchestratorOptions = {
-  logCapacity?: number
-  onVisualCue?: (cue: ScoreboardVisualCue) => void
   onSoundCue?: (cue: ScoreboardSoundCue) => void
-  onLogUpdate?: (entries: readonly ScoreboardEventLogEntry[]) => void
 }
 
 export type ScoreboardEventOrchestrator = {
   handleEvent: (event: ScoreboardEvent) => void
-  clearLog: () => void
-  getLogSnapshot: () => readonly ScoreboardEventLogEntry[]
   dispose: () => void
-}
-
-const DEFAULT_LOG_CAPACITY = 200
-
-function normalizeLogCapacity(value: number | undefined): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_LOG_CAPACITY
-  return Math.max(10, Math.min(2000, Math.trunc(value)))
 }
 
 function formatPayloadCompact(payload: Record<string, unknown>): string {
@@ -113,40 +99,21 @@ function shouldEmitFromCooldown(
 export function createScoreboardEventOrchestrator(
   options: ScoreboardEventOrchestratorOptions,
 ): ScoreboardEventOrchestrator {
-  const logCapacity = normalizeLogCapacity(options.logCapacity)
-  const logEntries: ScoreboardEventLogEntry[] = []
   const nextAllowedByKey = new Map<string, number>()
 
-  let nextLogId = 1
-  let nextCueId = 1
   let disposed = false
-
-  const emitLog = () => {
-    options.onLogUpdate?.([...logEntries])
-  }
-
-  const appendLogEntry = (event: ScoreboardEvent) => {
-    const entry: ScoreboardEventLogEntry = {
-      id: nextLogId,
-      receivedAtMs: Date.now(),
-      eventType: event.type,
-      runId: event.runId,
-      timestamp: event.timestamp,
-      summary: summarizeEvent(event),
-    }
-    nextLogId += 1
-    logEntries.unshift(entry)
-    if (logEntries.length > logCapacity) {
-      logEntries.length = logCapacity
-    }
-    emitLog()
-  }
 
   return {
     handleEvent: (event) => {
       if (disposed) return
 
-      appendLogEntry(event)
+      console.log('[scoreboard:event]', {
+        type: event.type,
+        runId: event.runId,
+        timestamp: event.timestamp,
+        summary: summarizeEvent(event),
+        event,
+      })
 
       const cueTemplates = resolveScoreboardCueTemplates(event)
       if (cueTemplates.length === 0) return
@@ -156,27 +123,11 @@ export function createScoreboardEventOrchestrator(
         const cueTemplate = cueTemplates[i]
         if (!shouldEmitFromCooldown(nowMs, cueTemplate, nextAllowedByKey)) continue
 
-        if (cueTemplate.visual) {
-          options.onVisualCue?.({
-            id: nextCueId,
-            ...cueTemplate.visual,
-          })
-          nextCueId += 1
-        }
-
         if (cueTemplate.sound) {
           options.onSoundCue?.(cueTemplate.sound)
         }
       }
     },
-
-    clearLog: () => {
-      if (logEntries.length === 0) return
-      logEntries.length = 0
-      emitLog()
-    },
-
-    getLogSnapshot: () => logEntries,
 
     dispose: () => {
       disposed = true

@@ -1,5 +1,4 @@
 import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
-import { createScoreboardSettingsSyncMessage } from '@/scoreboard/scoreboardTransport'
 import { SETTINGS } from '@/settings/GameSettings'
 
 const CHANNEL_NAME = 'ikea-game-scoreboard'
@@ -31,8 +30,6 @@ const wsState: WsBridgeState = {
   queue: [],
   reconnectAttempt: 0,
 }
-
-let lastSyncedShowEventLog: boolean | null = null
 
 function flushWsQueue(): void {
   if (!wsState.ws || wsState.ws.readyState !== WebSocket.OPEN) return
@@ -115,7 +112,6 @@ export function initScoreboardBridge(): () => void {
 
   wsState.isDisposed = false
   connectWs()
-  sendScoreboardSettingsSync({ force: true })
 
   return () => {
     disposeWs()
@@ -141,16 +137,6 @@ function sendRawTransportMessage(msg: string): void {
 
 export function sendScoreboardEvent(event: ScoreboardEvent): void {
   sendRawTransportMessage(JSON.stringify(event))
-}
-
-export function sendScoreboardSettingsSync(options?: { force?: boolean }): void {
-  const showEventLog = SETTINGS.scoreboard.ui.showEventLog === true
-  const force = options?.force === true
-  if (!force && lastSyncedShowEventLog === showEventLog) return
-
-  lastSyncedShowEventLog = showEventLog
-  const message = createScoreboardSettingsSyncMessage(showEventLog)
-  sendRawTransportMessage(JSON.stringify(message))
 }
 
 export { CHANNEL_NAME }

@@ -3,31 +3,23 @@ import type {
   ScoreboardSourceSettings,
 } from '@/scoreboard/scoreBoardSettings.types'
 import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
-import {
-  getHighScoreSubmissionSnapshot,
-  subscribeHighScoreSubmissionSnapshot,
-} from '@/scoreboard/highScoreSubmissionRuntime'
 import { SCOREBOARD_SETTINGS } from '@/scoreboard/scoreBoardSettings'
 import {
   subscribeScoreboardEvents,
-  type ScoreboardReceiverStatus,
 } from '@/scoreboard/scoreboardReceiver'
-import { SETTINGS } from '@/settings/GameSettings'
 import { useSettingsVersion } from '@/settings/settingsStore'
 import { ScoreboardDmdRenderer } from '@/ui/scoreboard/ScoreboardDmdRenderer'
-import { ScoreboardFxOverlay } from '@/ui/scoreboard/ScoreboardFxOverlay'
 import {
   createScoreboardEventOrchestrator,
-  type ScoreboardEventOrchestrator,
 } from '@/ui/scoreboard/scoreboardEventOrchestrator'
-import type {
-  ScoreboardEventLogEntry,
-  ScoreboardVisualCue,
-} from '@/ui/scoreboard/scoreboardEventRuntime.types'
 import {
   ScoreboardRiveDriver,
   type ScoreboardRiveStatus,
 } from '@/ui/scoreboard/ScoreboardRiveDriver'
+import {
+  applyScoreboardEventToRive,
+} from '@/ui/scoreboard/scoreboardRiveEventMapper'
+import { ScoreboardRiveDebugPanel } from '@/ui/scoreboard/ScoreboardRiveDebugPanel'
 import {
   initScoreboardAudio,
   playScoreboardSoundCue,
@@ -35,83 +27,61 @@ import {
 import { ScoreboardSettingsPanel } from '@/ui/scoreboard/ScoreboardSettingsPanel'
 import {
   isSameResolvedScoreboardSource,
-  resolveScoreboardSourceSize,
+  resolveScoreboardSource,
   type ResolvedScoreboardSource,
 } from '@/ui/scoreboard/scoreboardSourceResolution'
 
 type ScoreboardUiState = {
-  wsState: ScoreboardReceiverStatus['wsState']
-  wsEnabled: boolean
-  wsUrl: string
   riveState: ScoreboardRiveStatus['state']
   artboardName: string
   animationName: string
   stateMachineName: string
-  lastEventType: ScoreboardEvent['type'] | 'none'
+  riveBindingWarnings: readonly string[]
   sourceLuma: number
   sourceAlpha: number
   fps: number
-  highScoreEntries: number
-  lastSubmittedRank: number | null
-  highScoreStorageMode: string
   error: string | null
 }
 
 const INITIAL_UI_STATE: ScoreboardUiState = {
-  wsState: 'disabled',
-  wsEnabled: false,
-  wsUrl: '',
   riveState: 'idle',
   artboardName: '-',
   animationName: '-',
   stateMachineName: '-',
-  lastEventType: 'none',
+  riveBindingWarnings: [],
   sourceLuma: 0,
   sourceAlpha: 0,
   fps: 0,
-  highScoreEntries: 0,
-  lastSubmittedRank: null,
-  highScoreStorageMode: 'unknown',
   error: null,
 }
 
-function getStatusColor(wsState: ScoreboardReceiverStatus['wsState']): string {
-  if (wsState === 'open') return '#4ade80'
-  if (wsState === 'connecting') return '#f59e0b'
-  if (wsState === 'closed') return '#f97316'
-  if (wsState === 'error') return '#ef4444'
-  return '#94a3b8'
-}
-
-function getViewportSize(): { width: number; height: number } {
-  if (typeof window === 'undefined') {
-    return {
-      width: SCOREBOARD_SETTINGS.dmd.source.fixedWidth,
-      height: SCOREBOARD_SETTINGS.dmd.source.fixedHeight,
-    }
-  }
-  return {
-    width: window.innerWidth,
-    height: window.innerHeight,
-  }
-}
-
 function resolveCurrentSource(): ResolvedScoreboardSource {
-  const viewport = getViewportSize()
-  return resolveScoreboardSourceSize(viewport.width, viewport.height, SCOREBOARD_SETTINGS.dmd.source)
+  return resolveScoreboardSource(SCOREBOARD_SETTINGS.dmd.source)
+}
+
+function getViewportCanvasCssSize(): number {
+  if (typeof window === 'undefined') return SCOREBOARD_SETTINGS.dmd.source.size
+  return Math.max(1, Math.max(window.innerWidth, window.innerHeight))
+}
+
+function createInitialScoreboardEvent(): ScoreboardEvent {
+  return {
+    type: 'idle_started',
+    timestamp: Date.now(),
+    runId: 'scoreboard-initial',
+  }
 }
 
 export function ScoreboardPage() {
   const globalSettingsVersion = useSettingsVersion()
-  const showEventLog = SETTINGS.scoreboard.ui.showEventLog === true
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dmdRendererRef = useRef<ScoreboardDmdRenderer | null>(null)
-  const orchestratorRef = useRef<ScoreboardEventOrchestrator | null>(null)
-  const cueTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
+  const riveDriverRef = useRef<ScoreboardRiveDriver | null>(null)
   const overlayVisibleRef = useRef(SCOREBOARD_SETTINGS.debug.showOverlayByDefault === true)
   const [overlayVisible, setOverlayVisible] = useState(
     SCOREBOARD_SETTINGS.debug.showOverlayByDefault === true,
   )
+  const [debugPanelVisible, setDebugPanelVisible] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [, setScoreboardSettingsVersion] = useState(0)
   const [sourceConfigVersion, setSourceConfigVersion] = useState(0)
@@ -120,25 +90,13 @@ export function ScoreboardPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [uiState, setUiState] = useState<ScoreboardUiState>(INITIAL_UI_STATE)
-  const [eventLog, setEventLog] = useState<readonly ScoreboardEventLogEntry[]>([])
-  const [activeFxCues, setActiveFxCues] = useState<readonly ScoreboardVisualCue[]>([])
+  const [latestScoreboardEvent, setLatestScoreboardEvent] = useState<ScoreboardEvent | null>(null)
 
-  const clearFxCueTimeouts = useCallback(() => {
-    cueTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId))
-    cueTimeoutsRef.current.clear()
-  }, [])
-
-  const enqueueVisualCue = useCallback((cue: ScoreboardVisualCue) => {
-    setActiveFxCues((prev) => [...prev, cue])
-    const timeoutId = setTimeout(() => {
-      cueTimeoutsRef.current.delete(cue.id)
-      setActiveFxCues((prev) => prev.filter((activeCue) => activeCue.id !== cue.id))
-    }, cue.durationMs + 140)
-    cueTimeoutsRef.current.set(cue.id, timeoutId)
-  }, [])
-
-  const clearEventLog = useCallback(() => {
-    orchestratorRef.current?.clearLog()
+  const handleDebugTriggerEvent = useCallback((event: ScoreboardEvent) => {
+    if (riveDriverRef.current) {
+      applyScoreboardEventToRive(riveDriverRef.current, event)
+    }
+    setLatestScoreboardEvent(event)
   }, [])
 
   useEffect(() => {
@@ -154,12 +112,6 @@ export function ScoreboardPage() {
   }, [])
 
   useEffect(() => {
-    return () => {
-      clearFxCueTimeouts()
-    }
-  }, [clearFxCueTimeouts])
-
-  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return
       const target = event.target as HTMLElement | null
@@ -168,6 +120,11 @@ export function ScoreboardPage() {
         target
         && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable)
       ) {
+        return
+      }
+      if (event.metaKey && event.code === 'Period') {
+        event.preventDefault()
+        setDebugPanelVisible((prev) => !prev)
         return
       }
       if (event.key === '§' || event.code === 'Backquote') {
@@ -199,25 +156,21 @@ export function ScoreboardPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (appliedSource.mode !== 'viewport_divider') return
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-    const onResize = () => {
-      if (timeoutId) clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => {
-        const resolved = resolveCurrentSource()
-        if (isSameResolvedScoreboardSource(appliedSourceRef.current, resolved)) return
-        setAppliedSource(resolved)
-        setSourceConfigVersion((v) => v + 1)
-      }, 200)
+    const applyCanvasCssSize = () => {
+      const size = getViewportCanvasCssSize()
+      canvas.style.width = `${size}px`
+      canvas.style.height = `${size}px`
     }
 
-    window.addEventListener('resize', onResize)
+    applyCanvasCssSize()
+    window.addEventListener('resize', applyCanvasCssSize)
     return () => {
-      if (timeoutId) clearTimeout(timeoutId)
-      window.removeEventListener('resize', onResize)
+      window.removeEventListener('resize', applyCanvasCssSize)
     }
-  }, [appliedSource.mode])
+  }, [sourceConfigVersion])
 
   const handleSave = useCallback(async () => {
     if (!import.meta.env.DEV) return
@@ -243,22 +196,6 @@ export function ScoreboardPage() {
   }, [])
 
   useEffect(() => {
-    const applySnapshot = (snapshot: ReturnType<typeof getHighScoreSubmissionSnapshot>) => {
-      const entryCount = snapshot.length
-      setUiState((prev) => (
-        prev.highScoreEntries === entryCount
-          ? prev
-          : { ...prev, highScoreEntries: entryCount }
-      ))
-    }
-
-    applySnapshot(getHighScoreSubmissionSnapshot())
-    return subscribeHighScoreSubmissionSnapshot((snapshot) => {
-      applySnapshot(snapshot)
-    })
-  }, [])
-
-  useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -273,6 +210,7 @@ export function ScoreboardPage() {
     let dmdRenderer: ScoreboardDmdRenderer | null = null
     let unsubscribeReceiver: (() => void) | null = null
     let sourceCtx: CanvasRenderingContext2D | null = null
+    let initialRiveDataApplied = false
 
     const setError = (message: string) => {
       setUiState((prev) => ({ ...prev, error: message }))
@@ -292,56 +230,35 @@ export function ScoreboardPage() {
       sourceHeight: appliedSource.height,
       riveFit: appliedSource.fit,
       onStatus: (status) => {
+        if (status.state === 'ready' && !initialRiveDataApplied) {
+          initialRiveDataApplied = true
+          const initialEvent = createInitialScoreboardEvent()
+          const activeRiveDriver = riveDriverRef.current ?? riveDriver
+          if (activeRiveDriver) applyScoreboardEventToRive(activeRiveDriver, initialEvent)
+          setLatestScoreboardEvent(initialEvent)
+        }
         setUiState((prev) => ({
           ...prev,
           riveState: status.state,
           artboardName: status.artboardName ?? '-',
           animationName: status.animationName ?? '-',
           stateMachineName: status.stateMachineName ?? '-',
+          riveBindingWarnings: status.bindingWarnings,
           error: status.error ?? prev.error,
         }))
       },
     })
+    riveDriverRef.current = riveDriver
 
     const orchestrator = createScoreboardEventOrchestrator({
-      logCapacity: 200,
-      onVisualCue: enqueueVisualCue,
       onSoundCue: playScoreboardSoundCue,
-      onLogUpdate: setEventLog,
     })
-    orchestratorRef.current = orchestrator
-    setEventLog(orchestrator.getLogSnapshot())
 
     unsubscribeReceiver = subscribeScoreboardEvents(
       (event) => {
         orchestrator.handleEvent(event)
-
-        if (event.type === 'initials_step_finished') {
-          const rank = typeof event.rank === 'number' ? Math.max(1, Math.trunc(event.rank)) : null
-          const totalEntries = Number.isFinite(event.totalEntries)
-            ? Math.max(0, Math.trunc(event.totalEntries))
-            : null
-          const storageMode = typeof event.storageMode === 'string' ? event.storageMode : 'unknown'
-
-          setUiState((prev) => ({
-            ...prev,
-            lastEventType: event.type,
-            lastSubmittedRank: rank,
-            highScoreEntries: totalEntries ?? prev.highScoreEntries,
-            highScoreStorageMode: storageMode,
-          }))
-          return
-        }
-
-        setUiState((prev) => ({ ...prev, lastEventType: event.type }))
-      },
-      (status) => {
-        setUiState((prev) => ({
-          ...prev,
-          wsEnabled: status.wsEnabled,
-          wsState: status.wsState,
-          wsUrl: status.wsUrl,
-        }))
+        if (riveDriver) applyScoreboardEventToRive(riveDriver, event)
+        setLatestScoreboardEvent(event)
       },
     )
 
@@ -411,12 +328,10 @@ export function ScoreboardPage() {
       disposed = true
       cancelAnimationFrame(rafId)
       unsubscribeReceiver?.()
-      if (orchestratorRef.current === orchestrator) {
-        orchestratorRef.current = null
-      }
       orchestrator.dispose()
-      clearFxCueTimeouts()
-      setActiveFxCues([])
+      if (riveDriverRef.current === riveDriver) {
+        riveDriverRef.current = null
+      }
       riveDriver?.dispose()
       dmdRenderer?.dispose()
       dmdRendererRef.current = null
@@ -427,24 +342,14 @@ export function ScoreboardPage() {
     appliedSource.fit,
     appliedSource.height,
     appliedSource.width,
-    clearFxCueTimeouts,
-    enqueueVisualCue,
   ])
 
   return (
     <div style={styles.page}>
       <canvas ref={canvasRef} style={styles.canvas} />
-      <ScoreboardFxOverlay cues={activeFxCues} />
 
       {overlayVisible && (
         <div style={styles.status}>
-          <div style={styles.statusLine}>
-            <span style={styles.label}>transport</span>
-            <span style={{ ...styles.value, color: getStatusColor(uiState.wsState) }}>
-              {uiState.wsEnabled ? uiState.wsState : 'bc_only'}
-            </span>
-            <span style={styles.muted}>{uiState.wsEnabled ? uiState.wsUrl : 'BroadcastChannel only'}</span>
-          </div>
           <div style={styles.statusLine}>
             <span style={styles.label}>rive</span>
             <span style={styles.value}>{uiState.riveState}</span>
@@ -452,10 +357,18 @@ export function ScoreboardPage() {
               artboard: {uiState.artboardName} | animation: {uiState.animationName} | sm: {uiState.stateMachineName}
             </span>
           </div>
+          {uiState.riveBindingWarnings.length > 0 && (
+            <div style={styles.statusLine}>
+              <span style={styles.label}>binding</span>
+              <span style={styles.value}>{uiState.riveBindingWarnings.length} warn</span>
+              <span style={styles.muted}>
+                {uiState.riveBindingWarnings[uiState.riveBindingWarnings.length - 1]}
+              </span>
+            </div>
+          )}
           <div style={styles.statusLine}>
-            <span style={styles.label}>event</span>
-            <span style={styles.value}>{uiState.lastEventType}</span>
-            <span style={styles.muted}>dmd fps: {uiState.fps}</span>
+            <span style={styles.label}>dmd fps</span>
+            <span style={styles.value}>{uiState.fps}</span>
           </div>
           <div style={styles.statusLine}>
             <span style={styles.label}>source</span>
@@ -464,12 +377,13 @@ export function ScoreboardPage() {
           </div>
           <div style={styles.statusLine}>
             <span style={styles.label}>source cfg</span>
-            <span style={styles.value}>{appliedSource.mode}</span>
+            <span style={styles.value}>fixed square</span>
             <span style={styles.muted}>
               {appliedSource.width}x{appliedSource.height}
-              {appliedSource.mode === 'viewport_divider' ? ` | div ${appliedSource.divider.toFixed(2)}` : ''}
               {' | fit '}
               {appliedSource.fit}
+              {' | dots '}
+              {SCOREBOARD_SETTINGS.dmd.grid.dotsPerSide}
             </span>
           </div>
           <div style={styles.statusLine}>
@@ -482,37 +396,15 @@ export function ScoreboardPage() {
             <span style={styles.value}>range {SCOREBOARD_SETTINGS.dmd.edge.detectRange.toFixed(2)}</span>
             <span style={styles.muted}>strength {SCOREBOARD_SETTINGS.dmd.edge.compressStrength.toFixed(2)}</span>
           </div>
-          <div style={styles.statusLine}>
-            <span style={styles.label}>high score</span>
-            <span style={styles.value}>rank {uiState.lastSubmittedRank ?? '-'}</span>
-            <span style={styles.muted}>entries {uiState.highScoreEntries} | storage {uiState.highScoreStorageMode}</span>
-          </div>
         </div>
       )}
 
-      {showEventLog && (
-        <div style={styles.eventLogPanel}>
-          <div style={styles.eventLogHeader}>
-            <span style={styles.label}>event log</span>
-            <span style={styles.muted}>{eventLog.length} / 200</span>
-            <button type="button" style={styles.clearButton} onClick={clearEventLog}>
-              clear
-            </button>
-          </div>
-          <div style={styles.eventLogList}>
-            {eventLog.length === 0 ? (
-              <div style={styles.eventLogEmpty}>no events yet</div>
-            ) : (
-              eventLog.slice(0, 10).map((entry) => (
-                <div key={entry.id} style={styles.eventLogLine}>
-                  <span style={styles.eventLogTime}>{new Date(entry.receivedAtMs).toLocaleTimeString()}</span>
-                  <span style={styles.eventLogType}>{entry.eventType}</span>
-                  <span style={styles.eventLogSummary}>{entry.summary}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+      {import.meta.env.DEV && (
+        <ScoreboardRiveDebugPanel
+          open={debugPanelVisible}
+          latestEvent={latestScoreboardEvent}
+          onTriggerEvent={handleDebugTriggerEvent}
+        />
       )}
 
       {uiState.error && (
@@ -547,9 +439,9 @@ const styles = {
   },
   canvas: {
     position: 'absolute',
-    inset: 0,
-    width: '100%',
-    height: '100%',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
     display: 'block',
   },
   status: {
@@ -589,77 +481,6 @@ const styles = {
   muted: {
     color: '#a7f3d0',
     opacity: 0.75,
-  },
-  eventLogPanel: {
-    position: 'absolute',
-    left: 12,
-    bottom: 12,
-    width: 'min(920px, calc(100vw - 24px))',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 6,
-    padding: '10px 12px',
-    borderRadius: 8,
-    border: '1px solid rgba(134, 239, 172, 0.22)',
-    background: 'rgba(0, 0, 0, 0.58)',
-    color: '#d1fae5',
-    pointerEvents: 'auto' as const,
-    zIndex: 25,
-  },
-  eventLogHeader: {
-    display: 'flex',
-    alignItems: 'center' as const,
-    gap: 10,
-  },
-  clearButton: {
-    marginLeft: 'auto',
-    padding: '2px 8px',
-    borderRadius: 4,
-    border: '1px solid rgba(134, 239, 172, 0.45)',
-    background: 'rgba(5, 18, 12, 0.8)',
-    color: '#d1fae5',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.04em',
-    fontSize: 10,
-    cursor: 'pointer',
-  },
-  eventLogList: {
-    maxHeight: 170,
-    overflowY: 'auto' as const,
-    border: '1px solid rgba(134, 239, 172, 0.24)',
-    borderRadius: 6,
-    padding: '6px 8px',
-    background: 'rgba(2, 10, 6, 0.65)',
-  },
-  eventLogEmpty: {
-    color: '#a7f3d0',
-    opacity: 0.7,
-    fontSize: 11,
-  },
-  eventLogLine: {
-    display: 'flex',
-    alignItems: 'baseline' as const,
-    gap: 8,
-    fontSize: 11,
-    minHeight: 16,
-    lineHeight: 1.3,
-  },
-  eventLogTime: {
-    color: '#6ee7b7',
-    minWidth: 62,
-    opacity: 0.85,
-  },
-  eventLogType: {
-    color: '#d9f99d',
-    minWidth: 132,
-    fontWeight: 700,
-  },
-  eventLogSummary: {
-    color: '#c6f6d5',
-    opacity: 0.85,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
   },
   errorOverlay: {
     position: 'absolute',
