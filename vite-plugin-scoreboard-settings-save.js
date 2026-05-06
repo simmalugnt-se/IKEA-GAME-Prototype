@@ -55,7 +55,7 @@ function normalizeSettings(raw) {
   const timing = raw?.dmd?.timing ?? {}
   const palette = Array.isArray(raw?.dmd?.palette) ? raw.dmd.palette.slice(0, 4) : []
 
-  while (palette.length < 4) palette.push('#141414')
+  while (palette.length < 4) palette.push('#000000')
 
   return {
     debug: {
@@ -91,7 +91,7 @@ function normalizeSettings(raw) {
         String(palette[0] ?? '#669E10'),
         String(palette[1] ?? '#006B18'),
         String(palette[2] ?? '#0E3420'),
-        String(palette[3] ?? '#141414'),
+        String(palette[3] ?? '#000000'),
       ],
     },
   }

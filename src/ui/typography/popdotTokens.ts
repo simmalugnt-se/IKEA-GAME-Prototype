@@ -8,7 +8,7 @@ export type PopdotAxes = {
   SQRE: number
 }
 
-export const POPDOT_SHADOW_COLOR_FALLBACK = '#141414'
+export const POPDOT_SHADOW_COLOR_FALLBACK = '#000000'
 
 export const POPDOT_TEXT_BASE = {
   fontFamily: '"popdot", "Instrument Sans", sans-serif',

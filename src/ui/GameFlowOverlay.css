@@ -139,7 +139,7 @@
   padding: 0;
   border: 0.25rem solid #ffffff;
   border-radius: 0;
-  background: #141414;
+  background: #000000;
   color: #ffffff;
   font-size: 3.2rem;
   line-height: 1;
@@ -153,7 +153,7 @@
 
 .gfo-alphabet-letter-selected {
   background: #ffffff;
-  color: #141414;
+  color: #000000;
 }
 
 .gfo-alphabet-letter-selected::before {

@@ -5,7 +5,7 @@
 
 
 :root {
-  --ui-shadow-color: #141414;
+  --ui-shadow-color: #000000;
   --popdot-font-family: "popdot", "Instrument Sans", sans-serif;
   --popdot-line-height: 0.75em;
   --popdot-letter-spacing: 0.08em;
@@ -35,9 +35,9 @@
   --popdot-style6-slnt: 0;
   --popdot-style6-wdth: 0;
   --popdot-style6-sqre: 0;
-  --popdot-shadow-2: 0.5px 0.5px 0 var(--ui-shadow-color, #141414), 1px 1px 0 var(--ui-shadow-color, #141414), 1.5px 1.5px 0 var(--ui-shadow-color, #141414), 2px 2px 0 var(--ui-shadow-color, #141414);
-  --popdot-shadow-4: 0.5px 0.5px 0 var(--ui-shadow-color, #141414), 1px 1px 0 var(--ui-shadow-color, #141414), 1.5px 1.5px 0 var(--ui-shadow-color, #141414), 2px 2px 0 var(--ui-shadow-color, #141414), 2.5px 2.5px 0 var(--ui-shadow-color, #141414), 3px 3px 0 var(--ui-shadow-color, #141414), 3.5px 3.5px 0 var(--ui-shadow-color, #141414), 4px 4px 0 var(--ui-shadow-color, #141414);
-  --popdot-shadow-8: 1px 1px 0 var(--ui-shadow-color, #141414), 2px 2px 0 var(--ui-shadow-color, #141414), 3px 3px 0 var(--ui-shadow-color, #141414), 4px 4px 0 var(--ui-shadow-color, #141414), 5px 5px 0 var(--ui-shadow-color, #141414), 6px 6px 0 var(--ui-shadow-color, #141414), 7px 7px 0 var(--ui-shadow-color, #141414), 8px 8px 0 var(--ui-shadow-color, #141414);
-  --popdot-shadow-12: 2px 2px 0 var(--ui-shadow-color, #141414), 4px 4px 0 var(--ui-shadow-color, #141414), 6px 6px 0 var(--ui-shadow-color, #141414), 8px 8px 0 var(--ui-shadow-color, #141414), 10px 10px 0 var(--ui-shadow-color, #141414), 12px 12px 0 var(--ui-shadow-color, #141414);
-  --popdot-shadow-16: 2px 2px 0 var(--ui-shadow-color, #141414), 4px 4px 0 var(--ui-shadow-color, #141414), 6px 6px 0 var(--ui-shadow-color, #141414), 8px 8px 0 var(--ui-shadow-color, #141414), 10px 10px 0 var(--ui-shadow-color, #141414), 12px 12px 0 var(--ui-shadow-color, #141414), 14px 14px 0 var(--ui-shadow-color, #141414), 16px 16px 0 var(--ui-shadow-color, #141414);
+  --popdot-shadow-2: 0.5px 0.5px 0 var(--ui-shadow-color, #000000), 1px 1px 0 var(--ui-shadow-color, #000000), 1.5px 1.5px 0 var(--ui-shadow-color, #000000), 2px 2px 0 var(--ui-shadow-color, #000000);
+  --popdot-shadow-4: 0.5px 0.5px 0 var(--ui-shadow-color, #000000), 1px 1px 0 var(--ui-shadow-color, #000000), 1.5px 1.5px 0 var(--ui-shadow-color, #000000), 2px 2px 0 var(--ui-shadow-color, #000000), 2.5px 2.5px 0 var(--ui-shadow-color, #000000), 3px 3px 0 var(--ui-shadow-color, #000000), 3.5px 3.5px 0 var(--ui-shadow-color, #000000), 4px 4px 0 var(--ui-shadow-color, #000000);
+  --popdot-shadow-8: 1px 1px 0 var(--ui-shadow-color, #000000), 2px 2px 0 var(--ui-shadow-color, #000000), 3px 3px 0 var(--ui-shadow-color, #000000), 4px 4px 0 var(--ui-shadow-color, #000000), 5px 5px 0 var(--ui-shadow-color, #000000), 6px 6px 0 var(--ui-shadow-color, #000000), 7px 7px 0 var(--ui-shadow-color, #000000), 8px 8px 0 var(--ui-shadow-color, #000000);
+  --popdot-shadow-12: 2px 2px 0 var(--ui-shadow-color, #000000), 4px 4px 0 var(--ui-shadow-color, #000000), 6px 6px 0 var(--ui-shadow-color, #000000), 8px 8px 0 var(--ui-shadow-color, #000000), 10px 10px 0 var(--ui-shadow-color, #000000), 12px 12px 0 var(--ui-shadow-color, #000000);
+  --popdot-shadow-16: 2px 2px 0 var(--ui-shadow-color, #000000), 4px 4px 0 var(--ui-shadow-color, #000000), 6px 6px 0 var(--ui-shadow-color, #000000), 8px 8px 0 var(--ui-shadow-color, #000000), 10px 10px 0 var(--ui-shadow-color, #000000), 12px 12px 0 var(--ui-shadow-color, #000000), 14px 14px 0 var(--ui-shadow-color, #000000), 16px 16px 0 var(--ui-shadow-color, #000000);
 }

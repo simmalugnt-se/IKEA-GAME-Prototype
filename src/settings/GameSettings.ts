@@ -89,8 +89,8 @@ export const SETTINGS: Settings = {
 
   // --- FÄRGER ---
   colors: {
-    shadow: "#141414", // Färgen på skuggan (används av golvet och C4DMaterial)
-    outline: "#141414", // Färgen på outlines (oftast samma som skugga)
+    shadow: "#000000", // Färgen på skuggan (används av golvet och C4DMaterial)
+    outline: "#000000", // Färgen på outlines (oftast samma som skugga)
   },
 
   // --- FÄRGPALETT (Toon Material) ---
@@ -392,7 +392,7 @@ export const SETTINGS: Settings = {
         enabled: true,
         includeInDefaultPool: true,
         minScoreToSpawn: 10000,
-        weight: 0.1,
+        weight: 0.05,
         weightAcceleration: 0.008,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 2,
@@ -440,7 +440,7 @@ export const SETTINGS: Settings = {
         label: "Gift Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        weight: 0.1,
+        weight: 0.05,
         weightAcceleration: 0,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 1,
