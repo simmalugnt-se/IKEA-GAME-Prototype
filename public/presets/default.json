@@ -8,8 +8,8 @@
     "showStats": true
   },
   "colors": {
-    "shadow": "#141414",
-    "outline": "#141414"
+    "shadow": "#000000",
+    "outline": "#000000"
   },
   "palette": {
     "active": "greyscale",

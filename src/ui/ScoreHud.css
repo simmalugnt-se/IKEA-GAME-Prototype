@@ -14,7 +14,7 @@
 .score-hud-panel--score {
   top: var(--edgeDistance);
   left: var(--edgeDistance);
-  background-color: var(--hud-outline, #141414);
+  background-color: var(--hud-outline, #000000);
   color: var(--hud-white, #ffffff);
   transition: transform 2s cubic-bezier(0.6, 0, 0, 1);
 }
@@ -23,7 +23,7 @@
   top: var(--edgeDistance);
   right: var(--edgeDistance);
   align-items: center;
-  background-color: var(--ui-shadow-color, #141414);
+  background-color: var(--ui-shadow-color, #000000);
   color: var(--hud-white, #ffffff);
   transition: transform 2s 0.15s cubic-bezier(0.6, 0, 0, 1);
 }
@@ -37,17 +37,17 @@
 
 .score-hud-chip--score-value {
   background-color: var(--hud-white, #ffffff);
-  color: var(--hud-outline, #141414);
+  color: var(--hud-outline, #000000);
 }
 
 .score-hud-chip--lives-value {
   background-color: #ffffff;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
 }
 
 .score-hud-chip--time-value {
   background-color: #ffffff;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
   min-width: 5.25ch;
   justify-content: center;
 }
@@ -99,7 +99,7 @@
 .score-hud-life {
   font-size: 2rem;
   text-transform: none;
-  color: var(--hud-outline, #141414);
+  color: var(--hud-outline, #000000);
 }
 
 .score-hud-life--lost {

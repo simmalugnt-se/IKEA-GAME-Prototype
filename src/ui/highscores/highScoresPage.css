@@ -28,7 +28,7 @@
 .high-scores-page__meta {
   flex: 0 0 auto;
   padding: 0.4rem 0.65rem;
-  background: var(--ui-shadow-color, #141414);
+  background: var(--ui-shadow-color, #000000);
   color: #ffffff;
   font-size: 1.5rem;
   line-height: 1;
@@ -36,7 +36,7 @@
 }
 
 .high-scores-table-wrap {
-  background: var(--ui-shadow-color, #141414);
+  background: var(--ui-shadow-color, #000000);
   color: #ffffff;
   overflow-x: auto;
 }
@@ -58,7 +58,7 @@
 
 .high-scores-table th {
   background: #ffffff;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
   font-size: 0.8rem;
   letter-spacing: 0;
   text-transform: uppercase;

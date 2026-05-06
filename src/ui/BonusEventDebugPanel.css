@@ -15,7 +15,7 @@
   pointer-events: auto;
   appearance: none;
   border: 0;
-  background: var(--ui-shadow-color, #141414);
+  background: var(--ui-shadow-color, #000000);
   color: #ffffff;
   border-radius: 0;
   padding: 0.45rem 0.65rem;
@@ -36,13 +36,13 @@
 .bonus-debug-panel__toggle:hover,
 .bonus-debug-panel__button:hover {
   background: #ffffff;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
 }
 
 .bonus-debug-panel__toggle:disabled,
 .bonus-debug-panel__button:disabled {
   background: #ffffff;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
   opacity: 0.56;
   cursor: default;
 }
@@ -50,7 +50,7 @@
 .bonus-debug-panel__toggle:disabled:hover,
 .bonus-debug-panel__button:disabled:hover {
   background: #ffffff;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
 }
 
 .bonus-debug-panel__card {
@@ -60,7 +60,7 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: var(--ui-shadow-color, #141414);
+  background: var(--ui-shadow-color, #000000);
   color: #ffffff;
 }
 
@@ -97,12 +97,12 @@
 
 .bonus-debug-panel__button--accent {
   background: #ffffff;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
 }
 
 .bonus-debug-panel__button--accent:hover {
   background: #d2be27;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
 }
 
 .bonus-debug-panel__button--ghost {
@@ -115,7 +115,7 @@
 
 .bonus-debug-panel__button--ghost:hover {
   background: #ffffff;
-  color: var(--ui-shadow-color, #141414);
+  color: var(--ui-shadow-color, #000000);
 }
 
 @media (max-width: 720px) {

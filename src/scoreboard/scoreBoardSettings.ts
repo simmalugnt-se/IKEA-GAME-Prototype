@@ -7,7 +7,7 @@ export const SCOREBOARD_SETTINGS: ScoreboardSettings = {
   display: {
     // CSS-pixlar in från viewport-kanterna. Negativa värden tillåtna för
     // mask-offset utanför viewport.
-    safeAreaPx: { left: 0, right: 0, top: 0, bottom: 0 },
+    safeAreaPx: { left: 140, right: 240, top: 0, bottom: 0 },
   },
   dmd: {
     source: {
