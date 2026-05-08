@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { disposeBackgroundMusic, preloadBackgroundMusic } from "@/audio/BackgroundMusicManager";
 import { preloadAudioBanks } from "@/audio/SoundManager";
 import { CursorTrailCanvas } from "@/input/CursorTrailCanvas";
+import { isInstallationStopShortcut, requestInstallationStop } from "@/installationStop";
 import { Scene } from "@/scene/Scene";
 import { SETTINGS, getActiveBackground } from "@/settings/GameSettings";
 import { useSettingsVersion } from "@/settings/settingsStore";
@@ -91,6 +92,11 @@ function GameApp() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
       if (isEditableKeyboardTarget(e.target)) return;
+      if (isInstallationStopShortcut(e)) {
+        e.preventDefault();
+        requestInstallationStop();
+        return;
+      }
       if (e.metaKey && (e.key === "." || e.code === "Period")) {
         e.preventDefault();
         setIsSettingsPanelVisible((v) => !v);
@@ -119,7 +125,7 @@ function GameApp() {
         width: "100vw",
         height: "100vh",
         background: backgroundColor,
-        cursor: SETTINGS.cursor.inputSource === "external" ? "default" : "none",
+        cursor: "none",
       }}
     >
       <UiStyleVarsRuntime />

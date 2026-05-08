@@ -251,8 +251,7 @@ export function CursorTrailCanvas() {
     }
 
     window.addEventListener('pointermove', onPointerMove, { passive: true })
-    document.documentElement.style.cursor =
-      SETTINGS.cursor.inputSource === 'external' ? '' : 'none'
+    document.documentElement.style.cursor = 'none'
 
     const frame = () => {
       rafId = requestAnimationFrame(frame)
@@ -269,8 +268,7 @@ export function CursorTrailCanvas() {
       const inputSource = SETTINGS.cursor.inputSource
       if (inputSource !== previousInputSource) {
         clearAllHistory()
-        document.documentElement.style.cursor =
-          inputSource === 'external' ? '' : 'none'
+        document.documentElement.style.cursor = 'none'
         previousInputSource = inputSource
       }
 

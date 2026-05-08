@@ -3,9 +3,11 @@ import type {
   ScoreboardSourceSettings,
 } from '@/scoreboard/scoreBoardSettings.types'
 import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
+import { isInstallationStopShortcut, requestInstallationStop } from '@/installationStop'
 import { SCOREBOARD_SETTINGS } from '@/scoreboard/scoreBoardSettings'
 import {
   subscribeScoreboardEvents,
+  type ScoreboardReceiverStatus,
 } from '@/scoreboard/scoreboardReceiver'
 import { useSettingsVersion } from '@/settings/settingsStore'
 import { ScoreboardDmdRenderer } from '@/ui/scoreboard/ScoreboardDmdRenderer'
@@ -40,6 +42,7 @@ type ScoreboardUiState = {
   sourceLuma: number
   sourceAlpha: number
   fps: number
+  receiverStatus: ScoreboardReceiverStatus | null
   error: string | null
 }
 
@@ -52,6 +55,7 @@ const INITIAL_UI_STATE: ScoreboardUiState = {
   sourceLuma: 0,
   sourceAlpha: 0,
   fps: 0,
+  receiverStatus: null,
   error: null,
 }
 
@@ -121,6 +125,13 @@ export function ScoreboardPage() {
   }, [])
 
   useEffect(() => {
+    document.documentElement.style.cursor = 'none'
+    return () => {
+      document.documentElement.style.cursor = ''
+    }
+  }, [])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return
       const target = event.target as HTMLElement | null
@@ -129,6 +140,11 @@ export function ScoreboardPage() {
         target
         && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable)
       ) {
+        return
+      }
+      if (isInstallationStopShortcut(event)) {
+        event.preventDefault()
+        requestInstallationStop()
         return
       }
       if (event.metaKey && event.code === 'Period') {
@@ -270,6 +286,9 @@ export function ScoreboardPage() {
         if (riveDriver) applyScoreboardEventToRive(riveDriver, event)
         setLatestScoreboardEvent(event)
       },
+      (receiverStatus) => {
+        setUiState((prev) => ({ ...prev, receiverStatus }))
+      },
     )
 
     const frame = (now: number) => {
@@ -380,6 +399,15 @@ export function ScoreboardPage() {
             <span style={styles.label}>dmd fps</span>
             <span style={styles.value}>{uiState.fps}</span>
           </div>
+          {uiState.receiverStatus && (
+            <div style={styles.statusLine}>
+              <span style={styles.label}>receiver</span>
+              <span style={styles.value}>
+                {uiState.receiverStatus.wsEnabled ? uiState.receiverStatus.wsState : 'broadcast'}
+              </span>
+              <span style={styles.muted}>{uiState.receiverStatus.wsUrl}</span>
+            </div>
+          )}
           <div style={styles.statusLine}>
             <span style={styles.label}>source</span>
             <span style={styles.value}>luma {uiState.sourceLuma}</span>

@@ -71,8 +71,8 @@ export const SETTINGS: Settings = {
   // WebSocket below is optional — enable only when a relay server is running.
   scoreboard: {
     websocket: {
-      enabled: false,
-      url: "ws://localhost:5175/ws/scoreboard",
+      enabled: true,
+      url: "ws://127.0.0.1:5175/ws/scoreboard",
       reconnectMs: 1000,
     },
   },
