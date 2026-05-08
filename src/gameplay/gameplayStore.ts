@@ -571,10 +571,21 @@ function activateCursorSizeBoost(
       text: action.feedbackText.trim(),
       x: origin.x,
       y: origin.y,
-      burst: false,
+      burst: true,
       style: 'style5',
     })
   }
+}
+
+function emitSpawnEventFeedback(feedbackText: string | undefined, origin?: ScreenPos): void {
+  if (typeof feedbackText !== 'string' || feedbackText.trim().length <= 0 || !origin) return
+  emitScorePop({
+    text: feedbackText.trim(),
+    x: origin.x,
+    y: origin.y,
+    burst: true,
+    style: 'style5',
+  })
 }
 
 function activateTimeScaleBoost(
@@ -598,15 +609,7 @@ function activateTimeScaleBoost(
     easeOutMs: normalizeNonNegativeInt(action.easeOutMs, 0),
   }
 
-  if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
-    emitScorePop({
-      text: action.feedbackText.trim(),
-      x: origin.x,
-      y: origin.y,
-      burst: false,
-      style: 'style5',
-    })
-  }
+  emitSpawnEventFeedback(action.feedbackText, origin)
 }
 
 function resolveGravityShiftContagionColorIndex(
@@ -675,7 +678,7 @@ function activateGravityShift(
       text: action.feedbackText.trim(),
       x: origin.x,
       y: origin.y,
-      burst: false,
+      burst: true,
       style: 'style5',
     })
   }
@@ -716,7 +719,7 @@ function activateCursorBurstRing(
       text: action.feedbackText.trim(),
       x: origin.x,
       y: origin.y,
-      burst: false,
+      burst: true,
       style: 'style5',
     })
   }
@@ -735,7 +738,7 @@ function triggerGroundBallWave(
       text: action.feedbackText.trim(),
       x: origin.x,
       y: origin.y,
-      burst: false,
+      burst: true,
       style: 'style5',
     })
   }
@@ -754,7 +757,7 @@ function triggerTrackSweeper(
       text: action.feedbackText.trim(),
       x: origin.x,
       y: origin.y,
-      burst: false,
+      burst: true,
       style: 'style5',
     })
   }
@@ -855,6 +858,7 @@ function executeSpawnEventAction(
     if (requests.length > 0) {
       useSpawnerStore.getState().enqueueSpawns(requests)
     }
+    emitSpawnEventFeedback(action.feedbackText, origin)
     return
   }
 
@@ -2238,16 +2242,14 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       }))
     }
 
-    if (timeDeltaMs !== 0 && appliedScoreDelta === 0) return
-
-    const text = buildSpawnItemEffectLabel(appliedScoreDelta, 0, event.feedbackText)
+    const text = buildSpawnItemEffectLabel(appliedScoreDelta, timeDeltaMs, event.feedbackText)
     if (!text) return
 
     emitScorePop({
       text,
       x: event.x,
       y: event.y,
-      burst: false,
+      burst: true,
       style: appliedScoreDelta < 0 || timeDeltaMs < 0 ? 'style5' : 'style2',
     })
   },

@@ -13,13 +13,18 @@ const SCORE_LERP_MAX_DT_SEC = 0.05
 const HEART_LIGATURE = '#heart'
 const CLOCK_LIGATURE = '#CLOCK'
 const TIME_TICK_INTERVAL_MS = 100
-const TIME_FEEDBACK_VISIBLE_MS = 1200
+const TIME_FEEDBACK_HOLD_MS = 1600
+const TIME_FEEDBACK_TRANSITION_MS = 260
 
 function formatClockValue(remainingMs: number): string {
   const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function formatInlineTimeFeedback(text: string): string {
+  return text.replace(/S\b/g, 's')
 }
 
 export function ScoreHud() {
@@ -56,8 +61,11 @@ export function ScoreHud() {
   const timeTickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const timeTickRafIdRef = useRef<number | null>(null)
   const timeFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timeFeedbackCleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timeFeedbackRafIdRef = useRef<number | null>(null)
   const [timeNowMs, setTimeNowMs] = useState(() => Date.now())
   const [visibleTimeFeedback, setVisibleTimeFeedback] = useState('')
+  const [isTimeFeedbackOpen, setIsTimeFeedbackOpen] = useState(false)
   const scorePanelStyle: CSSProperties = {
     transform: topHudTransform,
     ['--hud-outline' as any]: secondaryColor,
@@ -239,6 +247,14 @@ export function ScoreHud() {
         clearTimeout(timeFeedbackTimerRef.current)
         timeFeedbackTimerRef.current = null
       }
+      if (timeFeedbackCleanupTimerRef.current !== null) {
+        clearTimeout(timeFeedbackCleanupTimerRef.current)
+        timeFeedbackCleanupTimerRef.current = null
+      }
+      if (timeFeedbackRafIdRef.current !== null) {
+        cancelAnimationFrame(timeFeedbackRafIdRef.current)
+        timeFeedbackRafIdRef.current = null
+      }
       lastScoreFrameTimeRef.current = null
     }
   }, [])
@@ -248,17 +264,35 @@ export function ScoreHud() {
       clearTimeout(timeFeedbackTimerRef.current)
       timeFeedbackTimerRef.current = null
     }
+    if (timeFeedbackCleanupTimerRef.current !== null) {
+      clearTimeout(timeFeedbackCleanupTimerRef.current)
+      timeFeedbackCleanupTimerRef.current = null
+    }
+    if (timeFeedbackRafIdRef.current !== null) {
+      cancelAnimationFrame(timeFeedbackRafIdRef.current)
+      timeFeedbackRafIdRef.current = null
+    }
 
     if (flowState !== 'run' || runMode !== 'time' || runTimeFeedbackText.length === 0) {
+      setIsTimeFeedbackOpen(false)
       setVisibleTimeFeedback('')
       return
     }
 
     setVisibleTimeFeedback(runTimeFeedbackText)
+    setIsTimeFeedbackOpen(false)
+    timeFeedbackRafIdRef.current = requestAnimationFrame(() => {
+      timeFeedbackRafIdRef.current = null
+      setIsTimeFeedbackOpen(true)
+    })
     timeFeedbackTimerRef.current = setTimeout(() => {
       timeFeedbackTimerRef.current = null
+      setIsTimeFeedbackOpen(false)
+    }, TIME_FEEDBACK_HOLD_MS)
+    timeFeedbackCleanupTimerRef.current = setTimeout(() => {
+      timeFeedbackCleanupTimerRef.current = null
       setVisibleTimeFeedback('')
-    }, TIME_FEEDBACK_VISIBLE_MS)
+    }, TIME_FEEDBACK_HOLD_MS + TIME_FEEDBACK_TRANSITION_MS)
   }, [flowState, runMode, runTimeFeedbackSequence, runTimeFeedbackText])
 
   const blinkingLifeSlotSet = new Set(blinkingLifeSlots)
@@ -315,25 +349,48 @@ export function ScoreHud() {
       )}
 
       <div
-        className="score-hud-panel score-hud-panel--lives popdot-text-base popdot-style-3"
+        className={[
+          'score-hud-panel',
+          'score-hud-panel--lives',
+          runMode === 'time' ? 'score-hud-panel--time' : '',
+          'popdot-text-base',
+          'popdot-style-3',
+        ].join(' ').trim()}
         style={livesPanelStyle}
       >
         <span className="score-hud-chip popdot-text-base popdot-style-4 score-hud-chip--label">
           {runMode === 'time' ? CLOCK_LIGATURE : 'Lives'}
         </span>
         {runMode === 'time' ? (
-          <span
-            className={[
-              'score-hud-chip',
-              'popdot-text-base',
-              'popdot-style-3',
-              'score-hud-chip--time-value',
-              timePulseFast ? 'score-hud-time--pulse-fast' : '',
-              timePulseSlow ? 'score-hud-time--pulse-slow' : '',
-            ].join(' ').trim()}
-          >
-            {formatClockValue(displayRemainingTimeMs)}
-          </span>
+          <>
+            {visibleTimeFeedback.length > 0 && (
+              <span
+                key={runTimeFeedbackSequence}
+                className={[
+                  'score-hud-time-feedback',
+                  isTimeFeedbackOpen ? 'score-hud-time-feedback--open' : '',
+                  'popdot-text-base',
+                  'popdot-style-4',
+                ].join(' ').trim()}
+              >
+                <span className="score-hud-time-feedback__text">
+                  {formatInlineTimeFeedback(visibleTimeFeedback)}
+                </span>
+              </span>
+            )}
+            <span
+              className={[
+                'score-hud-chip',
+                'popdot-text-base',
+                'popdot-style-3',
+                'score-hud-chip--time-value',
+                timePulseFast ? 'score-hud-time--pulse-fast' : '',
+                timePulseSlow ? 'score-hud-time--pulse-slow' : '',
+              ].join(' ').trim()}
+            >
+              {formatClockValue(displayRemainingTimeMs)}
+            </span>
+          </>
         ) : (
           <span className="score-hud-chip popdot-text-base popdot-style-3 score-hud-chip--lives-value">
             {Array.from({ length: maxLives }, (_, slotIndex) => {
@@ -364,14 +421,6 @@ export function ScoreHud() {
                 </span>
               )
             })}
-          </span>
-        )}
-        {runMode === 'time' && visibleTimeFeedback.length > 0 && (
-          <span
-            key={runTimeFeedbackSequence}
-            className="score-hud-time-feedback popdot-text-base popdot-style-5 popdot-shadow-4"
-          >
-            {visibleTimeFeedback}
           </span>
         )}
       </div>
