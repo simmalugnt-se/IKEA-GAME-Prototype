@@ -5,6 +5,10 @@ import type {
 import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
 import { isInstallationStopShortcut, requestInstallationStop } from '@/installationStop'
 import {
+  useScoreboardInstallationWatchdog,
+  useWebglContextLossReload,
+} from '@/installationWatchdog'
+import {
   createHighScoresUpdatedEvent,
   createLiveRankUpdatedEvent,
 } from '@/scoreboard/highScoreScoreboardEvents'
@@ -111,6 +115,9 @@ export function ScoreboardPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [uiState, setUiState] = useState<ScoreboardUiState>(INITIAL_UI_STATE)
   const [latestScoreboardEvent, setLatestScoreboardEvent] = useState<ScoreboardEvent | null>(null)
+
+  useScoreboardInstallationWatchdog(uiState.receiverStatus, latestScoreboardEvent)
+  useWebglContextLossReload()
 
   const handleDebugTriggerEvent = useCallback((event: ScoreboardEvent) => {
     if (riveDriverRef.current) {

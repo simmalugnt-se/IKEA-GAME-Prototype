@@ -6,6 +6,7 @@ import { disposeBackgroundMusic, preloadBackgroundMusic } from "@/audio/Backgrou
 import { preloadAudioBanks } from "@/audio/SoundManager";
 import { CursorTrailCanvas } from "@/input/CursorTrailCanvas";
 import { isInstallationStopShortcut, requestInstallationStop } from "@/installationStop";
+import { useGameInstallationWatchdog, useWebglContextLossReload } from "@/installationWatchdog";
 import { Scene } from "@/scene/Scene";
 import { SETTINGS, getActiveBackground } from "@/settings/GameSettings";
 import { useSettingsVersion } from "@/settings/settingsStore";
@@ -78,6 +79,8 @@ export default function App() {
 
 function GameApp() {
   useSettingsVersion();
+  useGameInstallationWatchdog();
+  useWebglContextLossReload();
   const [isSettingsPanelVisible, setIsSettingsPanelVisible] = useState(false);
 
   useEffect(() => {

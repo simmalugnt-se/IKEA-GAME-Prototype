@@ -244,6 +244,15 @@ export type Settings = {
   render: {
     style: RenderStyle
   }
+  installation: {
+    watchdog: {
+      enabled: boolean
+      gameIdleReloadMs: number
+      scoreboardReloadMs: number
+      scoreboardStaleReloadMs: number
+      webglContextLostReloadMs: number
+    }
+  }
   scoreboard: {
     websocket: WebSocketChannelSettings
   }

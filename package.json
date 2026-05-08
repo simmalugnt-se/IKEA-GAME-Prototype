@@ -9,6 +9,8 @@
     "dev": "concurrently -n vite,highscore -c cyan,magenta \"npm run dev:vite\" \"npm run dev:highscore\"",
     "dev:vite": "vite",
     "dev:highscore": "node server/highscore-server.mjs",
+    "preview:installation": "vite preview --host ${GAME_HOST:-127.0.0.1} --port ${GAME_PORT:-5173}",
+    "start:installation": "concurrently -n preview,highscore -c cyan,magenta \"npm run preview:installation\" \"npm run dev:highscore\"",
     "prebuild": "npm run styles:generate",
     "build": "vite build",
     "lint": "eslint .",

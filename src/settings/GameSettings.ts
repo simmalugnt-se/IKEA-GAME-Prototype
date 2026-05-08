@@ -66,6 +66,18 @@ export const SETTINGS: Settings = {
     style: "toon",
   },
 
+  // --- INSTALLATION WATCHDOG ---
+  // Conservative safety reloads for long museum/kiosk sessions.
+  installation: {
+    watchdog: {
+      enabled: true,
+      gameIdleReloadMs: 20 * 60 * 1000,
+      scoreboardReloadMs: 4 * 60 * 60 * 1000,
+      scoreboardStaleReloadMs: 10 * 60 * 1000,
+      webglContextLostReloadMs: 1500,
+    },
+  },
+
   // --- SCOREBOARD ---
   // BroadcastChannel (cross-tab, same origin) is always active.
   // WebSocket below is optional — enable only when a relay server is running.
