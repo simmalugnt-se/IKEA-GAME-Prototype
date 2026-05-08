@@ -4,6 +4,7 @@ import type {
   HighScoreStorageMode,
 } from '@/settings/GameSettings.types'
 import { normalizeHighScoreInitials } from '@/ui/highScoreEntry/highScoreEntryAlphabet'
+import { replaceBlockedHighScoreInitials } from './highScoreInitialsModeration'
 
 export type HighScoreSubmissionReason = 'submitted' | 'timeout'
 
@@ -151,7 +152,7 @@ function normalizeRecordInput(
     ? raw.runId.trim()
     : `run-${submittedAtMs}`
   const score = normalizeNonNegativeInt(raw.score, 0)
-  const initials = normalizeHighScoreInitials(raw.initials)
+  const initials = replaceBlockedHighScoreInitials(normalizeHighScoreInitials(raw.initials), raw.initials)
   const reason = normalizeReason(raw.reason)
 
   return {

@@ -13,7 +13,8 @@ export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     cursorRelayPlugin(),
-    ...(command === 'serve' ? [scoreboardSettingsSavePlugin(), installationStopPlugin()] : []),
+    installationStopPlugin(),
+    ...(command === 'serve' ? [scoreboardSettingsSavePlugin()] : []),
   ],
   resolve: {
     alias: {

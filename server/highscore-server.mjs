@@ -12,6 +12,51 @@ const port = Number.parseInt(process.env.HIGHSCORE_PORT || '5175', 10)
 const dbPath = process.env.HIGHSCORE_DB_PATH || path.join(repoRoot, 'data', 'highscores.sqlite')
 const defaultLimit = 256
 const maxBodyBytes = 1024 * 1024
+const blockedHighScoreInitials = new Set([
+  'ASS',
+  'BAJ',
+  'CUM',
+  'DIE',
+  'FAN',
+  'FUC',
+  'FUK',
+  'HOR',
+  'KUK',
+  'SEX',
+  'SHT',
+  'SUK',
+  'TIT',
+  'WTF',
+])
+const fallbackHighScoreInitials = [
+  'ACE',
+  'ADA',
+  'BOB',
+  'DEX',
+  'EVA',
+  'FIN',
+  'GUS',
+  'JAX',
+  'KAI',
+  'LEO',
+  'MIA',
+  'NIA',
+  'RIO',
+  'SOL',
+  'UMA',
+  'ZOE',
+]
+const moderationCharacterMap = new Map([
+  ['0', 'O'],
+  ['1', 'I'],
+  ['3', 'E'],
+  ['4', 'A'],
+  ['5', 'S'],
+  ['7', 'T'],
+  ['Å', 'A'],
+  ['Ä', 'A'],
+  ['Ö', 'O'],
+])
 fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
 const db = new Database(dbPath)
@@ -89,10 +134,28 @@ function normalizeInitials(raw) {
   const source = typeof raw === 'string' ? raw.toUpperCase() : ''
   let out = ''
   for (let i = 0; i < 3; i += 1) {
-    const char = source[i] || 'A'
+    const rawChar = source[i] || 'A'
+    const char = moderationCharacterMap.get(rawChar) || rawChar
     out += char >= 'A' && char <= 'Z' ? char : 'A'
   }
-  return out
+  return isBlockedHighScoreInitials(out) || isBlockedHighScoreInitials(source)
+    ? getRandomFallbackHighScoreInitials()
+    : out
+}
+
+function isBlockedHighScoreInitials(initials) {
+  return blockedHighScoreInitials.has(normalizeInitialsForModeration(initials))
+}
+
+function normalizeInitialsForModeration(initials) {
+  return Array.from(initials.toUpperCase())
+    .map((char) => moderationCharacterMap.get(char) || char)
+    .join('')
+    .replace(/[^A-Z]/g, '')
+}
+
+function getRandomFallbackHighScoreInitials() {
+  return fallbackHighScoreInitials[Math.floor(Math.random() * fallbackHighScoreInitials.length)] || 'ACE'
 }
 
 function normalizeEntry(raw) {

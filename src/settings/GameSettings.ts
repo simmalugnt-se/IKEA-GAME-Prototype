@@ -66,6 +66,18 @@ export const SETTINGS: Settings = {
     style: "toon",
   },
 
+  // --- INSTALLATION WATCHDOG ---
+  // Conservative safety reloads for long museum/kiosk sessions.
+  installation: {
+    watchdog: {
+      enabled: true,
+      gameIdleReloadMs: 20 * 60 * 1000,
+      scoreboardReloadMs: 4 * 60 * 60 * 1000,
+      scoreboardStaleReloadMs: 10 * 60 * 1000,
+      webglContextLostReloadMs: 1500,
+    },
+  },
+
   // --- SCOREBOARD ---
   // BroadcastChannel (cross-tab, same origin) is always active.
   // WebSocket below is optional — enable only when a relay server is running.
@@ -683,7 +695,7 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "mouse", // "mouse" or "external"
+    inputSource: "external", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 4,
     hitRadiusPx: 28,
@@ -696,6 +708,12 @@ export const SETTINGS: Settings = {
         reconnectMs: 1000,
       },
       staleTimeoutMs: 120,
+      frameWatchdog: {
+        enabled: true,
+        staleFrameMs: 3000,
+        reconnectCooldownMs: 5000,
+        reloadWhenIdleAfterMs: 30000,
+      },
       maxPointers: 2,
       alphabetGridEntryMaxPointers: 1,
     },
