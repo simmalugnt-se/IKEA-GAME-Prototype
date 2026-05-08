@@ -87,6 +87,10 @@ export function ExternalCursorBridge() {
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
     let unregisterLifecycleSender: (() => void) | null = null
     let disposed = false
+    let lastCursorFrameReceivedAtMs = 0
+    let lastWatchdogReconnectAtMs = 0
+    let staleSinceMs = 0
+    let watchdogTimer: ReturnType<typeof setInterval> | null = null
 
     let telemetrySourceId = ''
     let telemetryExpiresAtMs = 0
@@ -167,6 +171,53 @@ export function ExternalCursorBridge() {
       }, reconnectMs)
     }
 
+    const closeForReconnect = (reason: string) => {
+      if (disposed) return
+      console.warn(`[ExternalCursorBridge] ${reason}; reconnecting cursor WebSocket.`)
+      ws?.close()
+      if (!ws) scheduleReconnect()
+    }
+
+    const maybeReloadIdleGameAfterProlongedStaleInput = (nowMs: number) => {
+      const reloadWhenIdleAfterMs = SETTINGS.cursor.external.frameWatchdog.reloadWhenIdleAfterMs
+      if (!Number.isFinite(reloadWhenIdleAfterMs) || reloadWhenIdleAfterMs <= 0) return
+      if (staleSinceMs <= 0 || nowMs - staleSinceMs < reloadWhenIdleAfterMs) return
+      if (useGameplayStore.getState().flowState !== 'idle') return
+
+      console.warn('[ExternalCursorBridge] External cursor input stayed stale while idle; reloading page.')
+      window.location.reload()
+    }
+
+    const startFrameWatchdog = () => {
+      if (watchdogTimer) return
+      watchdogTimer = setInterval(() => {
+        const watchdog = SETTINGS.cursor.external.frameWatchdog
+        if (!watchdog.enabled || disposed) return
+
+        const nowMs = Date.now()
+        const staleFrameMs = Math.max(1000, watchdog.staleFrameMs)
+        const reconnectCooldownMs = Math.max(staleFrameMs, watchdog.reconnectCooldownMs)
+        const hasOpenSocket = ws?.readyState === WebSocket.OPEN
+        const hasReceivedFrame = lastCursorFrameReceivedAtMs > 0
+        const isStale = hasOpenSocket && (
+          !hasReceivedFrame
+          || nowMs - lastCursorFrameReceivedAtMs >= staleFrameMs
+        )
+
+        if (!isStale) {
+          staleSinceMs = 0
+          return
+        }
+
+        if (staleSinceMs <= 0) staleSinceMs = nowMs
+        maybeReloadIdleGameAfterProlongedStaleInput(nowMs)
+
+        if (nowMs - lastWatchdogReconnectAtMs < reconnectCooldownMs) return
+        lastWatchdogReconnectAtMs = nowMs
+        closeForReconnect(`No cursor_frame received for ${Math.round((nowMs - lastCursorFrameReceivedAtMs) / 1000)}s`)
+      }, 1000)
+    }
+
     const connect = () => {
       if (disposed) return
 
@@ -205,6 +256,8 @@ export function ExternalCursorBridge() {
         }
 
         if (packetType !== 'cursor_frame') return
+        lastCursorFrameReceivedAtMs = Date.now()
+        staleSinceMs = 0
 
         const sourceTimeMs = asFiniteNumber(packet.sourceTimeMs)
         if (sourceTimeMs === null) return
@@ -302,6 +355,8 @@ export function ExternalCursorBridge() {
 
       ws.onopen = () => {
         beginExternalCursorInputSession()
+        lastCursorFrameReceivedAtMs = Date.now()
+        staleSinceMs = 0
         unregisterLifecycleSender?.()
         unregisterLifecycleSender = registerExternalCursorLifecycleSender(trySendJson)
       }
@@ -321,12 +376,17 @@ export function ExternalCursorBridge() {
     }
 
     connect()
+    startFrameWatchdog()
 
     return () => {
       disposed = true
       if (reconnectTimer) {
         clearTimeout(reconnectTimer)
         reconnectTimer = null
+      }
+      if (watchdogTimer) {
+        clearInterval(watchdogTimer)
+        watchdogTimer = null
       }
       unregisterLifecycleSender?.()
       unregisterLifecycleSender = null

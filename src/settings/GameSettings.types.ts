@@ -462,6 +462,12 @@ export type Settings = {
         reconnectMs: number
       }
       staleTimeoutMs: number
+      frameWatchdog: {
+        enabled: boolean
+        staleFrameMs: number
+        reconnectCooldownMs: number
+        reloadWhenIdleAfterMs: number
+      }
       maxPointers: number
       alphabetGridEntryMaxPointers: number
     }

@@ -40,38 +40,44 @@ function stopProcessGroup(pid) {
 }
 
 export function installationStopPlugin() {
+  const useStopMiddleware = (middlewares) => {
+    middlewares.use(async (req, res, next) => {
+      const url = (req.url || '').split('?')[0]
+      if (req.method !== 'POST' || url !== STOP_PATH) {
+        next()
+        return
+      }
+
+      const pidFile = resolvePidFile()
+
+      try {
+        const pids = await readTrackedPids(pidFile)
+        res.statusCode = 202
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: true, pids }))
+
+        setTimeout(() => {
+          for (const pid of pids) stopProcessGroup(pid)
+        }, 100)
+      } catch (error) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Could not read installation pid file',
+          pidFile,
+        }))
+      }
+    })
+  }
+
   return {
     name: 'installation-stop',
-    apply: 'serve',
     configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        const url = (req.url || '').split('?')[0]
-        if (req.method !== 'POST' || url !== STOP_PATH) {
-          next()
-          return
-        }
-
-        const pidFile = resolvePidFile()
-
-        try {
-          const pids = await readTrackedPids(pidFile)
-          res.statusCode = 202
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ ok: true, pids }))
-
-          setTimeout(() => {
-            for (const pid of pids) stopProcessGroup(pid)
-          }, 100)
-        } catch (error) {
-          res.statusCode = 404
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({
-            ok: false,
-            error: error instanceof Error ? error.message : 'Could not read installation pid file',
-            pidFile,
-          }))
-        }
-      })
+      useStopMiddleware(server.middlewares)
+    },
+    configurePreviewServer(server) {
+      useStopMiddleware(server.middlewares)
     },
   }
 }

@@ -695,12 +695,12 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "external", // "mouse" or "external"
+    inputSource: "mouse", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 4,
     hitRadiusPx: 28,
     external: {
-      enabled: true,
+      enabled: false,
       websocket: {
         // url: "ws://127.0.0.1:5173/ws/cursor",
         // url: "ws://localhost:5173/ws/cursor",
@@ -708,6 +708,12 @@ export const SETTINGS: Settings = {
         reconnectMs: 1000,
       },
       staleTimeoutMs: 120,
+      frameWatchdog: {
+        enabled: true,
+        staleFrameMs: 3000,
+        reconnectCooldownMs: 5000,
+        reloadWhenIdleAfterMs: 30000,
+      },
       maxPointers: 2,
       alphabetGridEntryMaxPointers: 1,
     },

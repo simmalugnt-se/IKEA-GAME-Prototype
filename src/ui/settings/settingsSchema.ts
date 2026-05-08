@@ -708,6 +708,33 @@ export const settingsSections: SectionDescriptor[] = [
                 visible: () => SETTINGS.cursor.inputSource === 'external' && SETTINGS.cursor.external.enabled,
             },
             {
+                type: 'boolean', label: 'external.frameWatchdog.enabled',
+                get: () => SETTINGS.cursor.external.frameWatchdog.enabled,
+                set: (v) => { SETTINGS.cursor.external.frameWatchdog.enabled = v; bump() },
+                visible: () => SETTINGS.cursor.inputSource === 'external' && SETTINGS.cursor.external.enabled,
+            },
+            {
+                type: 'number', label: 'external.frameWatchdog.staleFrameMs',
+                get: () => SETTINGS.cursor.external.frameWatchdog.staleFrameMs,
+                set: (v) => { SETTINGS.cursor.external.frameWatchdog.staleFrameMs = v; bump() },
+                min: 1000, max: 30000, step: 500,
+                visible: () => SETTINGS.cursor.inputSource === 'external' && SETTINGS.cursor.external.enabled && SETTINGS.cursor.external.frameWatchdog.enabled,
+            },
+            {
+                type: 'number', label: 'external.frameWatchdog.reconnectCooldownMs',
+                get: () => SETTINGS.cursor.external.frameWatchdog.reconnectCooldownMs,
+                set: (v) => { SETTINGS.cursor.external.frameWatchdog.reconnectCooldownMs = v; bump() },
+                min: 1000, max: 60000, step: 500,
+                visible: () => SETTINGS.cursor.inputSource === 'external' && SETTINGS.cursor.external.enabled && SETTINGS.cursor.external.frameWatchdog.enabled,
+            },
+            {
+                type: 'number', label: 'external.frameWatchdog.reloadWhenIdleAfterMs',
+                get: () => SETTINGS.cursor.external.frameWatchdog.reloadWhenIdleAfterMs,
+                set: (v) => { SETTINGS.cursor.external.frameWatchdog.reloadWhenIdleAfterMs = v; bump() },
+                min: 0, max: 300000, step: 1000,
+                visible: () => SETTINGS.cursor.inputSource === 'external' && SETTINGS.cursor.external.enabled && SETTINGS.cursor.external.frameWatchdog.enabled,
+            },
+            {
                 type: 'number', label: 'external.maxPointers',
                 get: () => SETTINGS.cursor.external.maxPointers,
                 set: (v) => { SETTINGS.cursor.external.maxPointers = v; bump() },
