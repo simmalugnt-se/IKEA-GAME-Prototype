@@ -125,6 +125,13 @@ export function ScoreboardPage() {
   }, [])
 
   useEffect(() => {
+    document.documentElement.style.cursor = 'none'
+    return () => {
+      document.documentElement.style.cursor = ''
+    }
+  }, [])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return
       const target = event.target as HTMLElement | null
