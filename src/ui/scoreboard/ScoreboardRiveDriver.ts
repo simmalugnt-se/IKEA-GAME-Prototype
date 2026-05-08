@@ -100,6 +100,7 @@ const TRIGGER_PROPERTY_NAMES = [
   'triggerInitialsSubmitted',
   'triggerHighScoresUpdated',
   'triggerLiveRankChanged',
+  'eventBalloonTrigger',
 ] as const
 
 const ENUM_PROPERTY_NAMES = [
@@ -257,7 +258,11 @@ export class ScoreboardRiveDriver {
         this.addBindingWarning(`Ignored unknown Rive enum value "${value}" for "${name}". Allowed: ${property.values.join(', ')}`)
         continue
       }
+      const previousValue = property.value
       property.value = value
+      if (name === 'eventBalloonType' && previousValue !== value) {
+        this.fireScoreboardTrigger('eventBalloonTrigger')
+      }
     }
   }
 
