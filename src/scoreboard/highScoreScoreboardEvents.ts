@@ -34,10 +34,33 @@ type HighScoreUpdatedFocus = {
   storageMode?: HighScoreStorageMode
 }
 
+type LiveRankUpdatedInput = {
+  score?: number
+  runId?: string
+  playerInitials?: string
+}
+
 let lastKnownStorageMode: HighScoreStorageMode | null = null
 let currentPlayerScore = 0
 let currentPlayerInitials = PLAYER_INITIALS_PLACEHOLDER
 let currentRunId = ''
+
+function normalizeScore(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) return 0
+  return Math.max(0, Math.trunc(value))
+}
+
+function normalizeRunId(value: string | undefined): string {
+  if (typeof value !== 'string') return 'scoreboard-initial'
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : 'scoreboard-initial'
+}
+
+function normalizePlayerInitials(value: string | undefined): string {
+  if (typeof value !== 'string') return PLAYER_INITIALS_PLACEHOLDER
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed.toUpperCase() : PLAYER_INITIALS_PLACEHOLDER
+}
 
 function resolveStorageMode(focus?: HighScoreUpdatedFocus): HighScoreStorageMode {
   if (focus?.storageMode) {
@@ -158,30 +181,40 @@ export function sendHighScoresUpdatedEvent(focus?: HighScoreUpdatedFocus): void 
   sendScoreboardEvent(createHighScoresUpdatedEvent(focus))
 }
 
-function emitLiveRankUpdate(): void {
-  const placement = getHighScoreSubmissionPreviewPlacement(currentPlayerScore)
+export function createLiveRankUpdatedEvent(args: LiveRankUpdatedInput = {}): LiveRankUpdatedEvent {
+  const playerScore = normalizeScore(args.score)
+  const playerInitials = normalizePlayerInitials(args.playerInitials)
+  const runId = normalizeRunId(args.runId)
+  const placement = getHighScoreSubmissionPreviewPlacement(playerScore)
   const projectedRank = placement.rank ?? placement.totalEntries + 1
   lastKnownStorageMode = placement.storageMode
 
   const snapshotEntries = getHighScoreSubmissionSnapshot().map(toEntry)
   const neighbors = selectNeighborsForRank(snapshotEntries, projectedRank)
   const listSlots = buildPlayerListSlots({
-    playerScore: currentPlayerScore,
+    playerScore,
     playerRank: projectedRank,
-    playerInitials: currentPlayerInitials,
+    playerInitials,
     neighbors,
   })
 
-  const event: LiveRankUpdatedEvent = {
+  return {
     type: 'live_rank_updated',
     timestamp: Date.now(),
-    runId: currentRunId,
-    score: currentPlayerScore,
+    runId,
+    score: playerScore,
     rank: projectedRank,
-    playerInitials: currentPlayerInitials,
+    playerInitials,
     listSlots,
   }
-  sendScoreboardEvent(event)
+}
+
+function emitLiveRankUpdate(): void {
+  sendScoreboardEvent(createLiveRankUpdatedEvent({
+    score: currentPlayerScore,
+    runId: currentRunId,
+    playerInitials: currentPlayerInitials,
+  }))
 }
 
 export function resetHighScoreLiveTracker(): void {

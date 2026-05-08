@@ -682,7 +682,7 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "external", // "mouse" or "external"
+    inputSource: "mouse", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 4,
     hitRadiusPx: 28,

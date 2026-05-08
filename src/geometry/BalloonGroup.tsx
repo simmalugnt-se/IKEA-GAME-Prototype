@@ -668,8 +668,12 @@ export function BalloonGroup({
       }
 
       const gameplayState = useGameplayStore.getState();
+      const isIdleStartPop = flowRole === "idle_start";
+      const initialRunScore = isIdleStartPop && !onSpawnItemHit
+        ? Math.max(0, Math.trunc(SETTINGS.gameplay.balloons.scorePerPop))
+        : 0;
       if (flowRole === "idle_start") {
-        gameplayState.startRunFromIdleTrigger();
+        gameplayState.startRunFromIdleTrigger({ initialScore: initialRunScore });
       }
       let popX = window.innerWidth * 0.5;
       let popY = window.innerHeight * 0.5;
@@ -692,6 +696,7 @@ export function BalloonGroup({
           x: hitEvent.x,
           y: hitEvent.y,
           timeMs: hitEvent.timeMs,
+          scoreAlreadyApplied: initialRunScore > 0,
         });
       }
       if (isSpecialBalloon) {

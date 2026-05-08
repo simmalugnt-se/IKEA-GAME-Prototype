@@ -66,6 +66,7 @@ export type BalloonPopForComboEvent = {
   y: number
   timeMs: number
   canTriggerSpawnEvents?: boolean
+  scoreAlreadyApplied?: boolean
 }
 
 export type SpawnItemHitEffectEvent = {
@@ -118,7 +119,7 @@ type GameplayState = {
   contagionEpoch: number
   contagionColorsByEntityId: Record<string, number>
   bootstrapIdle: () => void
-  startRunFromIdleTrigger: () => void
+  startRunFromIdleTrigger: (options?: { initialScore?: number }) => void
   setPaused: (paused: boolean) => void
   togglePaused: () => void
   onGameOverTileCentered: () => void
@@ -1425,6 +1426,7 @@ function normalizeComboPopEvent(raw: BalloonPopForComboEvent): BalloonPopForComb
     y: Number.isFinite(raw.y) ? raw.y : fallbackY,
     timeMs: Number.isFinite(raw.timeMs) ? raw.timeMs : fallbackTime,
     canTriggerSpawnEvents: raw.canTriggerSpawnEvents !== false,
+    scoreAlreadyApplied: raw.scoreAlreadyApplied === true,
   }
 }
 
@@ -1741,7 +1743,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     }
   },
 
-  startRunFromIdleTrigger: () => {
+  startRunFromIdleTrigger: (options) => {
     const stateBefore = get()
     if (stateBefore.flowState !== 'idle') return
 
@@ -1762,12 +1764,13 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     const runTimeLimitMs = resolveRunTimeLimitMs()
     const runStartMs = Date.now()
     const runTimeEndsAtMs = runMode === 'time' ? runStartMs + runTimeLimitMs : 0
+    const initialScore = normalizeNonNegativeInt(options?.initialScore ?? 0, 0)
 
     set((state) => {
       if (state.flowState !== 'idle') return state
       return {
         ...state,
-        score: 0,
+        score: initialScore,
         lives: initialLives,
         runTimeFeedbackText: '',
         runTimeFeedbackSequence: 0,
@@ -1797,17 +1800,17 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       runId: newRunId,
       reason: 'first_balloon_popped',
     })
+    resetHighScoreLiveTracker()
     sendScoreboardEvent({
       type: 'game_started',
       timestamp: Date.now(),
       runId: newRunId,
-      score: 0,
+      score: initialScore,
       lives: initialLives,
       runMode,
       timeLimitMs: runTimeLimitMs,
     })
-    resetHighScoreLiveTracker()
-    sendLiveRankUpdate({ score: 0, runId: newRunId })
+    sendLiveRankUpdate({ score: initialScore, runId: newRunId })
   },
 
   setPaused: (paused) => {
@@ -2336,7 +2339,9 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     const popEvent = normalizeComboPopEvent(rawEvent)
     const baseScore = normalizeNonNegativeInt(SETTINGS.gameplay.balloons.scorePerPop, 0)
     if (baseScore > 0) {
-      get().addScore(baseScore, 'balloon_pop')
+      if (!popEvent.scoreAlreadyApplied) {
+        get().addScore(baseScore, 'balloon_pop')
+      }
       emitScorePop({
         text: `+${baseScore}`,
         x: popEvent.x,

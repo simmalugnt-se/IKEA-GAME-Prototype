@@ -4,6 +4,13 @@ import type {
 } from '@/scoreboard/scoreBoardSettings.types'
 import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
 import { isInstallationStopShortcut, requestInstallationStop } from '@/installationStop'
+import {
+  createHighScoresUpdatedEvent,
+  createLiveRankUpdatedEvent,
+} from '@/scoreboard/highScoreScoreboardEvents'
+import {
+  subscribeHighScoreSubmissionSnapshot,
+} from '@/scoreboard/highScoreSubmissionRuntime'
 import { SCOREBOARD_SETTINGS } from '@/scoreboard/scoreBoardSettings'
 import {
   subscribeScoreboardEvents,
@@ -235,11 +242,19 @@ export function ScoreboardPage() {
     let riveDriver: ScoreboardRiveDriver | null = null
     let dmdRenderer: ScoreboardDmdRenderer | null = null
     let unsubscribeReceiver: (() => void) | null = null
+    let unsubscribeHighScoreSnapshot: (() => void) | null = null
     let sourceCtx: CanvasRenderingContext2D | null = null
     let initialRiveDataApplied = false
+    let riveReady = false
+    let receivedRuntimeScoreboardEvent = false
 
     const setError = (message: string) => {
       setUiState((prev) => ({ ...prev, error: message }))
+    }
+
+    const applyInitialScoreboardData = (driver: ScoreboardRiveDriver) => {
+      applyScoreboardEventToRive(driver, createHighScoresUpdatedEvent(), { fireTrigger: false })
+      applyScoreboardEventToRive(driver, createLiveRankUpdatedEvent(), { fireTrigger: false })
     }
 
     try {
@@ -256,11 +271,15 @@ export function ScoreboardPage() {
       sourceHeight: appliedSource.height,
       riveFit: appliedSource.fit,
       onStatus: (status) => {
+        riveReady = status.state === 'ready'
         if (status.state === 'ready' && !initialRiveDataApplied) {
           initialRiveDataApplied = true
           const initialEvent = createInitialScoreboardEvent()
           const activeRiveDriver = riveDriverRef.current ?? riveDriver
-          if (activeRiveDriver) applyScoreboardEventToRive(activeRiveDriver, initialEvent)
+          if (activeRiveDriver) {
+            applyInitialScoreboardData(activeRiveDriver)
+            applyScoreboardEventToRive(activeRiveDriver, initialEvent)
+          }
           setLatestScoreboardEvent(initialEvent)
         }
         setUiState((prev) => ({
@@ -276,12 +295,20 @@ export function ScoreboardPage() {
     })
     riveDriverRef.current = riveDriver
 
+    unsubscribeHighScoreSnapshot = subscribeHighScoreSubmissionSnapshot(() => {
+      if (disposed || !riveReady || receivedRuntimeScoreboardEvent) return
+      const activeRiveDriver = riveDriverRef.current ?? riveDriver
+      if (!activeRiveDriver) return
+      applyInitialScoreboardData(activeRiveDriver)
+    })
+
     const orchestrator = createScoreboardEventOrchestrator({
       onSoundCue: playScoreboardSoundCue,
     })
 
     unsubscribeReceiver = subscribeScoreboardEvents(
       (event) => {
+        receivedRuntimeScoreboardEvent = true
         orchestrator.handleEvent(event)
         if (riveDriver) applyScoreboardEventToRive(riveDriver, event)
         setLatestScoreboardEvent(event)
@@ -357,6 +384,7 @@ export function ScoreboardPage() {
       disposed = true
       cancelAnimationFrame(rafId)
       unsubscribeReceiver?.()
+      unsubscribeHighScoreSnapshot?.()
       orchestrator.dispose()
       if (riveDriverRef.current === riveDriver) {
         riveDriverRef.current = null

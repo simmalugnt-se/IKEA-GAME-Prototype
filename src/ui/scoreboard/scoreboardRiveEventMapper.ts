@@ -14,6 +14,10 @@ export type ScoreboardRiveEventApplication = {
   trigger?: ScoreboardRiveTrigger
 }
 
+export type ApplyScoreboardEventToRiveOptions = {
+  fireTrigger?: boolean
+}
+
 function formatSignedIntLabel(value: number): string {
   const normalized = Math.trunc(value)
   if (normalized > 0) return `+${normalized}`
@@ -265,10 +269,11 @@ export function mapScoreboardEventToRive(event: ScoreboardEvent): ScoreboardRive
 export function applyScoreboardEventToRive(
   riveDriver: ScoreboardRiveDriver,
   event: ScoreboardEvent,
+  options: ApplyScoreboardEventToRiveOptions = {},
 ): ScoreboardRiveEventApplication {
   const application = mapScoreboardEventToRive(event)
   riveDriver.applyScoreboardData(application.data)
-  if (application.trigger) {
+  if (application.trigger && options.fireTrigger !== false) {
     riveDriver.fireScoreboardTrigger(application.trigger)
   }
   return application
