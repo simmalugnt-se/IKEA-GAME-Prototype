@@ -131,7 +131,7 @@ type GameplayState = {
   addRunTimeMs: (deltaMs: number, reason?: RunTimeBonusReason) => void
   advanceRunTimeWithTimeScale: (deltaMs: number, timeScale?: number) => void
   applySpawnItemHitEffect: (event: SpawnItemHitEffectEvent) => void
-  triggerSpawnEventRuleById: (ruleId: string, origin?: ScreenPos) => void
+  triggerSpawnEventRuleById: (ruleId: string, origin?: ScreenPos, sourceId?: string) => void
   flushPendingSpawnEvents: () => void
   registerBalloonMissForSpawnEventStreak: () => void
   debugTriggerSpawnEventComboMultiplier: (multiplier: number, origin?: ScreenPos) => void
@@ -353,6 +353,8 @@ type PendingSpawnEvent = {
   ruleId: string
   action: SpawnEventAction
   origin?: ScreenPos
+  triggerSource?: string
+  comboMultiplier?: number
 }
 
 type SpawnEventQueueRuntimeState = {
@@ -794,6 +796,8 @@ function enqueueSpawnEventAction(
   ruleId: string,
   action: SpawnEventAction,
   origin?: ScreenPos,
+  triggerSource?: string,
+  comboMultiplier?: number,
 ): boolean {
   const maxLength = resolveSpawnEventQueueMaxLength()
   if (maxLength <= 0) return false
@@ -805,24 +809,34 @@ function enqueueSpawnEventAction(
     ruleId,
     action,
     origin,
+    triggerSource,
+    comboMultiplier,
   })
   return true
 }
 
 function executeSpawnEventAction(
+  ruleId: string,
   action: SpawnEventAction,
   origin?: ScreenPos,
+  triggerSource?: string,
+  comboMultiplier?: number,
 ): void {
   markGlobalSpawnEventTriggered()
 
   const scoreboardPayload: Record<string, unknown> = {
     actionType: action.type,
+    triggerRuleId: ruleId,
+  }
+  if (triggerSource) scoreboardPayload.triggerSource = triggerSource
+  if (typeof comboMultiplier === 'number' && Number.isFinite(comboMultiplier)) {
+    scoreboardPayload.comboMultiplier = comboMultiplier
   }
   if (origin) {
     scoreboardPayload.originX = origin.x
     scoreboardPayload.originY = origin.y
   }
-  sendGameEventTriggered(resolveScoreboardEventIdFromSpawnActionType(action.type), {
+  sendGameEventTriggered(ruleId, {
     ...scoreboardPayload,
   })
 
@@ -882,7 +896,7 @@ function executeSpawnEventAction(
   }
 }
 
-function executeSpawnEventRuleById(ruleId: string, origin?: ScreenPos): boolean {
+function executeSpawnEventRuleById(ruleId: string, origin?: ScreenPos, sourceId?: string): boolean {
   const normalizedRuleId = typeof ruleId === 'string' ? ruleId.trim() : ''
   if (!normalizedRuleId) return false
   const nowMs = Date.now()
@@ -894,7 +908,7 @@ function executeSpawnEventRuleById(ruleId: string, origin?: ScreenPos): boolean 
   if (!rule) return false
   if (!isSpawnEventRuleScoreEligible(rule, useGameplayStore.getState().score)) return false
 
-  executeSpawnEventAction(rule.action, origin)
+  executeSpawnEventAction(normalizedRuleId, rule.action, origin, sourceId ?? 'spawn_item')
   return true
 }
 
@@ -906,7 +920,13 @@ function flushQueuedSpawnEvents(nowMs = Date.now()): void {
   const nextEvent = spawnEventQueueRuntime.queue.shift()
   if (!nextEvent) return
 
-  executeSpawnEventAction(nextEvent.action, nextEvent.origin)
+  executeSpawnEventAction(
+    nextEvent.ruleId,
+    nextEvent.action,
+    nextEvent.origin,
+    nextEvent.triggerSource,
+    nextEvent.comboMultiplier,
+  )
   spawnEventQueueRuntime.nextAvailableAtMs = nowMs + resolveSpawnEventQueueGapMs()
 }
 
@@ -1123,11 +1143,6 @@ function buildSpawnItemEffectLabel(scoreDelta: number, timeDeltaMs: number, feed
   return lines.join('\n')
 }
 
-function resolveScoreboardEventIdFromSpawnActionType(actionType: SpawnEventAction['type']): string {
-  if (actionType === 'spawn_track_sweeper') return 'steamroller'
-  return actionType
-}
-
 function sendGameEventTriggered(
   eventId: string,
   payload: Record<string, unknown> = {},
@@ -1221,6 +1236,7 @@ function triggerEligibleSpawnEventRules(
   eligibleRules: ReturnType<typeof resolveEligibleSpawnEventRules>,
   origin?: ScreenPos,
   nowMs = Date.now(),
+  comboMultiplier?: number,
 ): void {
   if (eligibleRules.length <= 0) return
 
@@ -1233,7 +1249,7 @@ function triggerEligibleSpawnEventRules(
     const selectedRuleId = selectedRule.id.trim()
     const cooldownMs = normalizeNonNegativeInt(selectedRule.trigger.cooldownMs, 0)
     spawnEventCooldownsByRuleId.set(selectedRuleId, nowMs + cooldownMs)
-    executeSpawnEventAction(selectedRule.action, origin)
+    executeSpawnEventAction(selectedRuleId, selectedRule.action, origin, 'combo', comboMultiplier)
     return
   }
 
@@ -1245,11 +1261,11 @@ function triggerEligibleSpawnEventRules(
     spawnEventCooldownsByRuleId.set(ruleId, nowMs + cooldownMs)
 
     if (queueEnabled) {
-      enqueueSpawnEventAction(ruleId, rule.action, origin)
+      enqueueSpawnEventAction(ruleId, rule.action, origin, 'combo', comboMultiplier)
       continue
     }
 
-    executeSpawnEventAction(rule.action, origin)
+    executeSpawnEventAction(ruleId, rule.action, origin, 'combo', comboMultiplier)
   }
 }
 
@@ -1261,7 +1277,7 @@ function maybeTriggerSpawnEventsForComboMultiplier(
 
   const nowMs = Date.now()
   const eligibleRules = resolveEligibleSpawnEventRules(multiplier, nowMs)
-  triggerEligibleSpawnEventRules(eligibleRules, origin, nowMs)
+  triggerEligibleSpawnEventRules(eligibleRules, origin, nowMs, multiplier)
 }
 
 function maybeTriggerSpawnEventsForPopStreakWithoutMiss(
@@ -1393,6 +1409,15 @@ function flushPendingComboStrike(): void {
       timestamp: Date.now(),
       runId: getRunId(),
       multiplier: finalMultiplier,
+      strikeSize,
+      chainBonus: appliedChainBonus,
+      perPopPoints: perPopScore,
+      totalPoints: totalStrikeScore,
+      totalScore: totalScoreAfterStrike,
+    })
+    sendGameEventTriggered(`${Math.trunc(finalMultiplier)}_combo`, {
+      triggerSource: 'combo',
+      comboMultiplier: finalMultiplier,
       strikeSize,
       chainBonus: appliedChainBonus,
       perPopPoints: perPopScore,
@@ -2227,9 +2252,9 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     })
   },
 
-  triggerSpawnEventRuleById: (ruleId, origin) => {
+  triggerSpawnEventRuleById: (ruleId, origin, sourceId) => {
     if (get().flowState !== 'run') return
-    executeSpawnEventRuleById(ruleId, origin)
+    executeSpawnEventRuleById(ruleId, origin, sourceId)
   },
 
   flushPendingSpawnEvents: () => {

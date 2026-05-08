@@ -90,7 +90,7 @@ function SpawnedItemView({
         gameplayState.triggerSpawnEventRuleById(triggerEventRuleId, {
           x: event.x,
           y: event.y,
-        });
+        }, item.spawnItem.id);
       }
       gameplayState.applySpawnItemHitEffect({
         scoreDelta: item.spawnItem.scoreDelta,

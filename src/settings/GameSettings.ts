@@ -776,9 +776,9 @@ export const getPaletteEntry = (
 };
 
 // Current spawn event summary:
-// - combo_cluster_reward: 15 pops without miss -> spawn 7 cluster balloons.
-// - ten_pop_cluster_reward: 10 pops without miss + score >= 50000 -> spawn 7 cluster balloons.
-// - ground_ball_wave_reward: combo multiplier 4+ -> ground ball wave.
+// - combo_cluster_reward: 15 pops without miss -> spawn 7 cluster balloons. = cluster
+// - ten_pop_cluster_reward: 10 pops without miss + score >= 50000 -> spawn 7 cluster balloons. = cluster
+// - ground_ball_wave_reward: combo multiplier 4+ -> ground ball wave. 
 // - slowmo_reward: combo multiplier 4+ -> slow motion.
 // - track_sweeper_reward: combo multiplier 4+ -> track sweeper.
 // - gravity_loss_reward: combo multiplier 4+ -> gravity loss.
