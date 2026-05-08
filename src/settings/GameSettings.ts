@@ -271,7 +271,7 @@ export const SETTINGS: Settings = {
       timeLimitMs: 45000,
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,
-      popStreakTimeBonusMs: 3000,
+      popStreakTimeBonusMs: 0,
       timeBonusLerpMs: 500,
       pulseSlowStartMs: 10000,
       pulseFastStartMs: 5000,
@@ -501,6 +501,7 @@ export const SETTINGS: Settings = {
           randomXJitter: 0.04,
           randomYJitter: 0.03,
           entries: [{ itemId: "combo_cluster_balloon", count: 7 }],
+          feedbackText: "CLUSTER!",
         },
       },
       // {

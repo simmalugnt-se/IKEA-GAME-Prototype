@@ -28,6 +28,10 @@
   transition: transform 2s 0.15s cubic-bezier(0.6, 0, 0, 1);
 }
 
+.score-hud-panel--time {
+  gap: 0;
+}
+
 .score-hud-chip {
   display: flex;
   padding: 0.125em 0.25em;
@@ -53,16 +57,34 @@
 }
 
 .score-hud-time-feedback {
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 0 0 auto;
+  width: 0;
+  overflow: hidden;
   color: #ffffff;
-  font-size: 2rem;
   line-height: 1em !important;
   pointer-events: none;
-  text-align: right;
+  text-align: center;
   white-space: nowrap;
-  animation: score-hud-time-feedback-pop 1200ms ease-out 1 both;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition:
+    width 260ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 120ms ease-out;
+}
+
+.score-hud-time-feedback--open {
+  width: calc(3.7ch + 0.25em);
+  opacity: 1;
+}
+
+.score-hud-time-feedback__text {
+  display: inline-flex;
+  justify-content: center;
+  width: 3.7ch;
 }
 
 .score-hud-audio-hint {
@@ -159,26 +181,4 @@
 
 .score-hud-time--pulse-fast {
   animation: score-hud-time-pulse 0.25s ease-in-out infinite;
-}
-
-@keyframes score-hud-time-feedback-pop {
-  0% {
-    opacity: 0;
-    transform: translateY(-0.25rem) scale(0.92);
-  }
-
-  12% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  72% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(0.4rem) scale(0.96);
-  }
 }

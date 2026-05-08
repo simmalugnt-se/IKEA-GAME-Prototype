@@ -132,6 +132,7 @@ export type SpawnEventActionSpawnBurst = {
   randomXJitter: number
   randomYJitter: number
   entries: ComboBurstRuleEntry[]
+  feedbackText?: string
 }
 
 export type SpawnEventActionCursorSizeBoost = {
