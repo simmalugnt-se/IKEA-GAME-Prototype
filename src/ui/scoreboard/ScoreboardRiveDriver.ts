@@ -104,9 +104,17 @@ const TRIGGER_PROPERTY_NAMES = [
 
 const ENUM_PROPERTY_NAMES = [
   'gameState',
+  'eventBalloonType',
 ] as const
 
 export type GameStateEnumValue = 'idle' | 'run' | 'gameover' | 'entry'
+export type EventBalloonTypeEnumValue =
+  | 'none'
+  | 'ground_ball_wave_reward'
+  | 'slowmo_reward'
+  | 'track_sweeper_reward'
+  | 'gravity_loss_reward'
+  | 'combo_cluster_reward'
 
 type NumberPropertyName = typeof NUMBER_PROPERTY_NAMES[number]
 type StringPropertyName = typeof STRING_PROPERTY_NAMES[number]
@@ -115,6 +123,7 @@ export type ScoreboardRiveTrigger = typeof TRIGGER_PROPERTY_NAMES[number]
 
 type EnumValueByName = {
   gameState: GameStateEnumValue
+  eventBalloonType: EventBalloonTypeEnumValue
 }
 
 export type ScoreboardRiveDataPatch = Partial<Record<NumberPropertyName, number>>

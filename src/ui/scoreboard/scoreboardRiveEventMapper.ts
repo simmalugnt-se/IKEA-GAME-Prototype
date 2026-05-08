@@ -4,6 +4,7 @@ import type {
   ScoreboardEvent,
 } from '@/scoreboard/scoreboardEvents'
 import type {
+  EventBalloonTypeEnumValue,
   ScoreboardRiveDataPatch,
   ScoreboardRiveDriver,
   ScoreboardRiveTrigger,
@@ -18,10 +19,22 @@ export type ApplyScoreboardEventToRiveOptions = {
   fireTrigger?: boolean
 }
 
+const EVENT_BALLOON_TYPES = [
+  'ground_ball_wave_reward',
+  'slowmo_reward',
+  'track_sweeper_reward',
+  'gravity_loss_reward',
+  'combo_cluster_reward',
+] as const satisfies readonly EventBalloonTypeEnumValue[]
+
 function formatSignedIntLabel(value: number): string {
   const normalized = Math.trunc(value)
   if (normalized > 0) return `+${normalized}`
   return `${normalized}`
+}
+
+function resolveEventBalloonType(eventId: string): EventBalloonTypeEnumValue | undefined {
+  return EVENT_BALLOON_TYPES.find((type) => type === eventId)
 }
 
 function toEventIdLabel(eventId: string): string {
@@ -199,6 +212,7 @@ export function mapScoreboardEventToRive(event: ScoreboardEvent): ScoreboardRive
           gameEventId: event.eventId,
           gameEventPayloadJson: stringifyPayload(event.payload),
           eventLabel: resolveGameEventLabel(event),
+          eventBalloonType: resolveEventBalloonType(event.eventId),
         },
         trigger: 'triggerSpecialEvent',
       }
@@ -224,6 +238,7 @@ export function mapScoreboardEventToRive(event: ScoreboardEvent): ScoreboardRive
           gameOverReason: event.endReason,
           eventLabel: 'GAME OVER',
           gameState: 'gameover',
+          eventBalloonType: 'none',
         },
         trigger: 'triggerGameOver',
       }
