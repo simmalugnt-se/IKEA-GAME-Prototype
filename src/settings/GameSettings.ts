@@ -71,8 +71,8 @@ export const SETTINGS: Settings = {
   // WebSocket below is optional — enable only when a relay server is running.
   scoreboard: {
     websocket: {
-      enabled: false,
-      url: "ws://localhost:5175/ws/scoreboard",
+      enabled: true,
+      url: "ws://127.0.0.1:5175/ws/scoreboard",
       reconnectMs: 1000,
     },
   },
@@ -682,12 +682,12 @@ export const SETTINGS: Settings = {
 
   // --- CURSOR ---
   cursor: {
-    inputSource: "external", // "mouse" or "external"
+    inputSource: "mouse", // "mouse" or "external"
     minPopVelocity: 220,
     pointerRadiusPx: 4,
     hitRadiusPx: 28,
     external: {
-      enabled: true,
+      enabled: false,
       websocket: {
         // url: "ws://127.0.0.1:5173/ws/cursor",
         // url: "ws://localhost:5173/ws/cursor",

@@ -264,8 +264,8 @@ Spelet skickar händelser till en extern scoreboard via WebSocket.
 // src/settings/GameSettings.ts
 scoreboard: {
   websocket: {
-    enabled: false,                          // Sätt true för att aktivera
-    url: 'ws://localhost:5175/ws/scoreboard',
+    enabled: true,
+    url: 'ws://127.0.0.1:5175/ws/scoreboard',
     reconnectMs: 1000,
   },
 },

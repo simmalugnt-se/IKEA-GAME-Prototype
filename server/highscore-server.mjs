@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
 import Database from 'better-sqlite3'
+import { WebSocketServer, WebSocket } from 'ws'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -292,12 +293,45 @@ const server = http.createServer((req, res) => {
   void handleRequest(req, res)
 })
 
+const scoreboardWss = new WebSocketServer({ noServer: true })
+
+function broadcastScoreboardMessage(data) {
+  const message = typeof data === 'string' ? data : data.toString()
+  for (const client of scoreboardWss.clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message)
+    }
+  }
+}
+
+scoreboardWss.on('connection', (ws) => {
+  ws.on('message', (data) => {
+    broadcastScoreboardMessage(data)
+  })
+})
+
+server.on('upgrade', (req, socket, head) => {
+  const url = new URL(req.url || '/', `http://${host}:${port}`)
+  const origin = req.headers.origin
+
+  if (url.pathname !== '/ws/scoreboard' || (origin && !isAllowedOrigin(origin))) {
+    socket.destroy()
+    return
+  }
+
+  scoreboardWss.handleUpgrade(req, socket, head, (ws) => {
+    scoreboardWss.emit('connection', ws, req)
+  })
+})
+
 server.listen(port, host, () => {
   console.log(`[highscore] listening at http://${host}:${port}`)
   console.log(`[highscore] sqlite database: ${dbPath}`)
+  console.log(`[highscore] scoreboard ws listening at ws://${host}:${port}/ws/scoreboard`)
 })
 
 function shutdown() {
+  scoreboardWss.close()
   server.close(() => {
     try {
       db.pragma('wal_checkpoint(TRUNCATE)')
