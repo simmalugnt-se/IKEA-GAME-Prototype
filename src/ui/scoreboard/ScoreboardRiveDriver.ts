@@ -60,6 +60,8 @@ const NUMBER_PROPERTY_NAMES = [
   'listSlotRank5',
   'listSlotScore5',
   'listSlotOpacity5',
+  'timebonusCurrentSeconds',
+  'timebonusAwardedSeconds',
 ] as const
 
 const STRING_PROPERTY_NAMES = [
@@ -101,6 +103,7 @@ const TRIGGER_PROPERTY_NAMES = [
   'triggerHighScoresUpdated',
   'triggerLiveRankChanged',
   'eventBalloonTrigger',
+  'timebonusTrigger',
 ] as const
 
 const ENUM_PROPERTY_NAMES = [

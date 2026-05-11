@@ -13,6 +13,7 @@ import type {
 export type ScoreboardRiveEventApplication = {
   data: ScoreboardRiveDataPatch
   trigger?: ScoreboardRiveTrigger
+  triggers?: readonly ScoreboardRiveTrigger[]
 }
 
 export type ApplyScoreboardEventToRiveOptions = {
@@ -35,6 +36,29 @@ function formatSignedIntLabel(value: number): string {
 
 function resolveEventBalloonType(eventId: string): EventBalloonTypeEnumValue | undefined {
   return EVENT_BALLOON_TYPES.find((type) => type === eventId)
+}
+
+function payloadNumber(payload: Record<string, unknown>, key: string): number | undefined {
+  const value = payload[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function payloadMsToSeconds(payload: Record<string, unknown>, key: string): number {
+  const value = payloadNumber(payload, key)
+  return value === undefined ? 0 : Math.max(0, value) / 1000
+}
+
+function resolveTimebonusCurrentSeconds(payload: Record<string, unknown>): number {
+  const currentRemainingMs = payloadNumber(payload, 'currentRemainingMs')
+  if (currentRemainingMs !== undefined) return Math.max(0, currentRemainingMs) / 1000
+
+  const targetRemainingMs = payloadNumber(payload, 'targetRemainingMs')
+  const awardedMs = payloadNumber(payload, 'awardedMs')
+  if (targetRemainingMs !== undefined && awardedMs !== undefined) {
+    return Math.max(0, targetRemainingMs - awardedMs) / 1000
+  }
+
+  return 0
 }
 
 function toEventIdLabel(eventId: string): string {
@@ -206,6 +230,21 @@ export function mapScoreboardEventToRive(event: ScoreboardEvent): ScoreboardRive
       }
 
     case 'game_event_triggered':
+      if (event.eventId === 'timebonus') {
+        return {
+          data: {
+            ...base,
+            gameEventId: event.eventId,
+            gameEventPayloadJson: stringifyPayload(event.payload),
+            eventLabel: resolveGameEventLabel(event),
+            timebonusCurrentSeconds: resolveTimebonusCurrentSeconds(event.payload),
+            timebonusAwardedSeconds: payloadMsToSeconds(event.payload, 'awardedMs'),
+          },
+          trigger: 'triggerSpecialEvent',
+          triggers: ['timebonusTrigger'],
+        }
+      }
+
       return {
         data: {
           ...base,
@@ -290,6 +329,11 @@ export function applyScoreboardEventToRive(
   riveDriver.applyScoreboardData(application.data)
   if (application.trigger && options.fireTrigger !== false) {
     riveDriver.fireScoreboardTrigger(application.trigger)
+  }
+  if (application.triggers && options.fireTrigger !== false) {
+    for (const trigger of application.triggers) {
+      riveDriver.fireScoreboardTrigger(trigger)
+    }
   }
   return application
 }

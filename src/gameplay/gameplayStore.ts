@@ -2028,12 +2028,13 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     let accepted = false
     let nextEndsAtMs = 0
     let nextPauseEndsAtMs = 0
+    let currentRemainingMs = 0
     let targetRemainingMs = 0
 
     set((state) => {
       if (state.flowState !== 'run' || state.runMode !== 'time') return state
       if (state.paused) {
-        const currentRemainingMs = Math.max(0, Math.trunc(state.runTimePausedRemainingMs))
+        currentRemainingMs = Math.max(0, Math.trunc(state.runTimePausedRemainingMs))
         targetRemainingMs = Math.max(0, currentRemainingMs + normalizedDeltaMs)
         accepted = true
         return {
@@ -2047,7 +2048,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         }
       }
 
-      const currentRemainingMs = resolveCurrentRemainingTimeMs(state, nowMs)
+      currentRemainingMs = resolveCurrentRemainingTimeMs(state, nowMs)
       targetRemainingMs = Math.max(0, currentRemainingMs + normalizedDeltaMs)
       accepted = true
 
@@ -2083,6 +2084,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
         payload: {
           awardedMs: normalizedDeltaMs,
           reason,
+          currentRemainingMs: Math.max(0, Math.trunc(currentRemainingMs)),
           targetRemainingMs: Math.max(0, Math.trunc(targetRemainingMs)),
           lerpMs,
         },
