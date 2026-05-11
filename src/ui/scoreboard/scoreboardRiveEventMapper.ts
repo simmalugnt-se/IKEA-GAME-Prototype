@@ -315,6 +315,15 @@ export function mapScoreboardEventToRive(event: ScoreboardEvent): ScoreboardRive
     case 'live_rank_updated':
       return mapLiveRankUpdatedEventToRive(event, base)
 
+    case 'current_time_updated':
+      return {
+        data: {
+          ...base,
+          currentMinutes: event.currentMinutes,
+          currentSeconds: event.currentSeconds,
+        },
+      }
+
     default:
       return { data: base }
   }

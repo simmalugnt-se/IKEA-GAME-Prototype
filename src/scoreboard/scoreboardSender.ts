@@ -123,7 +123,7 @@ export function initScoreboardBridge(): () => void {
   }
 }
 
-function sendRawTransportMessage(msg: string): void {
+function sendRawTransportMessage(msg: string, options?: { queueWs?: boolean }): void {
   const bc = ensureBroadcastChannel()
   bc.postMessage(msg)
 
@@ -135,6 +135,8 @@ function sendRawTransportMessage(msg: string): void {
     return
   }
 
+  if (options?.queueWs === false) return
+
   if (wsState.queue.length < MAX_QUEUE_SIZE) {
     wsState.queue.push(msg)
   }
@@ -142,6 +144,10 @@ function sendRawTransportMessage(msg: string): void {
 
 export function sendScoreboardEvent(event: ScoreboardEvent): void {
   sendRawTransportMessage(JSON.stringify(event))
+}
+
+export function sendVolatileScoreboardEvent(event: ScoreboardEvent): void {
+  sendRawTransportMessage(JSON.stringify(event), { queueWs: false })
 }
 
 export { CHANNEL_NAME }

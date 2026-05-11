@@ -62,6 +62,8 @@ const NUMBER_PROPERTY_NAMES = [
   'listSlotOpacity5',
   'timebonusCurrentSeconds',
   'timebonusAwardedSeconds',
+  'currentMinutes',
+  'currentSeconds',
 ] as const
 
 const STRING_PROPERTY_NAMES = [

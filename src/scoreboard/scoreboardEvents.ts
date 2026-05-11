@@ -129,6 +129,14 @@ export type LiveRankUpdatedEvent = {
   listSlots: HighScoreListSlotEntry[]
 }
 
+export type CurrentTimeUpdatedEvent = {
+  type: 'current_time_updated'
+  timestamp: number
+  runId: string
+  currentMinutes: number
+  currentSeconds: number
+}
+
 export type ScoreboardEvent =
   | GameStartedEvent
   | PointsReceivedEvent
@@ -141,6 +149,7 @@ export type ScoreboardEvent =
   | InitialsStepFinishedEvent
   | HighScoresUpdatedEvent
   | LiveRankUpdatedEvent
+  | CurrentTimeUpdatedEvent
 
 export function isScoreboardEvent(value: unknown): value is ScoreboardEvent {
   if (value === null || typeof value !== 'object') return false
@@ -157,6 +166,7 @@ export function isScoreboardEvent(value: unknown): value is ScoreboardEvent {
     || obj.type === 'initials_step_finished'
     || obj.type === 'high_scores_updated'
     || obj.type === 'live_rank_updated'
+    || obj.type === 'current_time_updated'
   )
 }
 
