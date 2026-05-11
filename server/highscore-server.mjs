@@ -10,8 +10,14 @@ const repoRoot = path.resolve(__dirname, '..')
 const host = process.env.HIGHSCORE_HOST || '127.0.0.1'
 const port = Number.parseInt(process.env.HIGHSCORE_PORT || '5175', 10)
 const dbPath = process.env.HIGHSCORE_DB_PATH || path.join(repoRoot, 'data', 'highscores.sqlite')
+const diagnosticsEnabled = process.env.IKEA_GAME_DIAGNOSTICS_ENABLED !== 'false'
+const diagnosticsOverlayEnabled = process.env.IKEA_GAME_DIAGNOSTICS_OVERLAY === 'true'
+const diagnosticsLogDir = process.env.IKEA_GAME_DIAGNOSTICS_LOG_DIR || path.join(repoRoot, 'logs')
+const diagnosticsEndpoint = `http://${host}:${port}/api/diagnostics`
 const defaultLimit = 256
 const maxBodyBytes = 1024 * 1024
+const maxDiagnosticsBodyBytes = 16 * 1024
+const maxDiagnosticsStringLength = 4000
 const blockedHighScoreInitials = new Set([
   'ASS',
   'BAJ',
@@ -58,6 +64,9 @@ const moderationCharacterMap = new Map([
   ['Ö', 'O'],
 ])
 fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+if (diagnosticsEnabled) {
+  fs.mkdirSync(diagnosticsLogDir, { recursive: true })
+}
 
 const db = new Database(dbPath)
 db.pragma('journal_mode = WAL')
@@ -232,14 +241,14 @@ function sendJson(req, res, statusCode, payload) {
   res.end(JSON.stringify(payload))
 }
 
-function readJsonBody(req) {
+function readJsonBody(req, maxBytes = maxBodyBytes) {
   return new Promise((resolve, reject) => {
     const chunks = []
     let receivedBytes = 0
 
     req.on('data', (chunk) => {
       receivedBytes += chunk.length
-      if (receivedBytes > maxBodyBytes) {
+      if (receivedBytes > maxBytes) {
         reject(new Error('Request body too large.'))
         req.destroy()
         return
@@ -262,6 +271,69 @@ function readJsonBody(req) {
 
     req.on('error', reject)
   })
+}
+
+function getDiagnosticsLogPath(date = new Date()) {
+  const day = date.toISOString().slice(0, 10).replace(/-/g, '')
+  return path.join(diagnosticsLogDir, `diagnostics-${day}.ndjson`)
+}
+
+function sanitizeDiagnosticsValue(value, depth = 0) {
+  if (depth > 4) return '[max-depth]'
+  if (value === null) return null
+  if (typeof value === 'string') {
+    return value.length > maxDiagnosticsStringLength
+      ? `${value.slice(0, maxDiagnosticsStringLength)}...`
+      : value
+  }
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'boolean') return value
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((item) => sanitizeDiagnosticsValue(item, depth + 1))
+  }
+  if (typeof value === 'object') {
+    const result = {}
+    for (const [key, item] of Object.entries(value).slice(0, 80)) {
+      result[key] = sanitizeDiagnosticsValue(item, depth + 1)
+    }
+    return result
+  }
+  return String(value)
+}
+
+function normalizeDiagnosticsEvent(raw, req) {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+  const level = ['info', 'warn', 'error'].includes(source.level) ? source.level : 'info'
+  const event = typeof source.event === 'string' && source.event.length > 0
+    ? source.event.slice(0, 120)
+    : 'event'
+  const page = typeof source.page === 'string' && source.page.length > 0
+    ? source.page.slice(0, 80)
+    : 'unknown'
+
+  return {
+    ...sanitizeDiagnosticsValue(source),
+    ts: typeof source.ts === 'string' ? source.ts.slice(0, 40) : new Date().toISOString(),
+    level,
+    event,
+    page,
+    remoteAddress: req.socket.remoteAddress,
+  }
+}
+
+async function handleDiagnosticsEvent(req, res) {
+  applyCors(req, res)
+  if (!diagnosticsEnabled) {
+    res.writeHead(204)
+    res.end()
+    return
+  }
+
+  const body = await readJsonBody(req, maxDiagnosticsBodyBytes)
+  const event = normalizeDiagnosticsEvent(body, req)
+  await fs.promises.appendFile(getDiagnosticsLogPath(), `${JSON.stringify(event)}\n`, 'utf8')
+  res.writeHead(204)
+  res.end()
 }
 
 function handleOptions(req, res) {
@@ -287,7 +359,23 @@ async function handleRequest(req, res) {
         databasePath: dbPath,
         journalMode: db.pragma('journal_mode', { simple: true }),
         entryCount: getEntryCount(),
+        diagnosticsEnabled,
+        diagnosticsLogDir: diagnosticsEnabled ? diagnosticsLogDir : null,
       })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/diagnostics/config') {
+      sendJson(req, res, 200, {
+        enabled: diagnosticsEnabled,
+        overlay: diagnosticsOverlayEnabled,
+        endpoint: diagnosticsEndpoint,
+      })
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/diagnostics') {
+      await handleDiagnosticsEvent(req, res)
       return
     }
 
@@ -391,6 +479,7 @@ server.listen(port, host, () => {
   console.log(`[highscore] listening at http://${host}:${port}`)
   console.log(`[highscore] sqlite database: ${dbPath}`)
   console.log(`[highscore] scoreboard ws listening at ws://${host}:${port}/ws/scoreboard`)
+  console.log(`[highscore] diagnostics ${diagnosticsEnabled ? `enabled: ${diagnosticsLogDir}` : 'disabled'}`)
 })
 
 function shutdown() {

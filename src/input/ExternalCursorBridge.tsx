@@ -9,6 +9,7 @@ import {
 } from '@/input/CursorInputRouter'
 import { registerExternalCursorLifecycleSender } from '@/input/externalCursorLifecycle'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
+import { logDiagnosticsEvent } from '@/diagnostics/diagnosticsLogger'
 import { SETTINGS } from '@/settings/GameSettings'
 import { useSettingsVersion } from '@/settings/settingsStore'
 
@@ -174,6 +175,7 @@ export function ExternalCursorBridge() {
     const closeForReconnect = (reason: string) => {
       if (disposed) return
       console.warn(`[ExternalCursorBridge] ${reason}; reconnecting cursor WebSocket.`)
+      logDiagnosticsEvent('cursor_ws_reconnect', { reason }, 'warn')
       ws?.close()
       if (!ws) scheduleReconnect()
     }
@@ -185,7 +187,11 @@ export function ExternalCursorBridge() {
       if (useGameplayStore.getState().flowState !== 'idle') return
 
       console.warn('[ExternalCursorBridge] External cursor input stayed stale while idle; reloading page.')
-      window.location.reload()
+      logDiagnosticsEvent('watchdog_reload', {
+        reason: 'external cursor input stayed stale while idle',
+        staleForMs: nowMs - staleSinceMs,
+      }, 'warn')
+      window.setTimeout(() => window.location.reload(), 250)
     }
 
     const startFrameWatchdog = () => {
@@ -225,6 +231,10 @@ export function ExternalCursorBridge() {
         ws = new WebSocket(SETTINGS.cursor.external.websocket.url)
       } catch {
         ws = null
+        logDiagnosticsEvent('cursor_ws_error', {
+          reason: 'failed to construct WebSocket',
+          url: SETTINGS.cursor.external.websocket.url,
+        }, 'error')
         scheduleReconnect()
         return
       }
@@ -359,6 +369,9 @@ export function ExternalCursorBridge() {
         staleSinceMs = 0
         unregisterLifecycleSender?.()
         unregisterLifecycleSender = registerExternalCursorLifecycleSender(trySendJson)
+        logDiagnosticsEvent('cursor_ws_open', {
+          url: SETTINGS.cursor.external.websocket.url,
+        })
       }
 
       ws.onclose = () => {
@@ -367,10 +380,16 @@ export function ExternalCursorBridge() {
         ws = null
         endExternalCursorInputSession()
         if (disposed) return
+        logDiagnosticsEvent('cursor_ws_closed', {
+          url: SETTINGS.cursor.external.websocket.url,
+        }, 'warn')
         scheduleReconnect()
       }
 
       ws.onerror = () => {
+        logDiagnosticsEvent('cursor_ws_error', {
+          url: SETTINGS.cursor.external.websocket.url,
+        }, 'error')
         ws?.close()
       }
     }

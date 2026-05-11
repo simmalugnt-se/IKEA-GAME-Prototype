@@ -1,4 +1,5 @@
 import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
+import { logDiagnosticsEvent } from '@/diagnostics/diagnosticsLogger'
 import { CHANNEL_NAME } from '@/scoreboard/scoreboardSender'
 import { parseScoreboardTransportMessage } from '@/scoreboard/scoreboardTransport'
 import { SETTINGS } from '@/settings/GameSettings'
@@ -119,6 +120,7 @@ export function subscribeScoreboardEvents(
       ws = null
       wsState = 'error'
       emitStatus()
+      logDiagnosticsEvent('scoreboard_receiver_ws_error', { reason: 'failed to construct WebSocket', url: wsUrl }, 'error')
       scheduleReconnect()
       return
     }
@@ -127,6 +129,7 @@ export function subscribeScoreboardEvents(
       if (disposed) return
       wsState = 'open'
       emitStatus()
+      logDiagnosticsEvent('scoreboard_receiver_ws_open', { url: wsUrl })
     }
 
     ws.onmessage = (event) => {
@@ -137,6 +140,7 @@ export function subscribeScoreboardEvents(
       if (disposed) return
       wsState = 'error'
       emitStatus()
+      logDiagnosticsEvent('scoreboard_receiver_ws_error', { url: wsUrl }, 'error')
     }
 
     ws.onclose = () => {
@@ -144,6 +148,7 @@ export function subscribeScoreboardEvents(
       if (disposed) return
       wsState = 'closed'
       emitStatus()
+      logDiagnosticsEvent('scoreboard_receiver_ws_closed', { url: wsUrl }, 'warn')
       scheduleReconnect()
     }
   }

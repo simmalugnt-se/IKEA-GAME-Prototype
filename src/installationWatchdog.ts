@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useGameplayStore } from "@/gameplay/gameplayStore";
+import { logDiagnosticsEvent } from "@/diagnostics/diagnosticsLogger";
 import type { ScoreboardEvent } from "@/scoreboard/scoreboardEvents";
 import type { ScoreboardReceiverStatus } from "@/scoreboard/scoreboardReceiver";
 import { SETTINGS } from "@/settings/GameSettings";
@@ -13,7 +14,8 @@ const ACTIVITY_EVENTS = [
 
 function reloadPage(reason: string): void {
   console.warn(`[installationWatchdog] Reloading page: ${reason}`);
-  window.location.reload();
+  logDiagnosticsEvent("watchdog_reload", { reason }, "warn");
+  window.setTimeout(() => window.location.reload(), 250);
 }
 
 function getWatchdogSettings() {
@@ -131,14 +133,24 @@ export function useWebglContextLossReload(): void {
     const onContextLost = (event: Event) => {
       event.preventDefault();
       if (reloadTimer !== 0) return;
+      logDiagnosticsEvent("webgl_context_lost", {
+        reloadDelayMs: watchdog.webglContextLostReloadMs,
+      }, "error");
       reloadTimer = window.setTimeout(() => {
         reloadPage("WebGL context lost");
       }, watchdog.webglContextLostReloadMs);
     };
+    const onContextRestored = () => {
+      if (reloadTimer !== 0) window.clearTimeout(reloadTimer);
+      reloadTimer = 0;
+      logDiagnosticsEvent("webgl_context_restored");
+    };
 
     document.addEventListener("webglcontextlost", onContextLost, true);
+    document.addEventListener("webglcontextrestored", onContextRestored, true);
     return () => {
       document.removeEventListener("webglcontextlost", onContextLost, true);
+      document.removeEventListener("webglcontextrestored", onContextRestored, true);
       if (reloadTimer !== 0) window.clearTimeout(reloadTimer);
     };
   }, []);

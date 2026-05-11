@@ -1,4 +1,5 @@
 import type { ScoreboardEvent } from '@/scoreboard/scoreboardEvents'
+import { logDiagnosticsEvent } from '@/diagnostics/diagnosticsLogger'
 import { SETTINGS } from '@/settings/GameSettings'
 
 const CHANNEL_NAME = 'ikea-game-scoreboard'
@@ -73,22 +74,26 @@ function connectWs(): void {
     wsState.ws = new WebSocket(url)
   } catch {
     wsState.ws = null
+    logDiagnosticsEvent('scoreboard_sender_ws_error', { reason: 'failed to construct WebSocket', url }, 'error')
     scheduleWsReconnect()
     return
   }
 
   wsState.ws.onopen = () => {
     wsState.reconnectAttempt = 0
+    logDiagnosticsEvent('scoreboard_sender_ws_open', { url })
     flushWsQueue()
   }
 
   wsState.ws.onclose = () => {
     wsState.ws = null
     if (wsState.isDisposed) return
+    logDiagnosticsEvent('scoreboard_sender_ws_closed', { url }, 'warn')
     scheduleWsReconnect()
   }
 
   wsState.ws.onerror = () => {
+    logDiagnosticsEvent('scoreboard_sender_ws_error', { url }, 'error')
     // Let onclose drive reconnect.
   }
 }
