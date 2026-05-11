@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { playGameSound } from '@/audio/GameAudioRouter'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import {
   getLatestCursorSweepSeq,
@@ -44,6 +45,7 @@ const GAME_OVER_SCORE_TICK_MS = 1000
 const GAME_OVER_PREVIEW_SCORE = 65300
 const HIGH_SCORE_INITIALS_LENGTH = 3
 const BUTTON_DWELL_HOLD_CLASS = 'gfo-button-dwell-hold'
+const HIGH_SCORE_ENTRY_HOVER_SOUND_COOLDOWN_MS = 80
 
 type GameOverPreviewMode = 'off' | 'state1' | 'state2'
 type FlowScenarioOverride = `flow:${string}`
@@ -270,6 +272,7 @@ export function GameFlowOverlay() {
     { slot: 1, active: false, x: 0, y: 0, velocityPx: 0, visible: true, interactable: true },
   ])
   const lastLetterActionAtMsRef = useRef(Number.NEGATIVE_INFINITY)
+  const lastHighScoreEntryHoverSoundAtMsRef = useRef(Number.NEGATIVE_INFINITY)
   const letterPassBySlotRef = useRef<LetterPassBySlot>([
     createLetterPassState(),
     createLetterPassState(),
@@ -429,6 +432,8 @@ export function GameFlowOverlay() {
   const selectAlphabetLetter = useCallback((letterIndex: number, resolvedLetterIndex: number): number | 'submitted' => {
     const nextLetter = HIGH_SCORE_ALPHABET[letterIndex]
     if (!nextLetter) return resolvedLetterIndex
+
+    playGameSound({ type: 'high_score_entry_lock' })
 
     const initials = initialsRef.current
     const letters = Array.from(initials)
@@ -887,6 +892,13 @@ export function GameFlowOverlay() {
         if (alphabetDwell.letterIndex !== alphabetLetterIndex) {
           resetButtonDwellState(alphabetDwell.dwell)
           alphabetDwell.letterIndex = alphabetLetterIndex
+          if (
+            alphabetLetterIndex >= 0
+            && nowMs - lastHighScoreEntryHoverSoundAtMsRef.current >= HIGH_SCORE_ENTRY_HOVER_SOUND_COOLDOWN_MS
+          ) {
+            lastHighScoreEntryHoverSoundAtMsRef.current = nowMs
+            playGameSound({ type: 'high_score_entry_hover' })
+          }
         }
         const alphabetEligible = (
           alphabetLetterIndex >= 0
@@ -925,6 +937,8 @@ export function GameFlowOverlay() {
         }
 
         if (nextTriggered) {
+          playGameSound({ type: 'high_score_entry_lock' })
+
           if (resolvedLetterIndex >= HIGH_SCORE_INITIALS_LENGTH - 1) {
             submitGameOverInitialsRef.current('submitted')
             break

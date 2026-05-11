@@ -23,6 +23,15 @@ export function playScoreboardSoundCue(cue: ScoreboardSoundCue): void {
     case 'run_ended':
       playGameSound({ type: 'game_over' })
       return
+    case 'idle_started':
+      playGameSound({ type: 'idle_started' })
+      return
+    case 'high_score_entry':
+      playGameSound({ type: 'high_score_entry' })
+      return
+    case 'high_score_entry_lock':
+      playGameSound({ type: 'high_score_entry_lock' })
+      return
     case 'initials_submitted':
       playGameSound({ type: 'idle_started' })
       return
@@ -30,10 +39,19 @@ export function playScoreboardSoundCue(cue: ScoreboardSoundCue): void {
       playGameSound({ type: 'contagion_infection' })
       return
     case 'timebonus':
-      playGameSound({ type: 'combo_tier2' })
+      playGameSound({ type: 'time_bonus' })
       return
-    case 'special_event':
-      playGameSound({ type: 'combo_tier4Plus' })
+    case 'roller':
+      playGameSound({ type: 'roller' })
+      return
+    case 'slowmo':
+      playGameSound({ type: 'slowmo' })
+      return
+    case 'zero_gravity':
+      playGameSound({ type: 'zero_gravity' })
+      return
+    case 'multi_balls':
+      playGameSound({ type: 'multi_balls' })
       return
     default:
       return

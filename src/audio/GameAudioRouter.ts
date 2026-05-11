@@ -1,6 +1,6 @@
 import { AUDIO_SETTINGS } from '@/audio/AudioSettings'
 import type { AudioBankId } from '@/audio/AudioSettings.types'
-import { hasLoadedAudioBank, playAudioBank } from '@/audio/SoundManager'
+import { hasLoadedAudioBank, playAudioBank, startLoopingAudioBank, type AudioLoopHandle } from '@/audio/SoundManager'
 
 type ComboTriggeredGameSoundEvent = {
   type: 'combo_triggered'
@@ -20,8 +20,19 @@ export type GameSoundEvent =
   | { type: 'run_end' }
   | { type: 'game_over' }
   | { type: 'contagion_infection' }
+  | { type: 'time_bonus' }
+  | { type: 'roller' }
+  | { type: 'slowmo' }
+  | { type: 'zero_gravity' }
+  | { type: 'multi_balls' }
+  | { type: 'high_score_entry' }
+  | { type: 'high_score_entry_hover' }
+  | { type: 'high_score_entry_lock' }
   | ComboTierGameSoundEvent
   | ComboTriggeredGameSoundEvent
+
+export type GameSoundLoopEvent =
+  | { type: 'ten_seconds_left' }
 
 let lastSwooshTimeMs = 0
 
@@ -30,20 +41,6 @@ function resolveComboBankByMultiplier(multiplier: number): AudioBankId | null {
   if (multiplier === 2) return 'comboTier2'
   if (multiplier === 3) return 'comboTier3'
   return 'comboTier4Plus'
-}
-
-function resolveComboTierEvent(multiplier: number): ComboTierGameSoundEvent | null {
-  const comboBankId = resolveComboBankByMultiplier(multiplier)
-  switch (comboBankId) {
-    case 'comboTier2':
-      return { type: 'combo_tier2' }
-    case 'comboTier3':
-      return { type: 'combo_tier3' }
-    case 'comboTier4Plus':
-      return { type: 'combo_tier4Plus' }
-    default:
-      return null
-  }
 }
 
 function playBankWithoutFallback(bankId: AudioBankId): void {
@@ -63,22 +60,46 @@ export function playGameSound(event: GameSoundEvent): void {
       playAudioBank('felt')
       return
     case 'run_started':
-      playAudioBank('comboTier2')
+      playAudioBank('runStarted')
       return
     case 'idle_started':
-      playAudioBank('felt')
+      playAudioBank('idleStarted')
       return
     case 'life_lost':
       playAudioBank('error')
       return
     case 'run_end':
-      playAudioBank('bee')
+      playAudioBank('gameOver')
       return
     case 'game_over':
-      playAudioBank('bee')
+      playAudioBank('gameOver')
       return
     case 'contagion_infection':
       playAudioBank('steel')
+      return
+    case 'time_bonus':
+      playAudioBank('timeBonus')
+      return
+    case 'roller':
+      playAudioBank('roller')
+      return
+    case 'slowmo':
+      playAudioBank('slowmo')
+      return
+    case 'zero_gravity':
+      playAudioBank('zeroGravity')
+      return
+    case 'multi_balls':
+      playAudioBank('multiBalls')
+      return
+    case 'high_score_entry':
+      playAudioBank('highScoreEntry')
+      return
+    case 'high_score_entry_hover':
+      playAudioBank('highScoreEntryHover')
+      return
+    case 'high_score_entry_lock':
+      playAudioBank('highScoreEntryLock')
       return
     case 'combo_tier2':
       playBankWithoutFallback('comboTier2')
@@ -91,13 +112,22 @@ export function playGameSound(event: GameSoundEvent): void {
       return
     case 'combo_triggered':
       {
-        const comboTierEvent = resolveComboTierEvent(event.multiplier)
-        if (!comboTierEvent) return
-        playGameSound(comboTierEvent)
+        const comboBankId = resolveComboBankByMultiplier(event.multiplier)
+        if (!comboBankId) return
+        playBankWithoutFallback(comboBankId)
       }
       return
     default:
       return
+  }
+}
+
+export function startGameSoundLoop(event: GameSoundLoopEvent): AudioLoopHandle | null {
+  switch (event.type) {
+    case 'ten_seconds_left':
+      return startLoopingAudioBank('tenSecondsLeft')
+    default:
+      return null
   }
 }
 

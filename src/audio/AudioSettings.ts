@@ -1,5 +1,7 @@
 import type { AudioSettings } from '@/audio/AudioSettings.types'
 
+const PLACEHOLDER_SOUND_FILES = ['/sounds/brick/brick1.wav']
+
 export const AUDIO_SETTINGS: AudioSettings = {
   enabled: true,
   mix: {
@@ -79,6 +81,54 @@ export const AUDIO_SETTINGS: AudioSettings = {
         '/sounds/yes/yes3.wav',
       ],
       volume: 1,
+    },
+    timeBonus: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    roller: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    slowmo: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    zeroGravity: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    multiBalls: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    runStarted: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    gameOver: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    highScoreEntry: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    idleStarted: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    tenSecondsLeft: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    highScoreEntryHover: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
+    },
+    highScoreEntryLock: {
+      files: PLACEHOLDER_SOUND_FILES,
+      volume: 0,
     },
   },
   music: {

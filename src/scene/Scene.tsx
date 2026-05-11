@@ -88,8 +88,15 @@ function PhysicsRuntimeController() {
       const contagionColorIndex = getGravityShiftContagionColorIndex();
       const bodyTuning = getGravityShiftBodyTuning();
       const queueGravityShiftContagionCarrier = useGameplayStore.getState().queueGravityShiftContagionCarrier;
+      const bodyHandles: number[] = [];
       world.forEachRigidBody((body) => {
-        if (!body.isDynamic()) return;
+        bodyHandles.push(body.handle);
+      });
+
+      for (const handle of bodyHandles) {
+        const body = world.getRigidBody(handle);
+        if (!body) continue;
+        if (!body.isDynamic()) continue;
         const translation = body.translation();
         projectionScratch.set(translation.x, translation.y, translation.z).project(camera);
         const isInView = projectionScratch.z >= -1
@@ -98,7 +105,7 @@ function PhysicsRuntimeController() {
           && projectionScratch.x <= 1.15
           && projectionScratch.y >= -1.15
           && projectionScratch.y <= 1.15;
-        if (!isInView) return;
+        if (!isInView) continue;
         affectedBodyHandlesRef.current.set(body.handle, {
           startsAtMs: nowMs + randomRange(bodyTuning.delayMinMs, bodyTuning.delayMaxMs),
           gravityY: randomRange(bodyTuning.gravityYMin, bodyTuning.gravityYMax),
@@ -109,7 +116,7 @@ function PhysicsRuntimeController() {
           if (entityId) queueGravityShiftContagionCarrier(entityId, contagionColorIndex);
         }
         body.wakeUp();
-      });
+      }
     }
 
     if (affectedBodyHandlesRef.current.size > 0) {

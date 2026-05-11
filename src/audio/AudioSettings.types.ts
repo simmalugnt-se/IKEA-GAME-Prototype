@@ -8,6 +8,18 @@ export const AUDIO_BANK_IDS = [
   'comboTier2',
   'comboTier3',
   'comboTier4Plus',
+  'timeBonus',
+  'roller',
+  'slowmo',
+  'zeroGravity',
+  'multiBalls',
+  'runStarted',
+  'gameOver',
+  'highScoreEntry',
+  'idleStarted',
+  'tenSecondsLeft',
+  'highScoreEntryHover',
+  'highScoreEntryLock',
 ] as const
 
 export type AudioBankId = (typeof AUDIO_BANK_IDS)[number]

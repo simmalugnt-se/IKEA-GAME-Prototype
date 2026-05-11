@@ -18,7 +18,7 @@ export type ScoreboardReceiverStatus = {
 }
 
 function createEventFingerprint(event: ScoreboardEvent): string {
-  return `${event.type}|${event.runId}|${event.timestamp}`
+  return JSON.stringify(event)
 }
 
 function createDedupeWindow(size: number) {

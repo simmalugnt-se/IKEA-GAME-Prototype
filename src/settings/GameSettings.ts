@@ -280,7 +280,8 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 45000,
+      timeLimitMs: 60000,
+      // Combo time bonus step after X2: X3 = 1s, X4 = 2s with 1000ms.
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,
       popStreakTimeBonusMs: 0,
@@ -403,8 +404,8 @@ export const SETTINGS: Settings = {
         label: "Time Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        minScoreToSpawn: 10000,
-        weight: 0.025,
+        minScoreToSpawn: 0,
+        weight: 0.03,
         weightAcceleration: 0.008,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 2,
@@ -452,7 +453,7 @@ export const SETTINGS: Settings = {
         label: "Gift Balloon",
         enabled: true,
         includeInDefaultPool: true,
-        weight: 0.025,
+        weight: 0.03,
         weightAcceleration: 0,
         weightAccelerationCurve: "linear",
         weightMaxMultiplier: 1,
@@ -468,7 +469,7 @@ export const SETTINGS: Settings = {
         timeDeltaMs: 0,
         feedbackText: "POWER UP!",
         triggerEventRuleIds: [
-          // "combo_cluster_reward",
+          "combo_cluster_reward",
           "ground_ball_wave_reward",
           "slowmo_reward",
           "track_sweeper_reward",
@@ -795,12 +796,13 @@ export const getPaletteEntry = (
 };
 
 // Current spawn event summary:
-// - combo_cluster_reward: 15 pops without miss -> spawn 7 cluster balloons. = cluster
+// - Bonus events are triggered by gift_balloon triggerEventRuleIds.
+// - combo_cluster_reward: spawns 7 cluster balloons. = cluster
 // - ten_pop_cluster_reward: 10 pops without miss + score >= 50000 -> spawn 7 cluster balloons. = cluster
-// - ground_ball_wave_reward: combo multiplier 4+ -> ground ball wave. 
-// - slowmo_reward: combo multiplier 4+ -> slow motion.
-// - track_sweeper_reward: combo multiplier 4+ -> track sweeper.
-// - gravity_loss_reward: combo multiplier 4+ -> gravity loss.
+// - ground_ball_wave_reward: ground ball wave.
+// - slowmo_reward: slow motion.
+// - track_sweeper_reward: track sweeper.
+// - gravity_loss_reward: gravity loss.
 // - gift_balloon: higher-weight direct reward; pops one random enabled effect from triggerEventRuleIds.
 // - eventSelectionMode "one_random": pick one eligible event if several qualify together.
 // - globalEventCooldownMs: shared cooldown after any event; 0 disables the global lockout.

@@ -31,6 +31,7 @@ import {
 } from '@/ui/scoreboard/ScoreboardRiveDriver'
 import {
   applyScoreboardEventToRive,
+  type ScoreboardRiveEventApplication,
 } from '@/ui/scoreboard/scoreboardRiveEventMapper'
 import { ScoreboardRiveDebugPanel } from '@/ui/scoreboard/ScoreboardRiveDebugPanel'
 import {
@@ -57,6 +58,15 @@ type ScoreboardUiState = {
   error: string | null
 }
 
+type RiveDebugLogEntry = {
+  id: number
+  time: string
+  eventName: string
+  trigger: string
+  label: string
+  details: string
+}
+
 const INITIAL_UI_STATE: ScoreboardUiState = {
   riveState: 'idle',
   artboardName: '-',
@@ -69,6 +79,8 @@ const INITIAL_UI_STATE: ScoreboardUiState = {
   receiverStatus: null,
   error: null,
 }
+
+const RIVE_DEBUG_LOG_MAX_ENTRIES = 8
 
 function resolveCurrentSource(): ResolvedScoreboardSource {
   return resolveScoreboardSource(SCOREBOARD_SETTINGS.dmd.source)
@@ -85,6 +97,54 @@ function getCanvasLayout(): { size: number; offsetX: number; offsetY: number } {
     size: Math.max(1, Math.max(safeWidth, safeHeight)),
     offsetX: (margins.left - margins.right) / 2,
     offsetY: (margins.top - margins.bottom) / 2,
+  }
+}
+
+function formatLogTime(timestampMs: number): string {
+  const date = new Date(timestampMs)
+  const time = date.toLocaleTimeString('sv-SE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+  return `${time}.${date.getMilliseconds().toString().padStart(3, '0')}`
+}
+
+function truncateLogText(value: string, maxLength = 150): string {
+  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}…`
+}
+
+function describeScoreboardEvent(event: ScoreboardEvent): string {
+  if (event.type === 'game_event_triggered') return `${event.type}:${event.eventId}`
+  if (event.type === 'combo_triggered') return `${event.type}:x${event.multiplier}`
+  if (event.type === 'points_received') return `${event.type}:${event.generatedBy}`
+  return event.type
+}
+
+function describeRiveApplication(application: ScoreboardRiveEventApplication): Pick<RiveDebugLogEntry, 'trigger' | 'label' | 'details'> {
+  const data = application.data
+  const detailParts: string[] = []
+
+  if (typeof data.gameEventId === 'string' && data.gameEventId.length > 0) {
+    detailParts.push(`gameEventId=${data.gameEventId}`)
+  }
+  if (typeof data.eventBalloonType === 'string' && data.eventBalloonType.length > 0) {
+    detailParts.push(`eventBalloonType=${data.eventBalloonType}`)
+  }
+  if (typeof data.comboMultiplier === 'number') {
+    detailParts.push(`comboMultiplier=${data.comboMultiplier}`)
+  }
+  if (typeof data.scoreDelta === 'number') {
+    detailParts.push(`scoreDelta=${data.scoreDelta}`)
+  }
+  if (typeof data.gameEventPayloadJson === 'string' && data.gameEventPayloadJson.length > 0) {
+    detailParts.push(`payload=${truncateLogText(data.gameEventPayloadJson, 90)}`)
+  }
+
+  return {
+    trigger: application.trigger ?? '-',
+    label: typeof data.eventLabel === 'string' ? data.eventLabel : '-',
+    details: detailParts.join(' | ') || '-',
   }
 }
 
@@ -115,16 +175,37 @@ export function ScoreboardPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [uiState, setUiState] = useState<ScoreboardUiState>(INITIAL_UI_STATE)
   const [latestScoreboardEvent, setLatestScoreboardEvent] = useState<ScoreboardEvent | null>(null)
+  const [riveDebugLog, setRiveDebugLog] = useState<RiveDebugLogEntry[]>([])
+  const riveDebugLogIdRef = useRef(0)
 
   useScoreboardInstallationWatchdog(uiState.receiverStatus, latestScoreboardEvent)
   useWebglContextLossReload()
 
-  const handleDebugTriggerEvent = useCallback((event: ScoreboardEvent) => {
-    if (riveDriverRef.current) {
-      applyScoreboardEventToRive(riveDriverRef.current, event)
+  const appendRiveDebugLog = useCallback((
+    event: ScoreboardEvent,
+    application: ScoreboardRiveEventApplication | null,
+  ) => {
+    if (application && SCOREBOARD_SETTINGS.debug.logRiveEvents === true) {
+      const nowMs = Date.now()
+      const description = describeRiveApplication(application)
+      riveDebugLogIdRef.current += 1
+      const nextEntry = {
+        id: riveDebugLogIdRef.current,
+        time: formatLogTime(nowMs),
+        eventName: describeScoreboardEvent(event),
+        ...description,
+      }
+      setRiveDebugLog((prev) => [...prev, nextEntry].slice(-RIVE_DEBUG_LOG_MAX_ENTRIES))
     }
-    setLatestScoreboardEvent(event)
   }, [])
+
+  const handleDebugTriggerEvent = useCallback((event: ScoreboardEvent) => {
+    const application = riveDriverRef.current
+      ? applyScoreboardEventToRive(riveDriverRef.current, event)
+      : null
+    appendRiveDebugLog(event, application)
+    setLatestScoreboardEvent(event)
+  }, [appendRiveDebugLog])
 
   useEffect(() => {
     overlayVisibleRef.current = overlayVisible
@@ -317,7 +398,8 @@ export function ScoreboardPage() {
       (event) => {
         receivedRuntimeScoreboardEvent = true
         orchestrator.handleEvent(event)
-        if (riveDriver) applyScoreboardEventToRive(riveDriver, event)
+        const application = riveDriver ? applyScoreboardEventToRive(riveDriver, event) : null
+        appendRiveDebugLog(event, application)
         setLatestScoreboardEvent(event)
       },
       (receiverStatus) => {
@@ -401,6 +483,7 @@ export function ScoreboardPage() {
       dmdRendererRef.current = null
     }
   }, [
+    appendRiveDebugLog,
     globalSettingsVersion,
     sourceConfigVersion,
     appliedSource.fit,
@@ -469,6 +552,27 @@ export function ScoreboardPage() {
             <span style={styles.value}>range {SCOREBOARD_SETTINGS.dmd.edge.detectRange.toFixed(2)}</span>
             <span style={styles.muted}>strength {SCOREBOARD_SETTINGS.dmd.edge.compressStrength.toFixed(2)}</span>
           </div>
+        </div>
+      )}
+
+      {SCOREBOARD_SETTINGS.debug.logRiveEvents === true && (
+        <div style={styles.riveLogPanel}>
+          <div style={styles.riveLogHeader}>Rive event log · oldest top, newest bottom</div>
+          {riveDebugLog.length === 0 ? (
+            <div style={styles.riveLogEmpty}>Waiting for scoreboard events…</div>
+          ) : (
+            riveDebugLog.map((entry) => (
+              <div key={`${entry.id}-${entry.eventName}`} style={styles.riveLogEntry}>
+                <div style={styles.riveLogLine}>
+                  <span style={styles.riveLogTime}>{entry.time}</span>
+                  <span style={styles.riveLogEvent}>{entry.eventName}</span>
+                  <span style={styles.riveLogTrigger}>{entry.trigger}</span>
+                </div>
+                <div style={styles.riveLogLabel}>{entry.label}</div>
+                <div style={styles.riveLogDetails}>{entry.details}</div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -553,6 +657,75 @@ const styles = {
   muted: {
     color: '#a7f3d0',
     opacity: 0.75,
+  },
+  riveLogPanel: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 6,
+    maxHeight: '42vh',
+    overflow: 'hidden',
+    padding: '10px 12px',
+    borderRadius: 8,
+    background: 'rgba(0, 0, 0, 0.72)',
+    color: '#d1fae5',
+    pointerEvents: 'none' as const,
+    zIndex: 30,
+  },
+  riveLogHeader: {
+    color: '#86efac',
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase' as const,
+  },
+  riveLogEmpty: {
+    color: '#a7f3d0',
+    fontSize: 12,
+    opacity: 0.75,
+  },
+  riveLogEntry: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 2,
+    paddingTop: 5,
+    borderTop: '1px solid rgba(134, 239, 172, 0.18)',
+    fontSize: 11,
+    lineHeight: 1.25,
+  },
+  riveLogLine: {
+    display: 'flex',
+    alignItems: 'center' as const,
+    gap: 8,
+    minWidth: 0,
+  },
+  riveLogTime: {
+    color: '#bbf7d0',
+    minWidth: 82,
+    opacity: 0.75,
+  },
+  riveLogEvent: {
+    color: '#ecfccb',
+    fontWeight: 700,
+    minWidth: 210,
+  },
+  riveLogTrigger: {
+    color: '#fde68a',
+    fontWeight: 700,
+  },
+  riveLogLabel: {
+    color: '#bfdbfe',
+    fontWeight: 700,
+  },
+  riveLogDetails: {
+    color: '#a7f3d0',
+    opacity: 0.82,
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   errorOverlay: {
     position: 'absolute',

@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { AUDIO_SETTINGS } from '@/audio/AudioSettings'
+import { startGameSoundLoop } from '@/audio/GameAudioRouter'
 import { isAudioUnlocked, subscribeAudioUnlocked } from '@/audio/SoundManager'
 import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { SETTINGS } from '@/settings/GameSettings'
@@ -63,6 +64,7 @@ export function ScoreHud() {
   const timeFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const timeFeedbackCleanupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const timeFeedbackRafIdRef = useRef<number | null>(null)
+  const tenSecondsLeftLoopRef = useRef<ReturnType<typeof startGameSoundLoop> | null>(null)
   const [timeNowMs, setTimeNowMs] = useState(() => Date.now())
   const [visibleTimeFeedback, setVisibleTimeFeedback] = useState('')
   const [isTimeFeedbackOpen, setIsTimeFeedbackOpen] = useState(false)
@@ -328,6 +330,32 @@ export function ScoreHud() {
     && displayRemainingTimeMs <= pulseSlowStartMs
     && !timePulseFast
   )
+  const tenSecondsLeftActive = (
+    runMode === 'time'
+    && flowState === 'run'
+    && !paused
+    && displayRemainingTimeMs > 0
+    && displayRemainingTimeMs <= 10000
+  )
+
+  useEffect(() => {
+    if (tenSecondsLeftActive && isAudioOn) {
+      if (tenSecondsLeftLoopRef.current === null) {
+        tenSecondsLeftLoopRef.current = startGameSoundLoop({ type: 'ten_seconds_left' })
+      }
+      return
+    }
+
+    tenSecondsLeftLoopRef.current?.stop()
+    tenSecondsLeftLoopRef.current = null
+  }, [isAudioOn, tenSecondsLeftActive])
+
+  useEffect(() => {
+    return () => {
+      tenSecondsLeftLoopRef.current?.stop()
+      tenSecondsLeftLoopRef.current = null
+    }
+  }, [])
 
   return (
     <>
