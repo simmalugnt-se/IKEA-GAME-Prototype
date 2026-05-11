@@ -133,8 +133,7 @@ export type CurrentTimeUpdatedEvent = {
   type: 'current_time_updated'
   timestamp: number
   runId: string
-  currentMinutes: number
-  currentSeconds: number
+  currentTime: string
 }
 
 export type ScoreboardEvent =

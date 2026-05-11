@@ -63,8 +63,6 @@ const NUMBER_PROPERTY_NAMES = [
   'listSlotOpacity5',
   'timebonusCurrentSeconds',
   'timebonusAwardedSeconds',
-  'currentMinutes',
-  'currentSeconds',
 ] as const
 
 const STRING_PROPERTY_NAMES = [
@@ -91,6 +89,7 @@ const STRING_PROPERTY_NAMES = [
   'listSlotInitials3',
   'listSlotInitials4',
   'listSlotInitials5',
+  'currentTime',
 ] as const
 
 const TRIGGER_PROPERTY_NAMES = [
