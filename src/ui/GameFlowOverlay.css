@@ -60,12 +60,28 @@
   justify-content: center;
 }
 
+.gfo-idle-prompt-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 4rem;
+}
+
 .gfo-idle-prompt {
   line-height: 0.8em;
   font-size: 4rem;
   text-wrap: balance;
   max-width: 20ch;
   text-transform: uppercase;
+}
+
+.gfo-idle-prompt-sub {
+  font-size: 1rem;
+  text-align: center;
+  max-width: 100%;
+  width: 100%;
 }
 
 .gfo-game-over-row {
