@@ -9,6 +9,7 @@ import type {
   ScoreboardRiveDriver,
   ScoreboardRiveTrigger,
 } from '@/ui/scoreboard/ScoreboardRiveDriver'
+import { isScoreboardRiveDebugLoggingEnabled } from '@/ui/scoreboard/scoreboardRiveDebugLogging'
 
 export type ScoreboardRiveEventApplication = {
   data: ScoreboardRiveDataPatch
@@ -251,7 +252,7 @@ export function mapScoreboardEventToRive(event: ScoreboardEvent): ScoreboardRive
           gameEventId: event.eventId,
           gameEventPayloadJson: stringifyPayload(event.payload),
           eventLabel: resolveGameEventLabel(event),
-          eventBalloonType: resolveEventBalloonType(event.eventId),
+          eventBalloonType: resolveEventBalloonType(event.eventId) ?? 'none',
         },
         trigger: 'triggerSpecialEvent',
       }
@@ -335,6 +336,13 @@ export function applyScoreboardEventToRive(
   options: ApplyScoreboardEventToRiveOptions = {},
 ): ScoreboardRiveEventApplication {
   const application = mapScoreboardEventToRive(event)
+  if (isScoreboardRiveDebugLoggingEnabled()) {
+    console.log('[scoreboard:rive:apply]', {
+      event,
+      riveData: application.data,
+      trigger: options.fireTrigger === false ? null : application.trigger ?? null,
+    })
+  }
   riveDriver.applyScoreboardData(application.data)
   if (application.trigger && options.fireTrigger !== false) {
     riveDriver.fireScoreboardTrigger(application.trigger)

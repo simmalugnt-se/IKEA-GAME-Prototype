@@ -46,7 +46,7 @@ export function resolveScoreboardCueTemplates(event: ScoreboardEvent): Scoreboar
 
     case 'initials_step_finished':
       return [{
-        sound: { kind: 'initials_submitted' },
+        sound: { kind: 'high_score_entry_lock' },
         cooldownKey: 'initials_step_finished',
         cooldownMs: 600,
       }]
@@ -60,11 +60,34 @@ export function resolveScoreboardCueTemplates(event: ScoreboardEvent): Scoreboar
         }]
       }
 
-      // Placeholder mapping for upcoming game-event ids (e.g. steamroller).
-      if (event.eventId === 'steamroller') {
+      if (event.eventId === 'track_sweeper_reward') {
         return [{
-          sound: { kind: 'special_event' },
-          cooldownKey: 'game_event_steamroller',
+          sound: { kind: 'roller' },
+          cooldownKey: 'game_event_track_sweeper_reward',
+          cooldownMs: 300,
+        }]
+      }
+
+      if (event.eventId === 'slowmo_reward') {
+        return [{
+          sound: { kind: 'slowmo' },
+          cooldownKey: 'game_event_slowmo_reward',
+          cooldownMs: 300,
+        }]
+      }
+
+      if (event.eventId === 'gravity_loss_reward') {
+        return [{
+          sound: { kind: 'zero_gravity' },
+          cooldownKey: 'game_event_gravity_loss_reward',
+          cooldownMs: 300,
+        }]
+      }
+
+      if (event.eventId === 'ground_ball_wave_reward') {
+        return [{
+          sound: { kind: 'multi_balls' },
+          cooldownKey: 'game_event_ground_ball_wave_reward',
           cooldownMs: 300,
         }]
       }
@@ -76,9 +99,19 @@ export function resolveScoreboardCueTemplates(event: ScoreboardEvent): Scoreboar
     case 'lives_lost':
       return []
 
-    case 'idle_started':
     case 'initials_step_started':
-      return []
+      return [{
+        sound: { kind: 'high_score_entry' },
+        cooldownKey: 'initials_step_started',
+        cooldownMs: 600,
+      }]
+
+    case 'idle_started':
+      return [{
+        sound: { kind: 'idle_started' },
+        cooldownKey: 'idle_started',
+        cooldownMs: 600,
+      }]
 
     default:
       return []

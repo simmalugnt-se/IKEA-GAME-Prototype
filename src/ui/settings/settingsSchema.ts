@@ -145,6 +145,26 @@ function setAudioBankVolume(bankId: AudioBankId, volume: number) {
     bump()
 }
 
+function createAudioBankFields(bankId: AudioBankId, label: string): FieldDescriptor[] {
+    return [
+        {
+            type: 'stringArray',
+            label: `${label}.files`,
+            get: () => AUDIO_SETTINGS.banks[bankId].files,
+            set: (v) => { setAudioBankFiles(bankId, v) },
+        },
+        {
+            type: 'number',
+            label: `${label}.volume`,
+            get: () => AUDIO_SETTINGS.banks[bankId].volume,
+            set: (v) => { setAudioBankVolume(bankId, v) },
+            min: 0,
+            max: 2,
+            step: 0.05,
+        },
+    ]
+}
+
 function setAudioMixVolume(field: 'masterVolume' | 'sfxMasterVolume' | 'musicMasterVolume', value: number) {
     AUDIO_SETTINGS.mix[field] = value
     syncAudioMixerGainsFromSettings()
@@ -829,6 +849,18 @@ export const settingsSections: SectionDescriptor[] = [
                 set: (v) => { setAudioBankFiles('comboTier4Plus', v) },
             },
             { type: 'number', label: 'combo.tier4Plus.volume', get: () => AUDIO_SETTINGS.banks.comboTier4Plus.volume, set: (v) => { setAudioBankVolume('comboTier4Plus', v) }, min: 0, max: 2, step: 0.05 },
+            ...createAudioBankFields('timeBonus', 'events.timeBonus'),
+            ...createAudioBankFields('roller', 'events.roller'),
+            ...createAudioBankFields('slowmo', 'events.slowmo'),
+            ...createAudioBankFields('zeroGravity', 'events.zeroGravity'),
+            ...createAudioBankFields('multiBalls', 'events.multiBalls'),
+            ...createAudioBankFields('runStarted', 'events.runStarted'),
+            ...createAudioBankFields('gameOver', 'events.gameOver'),
+            ...createAudioBankFields('highScoreEntry', 'events.highScoreEntry'),
+            ...createAudioBankFields('idleStarted', 'events.idleStarted'),
+            ...createAudioBankFields('tenSecondsLeft', 'events.tenSecondsLeft'),
+            ...createAudioBankFields('highScoreEntryHover', 'events.highScoreEntryHover'),
+            ...createAudioBankFields('highScoreEntryLock', 'events.highScoreEntryLock'),
             // swoosh
             {
                 type: 'stringArray', label: 'swoosh.files',

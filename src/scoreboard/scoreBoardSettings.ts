@@ -3,6 +3,7 @@ import type { ScoreboardSettings } from '@/scoreboard/scoreBoardSettings.types'
 export const SCOREBOARD_SETTINGS: ScoreboardSettings = {
   debug: {
     showOverlayByDefault: false,
+    logRiveEvents: false,
   },
   display: {
     // CSS-pixlar in från viewport-kanterna. Negativa värden tillåtna för
@@ -45,4 +46,5 @@ export const SCOREBOARD_SETTINGS: ScoreboardSettings = {
     // lightest -> darkest
     palette: ['#669E10', '#006B18', '#0E3420', '#000000'],
   },
+
 }

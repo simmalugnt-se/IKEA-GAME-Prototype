@@ -19,6 +19,7 @@ export type ScoreboardDisplaySettings = {
 export type ScoreboardSettings = {
   debug: {
     showOverlayByDefault: boolean
+    logRiveEvents: boolean
   }
   display: ScoreboardDisplaySettings
   dmd: {

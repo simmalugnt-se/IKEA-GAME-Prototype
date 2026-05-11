@@ -7,6 +7,9 @@ type CategoryState = {
 }
 
 type AudioUnlockedListener = () => void
+export type AudioLoopHandle = {
+  stop: () => void
+}
 
 let ctx: AudioContext | null = null
 const categories = new Map<AudioBankId, CategoryState>()
@@ -216,6 +219,55 @@ export function playAudioBank(bankId: AudioBankId, volumeScale = 1): void {
     gain.disconnect()
   }
   source.start()
+}
+
+export function startLoopingAudioBank(bankId: AudioBankId, volumeScale = 1): AudioLoopHandle | null {
+  if (!AUDIO_SETTINGS.enabled) return null
+
+  const state = categories.get(bankId)
+  if (!state || state.buffers.length === 0) return null
+
+  const audioCtx = getOrCreateAudioContext()
+  ensureBusGraph(audioCtx)
+  const buffer = state.buffers[state.index]
+  state.index = (state.index + 1) % state.buffers.length
+
+  const source = audioCtx.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+  source.playbackRate.value = sfxPlaybackRateScale
+
+  const gain = audioCtx.createGain()
+  const bankVolume = AUDIO_SETTINGS.banks[bankId].volume
+  gain.gain.value = bankVolume * volumeScale
+
+  source.connect(gain)
+  if (!sfxBusGain) {
+    throw new Error('SFX bus is not initialized.')
+  }
+  gain.connect(sfxBusGain)
+  activeSfxSources.add(source)
+
+  let stopped = false
+  let cleaned = false
+  const cleanup = () => {
+    if (cleaned) return
+    cleaned = true
+    activeSfxSources.delete(source)
+    source.disconnect()
+    gain.disconnect()
+  }
+  source.onended = cleanup
+  source.start()
+
+  return {
+    stop: () => {
+      if (stopped) return
+      stopped = true
+      source.stop()
+      cleanup()
+    },
+  }
 }
 
 export function setSfxPlaybackRateScale(scale: number): void {

@@ -92,6 +92,8 @@ type PendingPair = {
   b: NormalizedCollisionEntity
 }
 
+const ENABLE_AUTOMATIC_SPAWN_EVENT_TRIGGERS = false
+
 type GameplayState = {
   score: number
   lastRunScore: number
@@ -843,6 +845,16 @@ function executeSpawnEventAction(
     ...scoreboardPayload,
   })
 
+  if (action.type === 'spawn_ground_ball_wave') {
+    playGameSound({ type: 'multi_balls' })
+  } else if (action.type === 'spawn_track_sweeper') {
+    playGameSound({ type: 'roller' })
+  } else if (action.type === 'time_scale_boost') {
+    playGameSound({ type: 'slowmo' })
+  } else if (action.type === 'gravity_shift') {
+    playGameSound({ type: 'zero_gravity' })
+  }
+
   if (action.type === 'spawn_burst') {
     const requests = buildQueuedSpawnRequestsForSpawnEvent({
       id: '',
@@ -1277,6 +1289,8 @@ function maybeTriggerSpawnEventsForComboMultiplier(
   multiplier: number,
   origin?: ScreenPos,
 ): void {
+  // Bonus events are now reserved for direct spawn-item triggers, such as gift balloons.
+  if (!ENABLE_AUTOMATIC_SPAWN_EVENT_TRIGGERS) return
   if (!(multiplier >= 2)) return
 
   const nowMs = Date.now()
@@ -1289,6 +1303,8 @@ function maybeTriggerSpawnEventsForPopStreakWithoutMiss(
   currentCount: number,
   origin?: ScreenPos,
 ): void {
+  // Bonus events are now reserved for direct spawn-item triggers, such as gift balloons.
+  if (!ENABLE_AUTOMATIC_SPAWN_EVENT_TRIGGERS) return
   if (currentCount <= previousCount) return
   const nowMs = Date.now()
   const eligibleRules = resolveEligibleSpawnEventRulesForPopStreak(previousCount, currentCount, nowMs)
@@ -1419,15 +1435,6 @@ function flushPendingComboStrike(): void {
       totalPoints: totalStrikeScore,
       totalScore: totalScoreAfterStrike,
     })
-    sendGameEventTriggered(`${Math.trunc(finalMultiplier)}_combo`, {
-      triggerSource: 'combo',
-      comboMultiplier: finalMultiplier,
-      strikeSize,
-      chainBonus: appliedChainBonus,
-      perPopPoints: perPopScore,
-      totalPoints: totalStrikeScore,
-      totalScore: totalScoreAfterStrike,
-    })
     sendLiveRankUpdate({ score: totalScoreAfterStrike, runId: getRunId() })
     const canTriggerSpawnEvents = strike.pops.every((pop) => pop?.canTriggerSpawnEvents !== false)
     if (canTriggerSpawnEvents) {
@@ -1439,7 +1446,9 @@ function flushPendingComboStrike(): void {
   }
 
   const comboTimeBonusStepMs = resolveComboTimeBonusStepMs()
-  const comboTimeBonusMs = Math.max(0, finalMultiplier - 1) * comboTimeBonusStepMs
+  const comboTimeBonusMs = strikeSize >= 2
+    ? Math.max(0, finalMultiplier - 2) * comboTimeBonusStepMs
+    : 0
   if (comboTimeBonusMs > 0) {
     useGameplayStore.getState().addRunTimeMs(comboTimeBonusMs, 'combo')
   }
@@ -1869,6 +1878,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     })
     if (!didTransition) return
 
+    playGameSound({ type: 'high_score_entry' })
     sendScoreboardEvent({
       type: 'initials_step_started',
       timestamp: Date.now(),
@@ -2076,6 +2086,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     if (!accepted || !isRunTimerScopeActive(scopeToken)) return
 
     if (normalizedDeltaMs > 0) {
+      playGameSound({ type: 'time_bonus' })
       sendScoreboardEvent({
         type: 'game_event_triggered',
         timestamp: Date.now(),

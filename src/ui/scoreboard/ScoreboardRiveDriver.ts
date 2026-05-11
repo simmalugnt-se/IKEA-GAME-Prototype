@@ -6,6 +6,7 @@ import type {
   ViewModelInstanceTrigger,
 } from '@rive-app/canvas'
 import type { ScoreboardRiveFit } from '@/scoreboard/scoreBoardSettings.types'
+import { isScoreboardRiveDebugLoggingEnabled } from '@/ui/scoreboard/scoreboardRiveDebugLogging'
 
 const RIVE_SOURCE_PATH = '/rive/scoreboard.riv'
 const RIVE_LOAD_TIMEOUT_MS = 8000
@@ -263,9 +264,8 @@ export class ScoreboardRiveDriver {
         this.addBindingWarning(`Ignored unknown Rive enum value "${value}" for "${name}". Allowed: ${property.values.join(', ')}`)
         continue
       }
-      const previousValue = property.value
       property.value = value
-      if (name === 'eventBalloonType' && previousValue !== value) {
+      if (name === 'eventBalloonType' && value !== 'none') {
         this.fireScoreboardTrigger('eventBalloonTrigger')
       }
     }
@@ -277,6 +277,9 @@ export class ScoreboardRiveDriver {
     if (!property) {
       this.addMissingPropertyWarning('trigger', triggerName)
       return
+    }
+    if (isScoreboardRiveDebugLoggingEnabled()) {
+      console.log('[scoreboard:rive:trigger]', triggerName)
     }
     property.trigger()
   }
