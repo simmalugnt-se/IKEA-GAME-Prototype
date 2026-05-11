@@ -60,12 +60,11 @@ function resolveDisplaySeconds(snapshot: TimerSnapshot, nowMs: number): number {
   return Math.max(0, Math.ceil(resolveDisplayRemainingMs(snapshot, nowMs) / 1000))
 }
 
-function splitDisplaySeconds(totalSeconds: number): { currentMinutes: number; currentSeconds: number } {
+function formatDisplaySeconds(totalSeconds: number): string {
   const normalized = Math.max(0, Math.trunc(totalSeconds))
-  return {
-    currentMinutes: Math.floor(normalized / 60),
-    currentSeconds: normalized % 60,
-  }
+  const minutes = Math.floor(normalized / 60)
+  const seconds = normalized % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 function isTimeBonusLerpActive(snapshot: TimerSnapshot, nowMs: number): boolean {
@@ -93,13 +92,11 @@ export function initCurrentTimeScoreboardEvents(): () => void {
   const sendIfChanged = (seconds: number) => {
     if (seconds === lastSentSeconds) return
     lastSentSeconds = seconds
-    const { currentMinutes, currentSeconds } = splitDisplaySeconds(seconds)
     sendVolatileScoreboardEvent({
       type: 'current_time_updated',
       timestamp: Date.now(),
       runId: getRunId(),
-      currentMinutes,
-      currentSeconds,
+      currentTime: formatDisplaySeconds(seconds),
     })
   }
 

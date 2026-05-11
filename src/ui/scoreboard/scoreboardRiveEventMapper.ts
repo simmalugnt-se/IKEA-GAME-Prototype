@@ -320,8 +320,7 @@ export function mapScoreboardEventToRive(event: ScoreboardEvent): ScoreboardRive
       return {
         data: {
           ...base,
-          currentMinutes: event.currentMinutes,
-          currentSeconds: event.currentSeconds,
+          currentTime: event.currentTime,
         },
       }
 
