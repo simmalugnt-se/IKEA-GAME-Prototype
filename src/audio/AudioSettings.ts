@@ -63,6 +63,8 @@ export const AUDIO_SETTINGS: AudioSettings = {
         '/sounds/yes/yes1.wav',
         '/sounds/yes/yes2.wav',
         '/sounds/yes/yes3.wav',
+        // '/sounds/doublecombo/doublecombo1.mp3',
+        // '/sounds/doublecombo/doublecombo2.mp3',
       ],
       volume: 0.5,
     },
@@ -71,6 +73,9 @@ export const AUDIO_SETTINGS: AudioSettings = {
         '/sounds/yes/yes1.wav',
         '/sounds/yes/yes2.wav',
         '/sounds/yes/yes3.wav',
+        // '/sounds/triplecombo/triplecombo1.mp3',
+        // '/sounds/triplecombo/triplecombo2.mp3',
+        // '/sounds/triplecombo/triplecombo3.mp3',
       ],
       volume: 0.7,
     },
@@ -79,23 +84,40 @@ export const AUDIO_SETTINGS: AudioSettings = {
         '/sounds/yes/yes1.wav',
         '/sounds/yes/yes2.wav',
         '/sounds/yes/yes3.wav',
+        // '/sounds/quadruplecombo/quadruplecombo1.mp3',
+        // '/sounds/quadruplecombo/quadruplecombo2.mp3',
       ],
       volume: 1,
     },
     timeBonus: {
-      files: PLACEHOLDER_SOUND_FILES,
+      files: [
+        '/sounds/timebonus/timebonus1.mp3',
+        '/sounds/timebonus/timebonus2.mp3',
+        '/sounds/timebonus/timebonus3.mp3',
+      ],
       volume: 0,
     },
     roller: {
-      files: PLACEHOLDER_SOUND_FILES,
+      files: [
+        '/sounds/steamroller/steamroller1.mp3',
+        '/sounds/steamroller/steamroller2.mp3',
+        '/sounds/steamroller/steamroller3.mp3',
+      ],
       volume: 0,
     },
     slowmo: {
-      files: PLACEHOLDER_SOUND_FILES,
+      files: [
+        '/sounds/slowmotion/slowmotion1.mp3',
+        '/sounds/slowmotion/slowmotion2.mp3',
+        '/sounds/slowmotion/slowmotion3.mp3',
+      ],
       volume: 0,
     },
     zeroGravity: {
-      files: PLACEHOLDER_SOUND_FILES,
+      files: [
+        '/sounds/zerogravity/zerogravity1.mp3',
+        '/sounds/zerogravity/zerogravity2.mp3',
+      ],
       volume: 0,
     },
     multiBalls: {
@@ -103,7 +125,11 @@ export const AUDIO_SETTINGS: AudioSettings = {
       volume: 0,
     },
     runStarted: {
-      files: PLACEHOLDER_SOUND_FILES,
+      files: [
+        '/sounds/letsgo/letsgo1.mp3',
+        '/sounds/letsgo/okayletsgo1.mp3',
+        '/sounds/letsgo/okayletsgo2.mp3',
+      ],
       volume: 0,
     },
     gameOver: {

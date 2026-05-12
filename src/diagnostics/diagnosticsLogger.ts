@@ -6,6 +6,7 @@ type DiagnosticsConfig = {
   enabled: boolean;
   overlay: boolean;
   endpoint: string;
+  runId: string | null;
 };
 
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:5175";
@@ -20,6 +21,7 @@ let config: DiagnosticsConfig = {
   enabled: import.meta.env.VITE_DIAGNOSTICS_ENABLED !== "false",
   overlay: import.meta.env.VITE_DIAGNOSTICS_OVERLAY === "true",
   endpoint: import.meta.env.VITE_DIAGNOSTICS_ENDPOINT || DEFAULT_ENDPOINT,
+  runId: import.meta.env.VITE_INSTALLATION_RUN_ID || null,
 };
 
 let initialized = false;
@@ -29,6 +31,7 @@ let currentP95FrameMs = 0;
 let currentHeapMb: number | null = null;
 let overlayElement: HTMLDivElement | null = null;
 let lastConsoleMessages = new Map<string, number>();
+const pageSessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 type PerformanceWithMemory = Performance & {
   memory?: {
@@ -79,6 +82,9 @@ function sendDiagnosticsEvent(
     ts: new Date().toISOString(),
     level,
     event,
+    source: "browser",
+    runId: config.runId,
+    pageSessionId,
     page: pageName,
     path: window.location.pathname,
     visibility: document.visibilityState,
@@ -258,6 +264,9 @@ async function loadRuntimeConfig(): Promise<void> {
       endpoint: typeof data.endpoint === "string" && data.endpoint.length > 0
         ? data.endpoint
         : config.endpoint,
+      runId: typeof data.runId === "string" && data.runId.length > 0
+        ? data.runId
+        : config.runId,
     };
     createOrUpdateOverlay();
   } catch {

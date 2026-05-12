@@ -28,6 +28,7 @@ import {
   getHighScoreSubmissionPreviewPlacement,
   subscribeHighScoreSubmissionSnapshot,
 } from '@/scoreboard/highScoreSubmissionRuntime'
+import { isBlockedHighScoreInitials } from '@/scoreboard/highScoreInitialsModeration'
 import './GameFlowOverlay.css'
 
 function resolveCountdownSeconds(remainingMs: number): number {
@@ -46,6 +47,7 @@ const GAME_OVER_PREVIEW_SCORE = 65300
 const HIGH_SCORE_INITIALS_LENGTH = 3
 const BUTTON_DWELL_HOLD_CLASS = 'gfo-button-dwell-hold'
 const ALPHABET_CONFIRM_CLASS = 'gfo-alphabet-letter-confirmed'
+const ALPHABET_REJECT_CLASS = 'gfo-alphabet-letter-rejected'
 const DELETE_CONFIRM_CLASS = 'gfo-alphabet-letter-delete-confirmed'
 const HIGH_SCORE_ENTRY_HOVER_SOUND_COOLDOWN_MS = 80
 const HIGH_SCORE_KEYBOARD_CONFIRM_MS = 1400
@@ -295,11 +297,19 @@ export function GameFlowOverlay() {
   const heldAlphabetLetterIndicesRef = useRef<readonly number[]>(heldAlphabetLetterIndices)
   const [confirmedAlphabetLetterIndices, setConfirmedAlphabetLetterIndices] = useState<readonly number[]>([])
   const confirmedAlphabetLetterIndicesRef = useRef<readonly number[]>(confirmedAlphabetLetterIndices)
+  const [rejectedAlphabetLetterIndices, setRejectedAlphabetLetterIndices] = useState<readonly number[]>([])
+  const rejectedAlphabetLetterIndicesRef = useRef<readonly number[]>(rejectedAlphabetLetterIndices)
+  const [rejectedEntryLetterIndex, setRejectedEntryLetterIndex] = useState<number | null>(null)
+  const rejectedEntryLetterIndexRef = useRef<number | null>(rejectedEntryLetterIndex)
   const [isDeleteConfirmed, setIsDeleteConfirmed] = useState(false)
   const isDeleteConfirmedRef = useRef(isDeleteConfirmed)
   const alphabetConfirmTimeoutIdsRef = useRef<Array<number | null>>(
     Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
   )
+  const alphabetRejectTimeoutIdsRef = useRef<Array<number | null>>(
+    Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
+  )
+  const entryLetterRejectTimeoutIdRef = useRef<number | null>(null)
   const deleteConfirmTimeoutIdRef = useRef<number | null>(null)
   const activeLetterIndexRef = useRef(activeLetterIndex)
   const initialsRef = useRef(normalizeHighScoreInitials(gameOverInitials, HIGH_SCORE_INITIALS_LENGTH))
@@ -446,7 +456,19 @@ export function GameFlowOverlay() {
     }
     alphabetConfirmTimeoutIdsRef.current.fill(null)
     confirmedAlphabetLetterIndicesRef.current = []
-    setConfirmedAlphabetLetterIndices((previous) => (previous.length === 0 ? previous : []))
+  }, [])
+
+  const clearRejectedAlphabetFeedback = useCallback((): void => {
+    for (const timeoutId of alphabetRejectTimeoutIdsRef.current) {
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
+    }
+    alphabetRejectTimeoutIdsRef.current.fill(null)
+    if (entryLetterRejectTimeoutIdRef.current !== null) {
+      window.clearTimeout(entryLetterRejectTimeoutIdRef.current)
+      entryLetterRejectTimeoutIdRef.current = null
+    }
+    rejectedAlphabetLetterIndicesRef.current = []
+    rejectedEntryLetterIndexRef.current = null
   }, [])
 
   const clearDeleteConfirmFeedback = useCallback((): void => {
@@ -455,7 +477,6 @@ export function GameFlowOverlay() {
       deleteConfirmTimeoutIdRef.current = null
     }
     isDeleteConfirmedRef.current = false
-    setIsDeleteConfirmed(false)
   }, [])
 
   const startDeleteConfirmFeedback = useCallback((): void => {
@@ -498,6 +519,51 @@ export function GameFlowOverlay() {
     }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
   }, [removeConfirmedAlphabetLetterIndex])
 
+  const removeRejectedAlphabetLetterIndex = useCallback((letterIndex: number): void => {
+    setRejectedAlphabetLetterIndices((previous) => {
+      if (!previous.includes(letterIndex)) return previous
+      const next = previous.filter((index) => index !== letterIndex)
+      rejectedAlphabetLetterIndicesRef.current = next
+      return next
+    })
+  }, [])
+
+  const startAlphabetLetterRejectFeedback = useCallback((letterIndex: number, entryLetterIndex: number): void => {
+    if (letterIndex < 0 || letterIndex >= HIGH_SCORE_ALPHABET.length) return
+
+    const previousTimeoutId = alphabetRejectTimeoutIdsRef.current[letterIndex]
+    if (previousTimeoutId !== null) {
+      window.clearTimeout(previousTimeoutId)
+      alphabetRejectTimeoutIdsRef.current[letterIndex] = null
+    }
+    if (entryLetterRejectTimeoutIdRef.current !== null) {
+      window.clearTimeout(entryLetterRejectTimeoutIdRef.current)
+      entryLetterRejectTimeoutIdRef.current = null
+    }
+
+    removeConfirmedAlphabetLetterIndex(letterIndex)
+    setRejectedAlphabetLetterIndices((previous) => {
+      const next = Array.from(new Set([
+        ...previous.filter((index) => index !== letterIndex),
+        letterIndex,
+      ])).sort((a, b) => a - b)
+      rejectedAlphabetLetterIndicesRef.current = next
+      return next
+    })
+    rejectedEntryLetterIndexRef.current = entryLetterIndex
+    setRejectedEntryLetterIndex(entryLetterIndex)
+
+    alphabetRejectTimeoutIdsRef.current[letterIndex] = window.setTimeout(() => {
+      alphabetRejectTimeoutIdsRef.current[letterIndex] = null
+      removeRejectedAlphabetLetterIndex(letterIndex)
+    }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
+    entryLetterRejectTimeoutIdRef.current = window.setTimeout(() => {
+      entryLetterRejectTimeoutIdRef.current = null
+      rejectedEntryLetterIndexRef.current = null
+      setRejectedEntryLetterIndex(null)
+    }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
+  }, [removeConfirmedAlphabetLetterIndex, removeRejectedAlphabetLetterIndex])
+
   const resolveAlphabetLetterIndexAtPoint = useCallback((x: number, y: number): number => {
     const alphabetZones = hitZonesRef.current.alphabet
     for (let i = 0; i < alphabetZones.length; i += 1) {
@@ -508,20 +574,28 @@ export function GameFlowOverlay() {
     return -1
   }, [])
 
-  const selectAlphabetLetter = useCallback((letterIndex: number, resolvedLetterIndex: number): number | 'submitted' => {
+  const selectAlphabetLetter = useCallback((letterIndex: number, resolvedLetterIndex: number): number | 'blocked' | 'submitted' => {
     const nextLetter = HIGH_SCORE_ALPHABET[letterIndex]
     if (!nextLetter) return resolvedLetterIndex
-
-    playGameSound({ type: 'high_score_entry_lock' })
 
     const initials = initialsRef.current
     const letters = Array.from(initials)
     letters[resolvedLetterIndex] = nextLetter
 
     const nextInitials = normalizeHighScoreInitials(letters.join(''), HIGH_SCORE_INITIALS_LENGTH)
+    registerGameOverInputInteractionRef.current()
+
+    if (
+      resolvedLetterIndex >= HIGH_SCORE_INITIALS_LENGTH - 1
+      && isBlockedHighScoreInitials(nextInitials)
+    ) {
+      return 'blocked'
+    }
+
+    playGameSound({ type: 'high_score_entry_lock' })
+
     initialsRef.current = nextInitials
     setGameOverInitialsRef.current(nextInitials)
-    registerGameOverInputInteractionRef.current()
 
     if (resolvedLetterIndex >= HIGH_SCORE_INITIALS_LENGTH - 1) {
       submitGameOverInitialsRef.current('submitted')
@@ -658,6 +732,7 @@ export function GameFlowOverlay() {
     activeLetterIndexRef.current = 0
     heldAlphabetLetterIndicesRef.current = []
     clearConfirmedAlphabetFeedback()
+    clearRejectedAlphabetFeedback()
     clearDeleteConfirmFeedback()
     if (!enteredInput) {
       resetLetterPassBySlot(letterPassBySlotRef.current)
@@ -676,18 +751,23 @@ export function GameFlowOverlay() {
     const rafId = requestAnimationFrame(() => {
       setActiveLetterIndex((previous) => (previous === 0 ? previous : 0))
       setHeldAlphabetLetterIndices((previous) => (previous.length === 0 ? previous : []))
+      setConfirmedAlphabetLetterIndices((previous) => (previous.length === 0 ? previous : []))
+      setRejectedAlphabetLetterIndices((previous) => (previous.length === 0 ? previous : []))
+      setRejectedEntryLetterIndex((previous) => (previous === null ? previous : null))
+      setIsDeleteConfirmed(false)
     })
     return () => {
       cancelAnimationFrame(rafId)
     }
-  }, [clearConfirmedAlphabetFeedback, clearDeleteConfirmFeedback, visualFlowState])
+  }, [clearConfirmedAlphabetFeedback, clearDeleteConfirmFeedback, clearRejectedAlphabetFeedback, visualFlowState])
 
   useEffect(() => {
     return () => {
       clearConfirmedAlphabetFeedback()
+      clearRejectedAlphabetFeedback()
       clearDeleteConfirmFeedback()
     }
-  }, [clearConfirmedAlphabetFeedback, clearDeleteConfirmFeedback])
+  }, [clearConfirmedAlphabetFeedback, clearDeleteConfirmFeedback, clearRejectedAlphabetFeedback])
 
   useEffect(() => {
     const shouldTickTime = previewMode === 'state2' && effectiveFlowState === 'game_over_input'
@@ -1008,10 +1088,14 @@ export function GameFlowOverlay() {
         if (alphabetTriggered) {
           const selectedLetterIndex = alphabetLetterIndex
           const result = selectAlphabetLetter(alphabetLetterIndex, resolvedLetterIndex)
-          startAlphabetLetterConfirmFeedback(selectedLetterIndex)
+          if (result === 'blocked') {
+            startAlphabetLetterRejectFeedback(selectedLetterIndex, resolvedLetterIndex)
+          } else {
+            startAlphabetLetterConfirmFeedback(selectedLetterIndex)
+          }
           resetAlphabetDwellBySlot(alphabetDwellBySlot)
           blockAlphabetDwellState(alphabetDwell, selectedLetterIndex)
-          if (result === 'submitted') {
+          if (result === 'submitted' || result === 'blocked') {
             break
           }
           resolvedLetterIndex = result
@@ -1061,6 +1145,7 @@ export function GameFlowOverlay() {
     setHeldAlphabetLetterIndicesIfChanged,
     startDeleteConfirmFeedback,
     startAlphabetLetterConfirmFeedback,
+    startAlphabetLetterRejectFeedback,
     transitionActiveLetterIndex,
   ])
 
@@ -1114,6 +1199,7 @@ export function GameFlowOverlay() {
                   'gfo-high-score-entry-letter',
                   'gfo-vt-entry-letter-0',
                   activeLetterIndex === 0 ? 'gfo-high-score-entry-letter-active' : '',
+                  rejectedEntryLetterIndex === 0 ? 'gfo-high-score-entry-letter-rejected' : '',
                 ].filter(Boolean).join(' ')}
               >
                 {letter0}
@@ -1127,6 +1213,7 @@ export function GameFlowOverlay() {
                   'gfo-high-score-entry-letter',
                   'gfo-vt-entry-letter-1',
                   activeLetterIndex === 1 ? 'gfo-high-score-entry-letter-active' : '',
+                  rejectedEntryLetterIndex === 1 ? 'gfo-high-score-entry-letter-rejected' : '',
                 ].filter(Boolean).join(' ')}
               >
                 {letter1}
@@ -1140,6 +1227,7 @@ export function GameFlowOverlay() {
                   'gfo-high-score-entry-letter',
                   'gfo-vt-entry-letter-2',
                   activeLetterIndex === 2 ? 'gfo-high-score-entry-letter-active' : '',
+                  rejectedEntryLetterIndex === 2 ? 'gfo-high-score-entry-letter-rejected' : '',
                 ].filter(Boolean).join(' ')}
               >
                 {letter2}
@@ -1174,6 +1262,7 @@ export function GameFlowOverlay() {
                   const index = HIGH_SCORE_ALPHABET.indexOf(key)
                   const held = heldAlphabetLetterIndices.includes(index)
                   const confirmed = confirmedAlphabetLetterIndices.includes(index)
+                  const rejected = rejectedAlphabetLetterIndices.includes(index)
                   return (
                     <button
                       key={`${rowIndex}-${key}`}
@@ -1188,6 +1277,7 @@ export function GameFlowOverlay() {
                         'popdot-style-3',
                         held ? BUTTON_DWELL_HOLD_CLASS : '',
                         confirmed ? ALPHABET_CONFIRM_CLASS : '',
+                        rejected ? ALPHABET_REJECT_CLASS : '',
                       ].filter(Boolean).join(' ')}
                     >
                       <span className="gfo-button-dwell-label">{key}</span>

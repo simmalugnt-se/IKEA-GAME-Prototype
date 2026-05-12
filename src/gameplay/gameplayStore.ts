@@ -572,7 +572,7 @@ function activateCursorSizeBoost(
 
   if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
     emitScorePop({
-      text: action.feedbackText.trim(),
+      text: formatSpawnItemFeedbackText(action.feedbackText),
       x: origin.x,
       y: origin.y,
       burst: true,
@@ -584,7 +584,7 @@ function activateCursorSizeBoost(
 function emitSpawnEventFeedback(feedbackText: string | undefined, origin?: ScreenPos): void {
   if (typeof feedbackText !== 'string' || feedbackText.trim().length <= 0 || !origin) return
   emitScorePop({
-    text: feedbackText.trim(),
+    text: formatSpawnItemFeedbackText(feedbackText),
     x: origin.x,
     y: origin.y,
     burst: true,
@@ -679,7 +679,7 @@ function activateGravityShift(
 
   if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
     emitScorePop({
-      text: action.feedbackText.trim(),
+      text: formatSpawnItemFeedbackText(action.feedbackText),
       x: origin.x,
       y: origin.y,
       burst: true,
@@ -720,7 +720,7 @@ function activateCursorBurstRing(
 
   if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
     emitScorePop({
-      text: action.feedbackText.trim(),
+      text: formatSpawnItemFeedbackText(action.feedbackText),
       x: origin.x,
       y: origin.y,
       burst: true,
@@ -739,7 +739,7 @@ function triggerGroundBallWave(
   enqueueWave()
   if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
     emitScorePop({
-      text: action.feedbackText.trim(),
+      text: formatSpawnItemFeedbackText(action.feedbackText),
       x: origin.x,
       y: origin.y,
       burst: true,
@@ -758,7 +758,7 @@ function triggerTrackSweeper(
   enqueueSweeper()
   if (typeof action.feedbackText === 'string' && action.feedbackText.trim().length > 0 && origin) {
     emitScorePop({
-      text: action.feedbackText.trim(),
+      text: formatSpawnItemFeedbackText(action.feedbackText),
       x: origin.x,
       y: origin.y,
       burst: true,
@@ -1153,13 +1153,20 @@ function formatTimeDeltaLabel(deltaMs: number): string {
 
 function buildTimeBonusEffectLabel(deltaMs: number): string {
   const timeLabel = formatTimeDeltaLabel(deltaMs)
-  return timeLabel ? `${timeLabel}\nTIMEBONUS` : ''
+  return timeLabel ? `${timeLabel}\nTIME` : ''
+}
+
+function formatSpawnItemFeedbackText(feedbackText: string): string {
+  const trimmed = feedbackText.trim()
+  if (trimmed.includes('\n')) return trimmed
+  const words = trimmed.split(/\s+/)
+  return words.length === 2 ? words.join('\n') : trimmed
 }
 
 function buildSpawnItemEffectLabel(scoreDelta: number, timeDeltaMs: number, feedbackText?: string): string {
   const lines: string[] = []
   if (typeof feedbackText === 'string' && feedbackText.trim().length > 0) {
-    lines.push(feedbackText.trim())
+    lines.push(formatSpawnItemFeedbackText(feedbackText))
   }
   if (scoreDelta !== 0) lines.push(`${scoreDelta > 0 ? '+' : ''}${scoreDelta}`)
   if (timeDeltaMs !== 0) lines.push(formatTimeDeltaLabel(timeDeltaMs))

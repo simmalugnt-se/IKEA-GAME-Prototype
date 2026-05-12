@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { disposeBackgroundMusic, preloadBackgroundMusic } from "@/audio/BackgroundMusicManager";
 import { preloadAudioBanks } from "@/audio/SoundManager";
+import { initGameplayDiagnostics } from "@/diagnostics/gameplayDiagnostics";
 import { CursorTrailCanvas } from "@/input/CursorTrailCanvas";
 import { isInstallationStopShortcut, requestInstallationStop } from "@/installationStop";
 import { useGameInstallationWatchdog, useWebglContextLossReload } from "@/installationWatchdog";
@@ -84,6 +85,7 @@ function GameApp() {
   const [isSettingsPanelVisible, setIsSettingsPanelVisible] = useState(false);
 
   useEffect(() => {
+    initGameplayDiagnostics();
     preloadAudioBanks();
     preloadBackgroundMusic();
     return () => {

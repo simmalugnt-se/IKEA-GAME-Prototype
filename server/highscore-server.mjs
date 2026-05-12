@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
 import Database from 'better-sqlite3'
 import { WebSocketServer, WebSocket } from 'ws'
+import highScoreInitialsModerationData from '../src/scoreboard/highScoreInitialsModerationData.json' with { type: 'json' }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -13,56 +14,15 @@ const dbPath = process.env.HIGHSCORE_DB_PATH || path.join(repoRoot, 'data', 'hig
 const diagnosticsEnabled = process.env.IKEA_GAME_DIAGNOSTICS_ENABLED !== 'false'
 const diagnosticsOverlayEnabled = process.env.IKEA_GAME_DIAGNOSTICS_OVERLAY === 'true'
 const diagnosticsLogDir = process.env.IKEA_GAME_DIAGNOSTICS_LOG_DIR || path.join(repoRoot, 'logs')
+const diagnosticsRunId = process.env.IKEA_GAME_INSTALLATION_RUN_ID || null
 const diagnosticsEndpoint = `http://${host}:${port}/api/diagnostics`
 const defaultLimit = 256
 const maxBodyBytes = 1024 * 1024
 const maxDiagnosticsBodyBytes = 16 * 1024
 const maxDiagnosticsStringLength = 4000
-const blockedHighScoreInitials = new Set([
-  'ASS',
-  'BAJ',
-  'CUM',
-  'DIE',
-  'FAN',
-  'FUC',
-  'FUK',
-  'HOR',
-  'KUK',
-  'SEX',
-  'SHT',
-  'SUK',
-  'TIT',
-  'WTF',
-])
-const fallbackHighScoreInitials = [
-  'ACE',
-  'ADA',
-  'BOB',
-  'DEX',
-  'EVA',
-  'FIN',
-  'GUS',
-  'JAX',
-  'KAI',
-  'LEO',
-  'MIA',
-  'NIA',
-  'RIO',
-  'SOL',
-  'UMA',
-  'ZOE',
-]
-const moderationCharacterMap = new Map([
-  ['0', 'O'],
-  ['1', 'I'],
-  ['3', 'E'],
-  ['4', 'A'],
-  ['5', 'S'],
-  ['7', 'T'],
-  ['Å', 'A'],
-  ['Ä', 'A'],
-  ['Ö', 'O'],
-])
+const blockedHighScoreInitials = new Set(highScoreInitialsModerationData.blockedHighScoreInitials)
+const fallbackHighScoreInitials = highScoreInitialsModerationData.fallbackHighScoreInitials
+const moderationCharacterMap = new Map(Object.entries(highScoreInitialsModerationData.moderationCharacterMap))
 fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 if (diagnosticsEnabled) {
   fs.mkdirSync(diagnosticsLogDir, { recursive: true })
@@ -317,6 +277,7 @@ function normalizeDiagnosticsEvent(raw, req) {
     level,
     event,
     page,
+    runId: typeof source.runId === 'string' && source.runId.length > 0 ? source.runId.slice(0, 80) : diagnosticsRunId,
     remoteAddress: req.socket.remoteAddress,
   }
 }
@@ -370,6 +331,7 @@ async function handleRequest(req, res) {
         enabled: diagnosticsEnabled,
         overlay: diagnosticsOverlayEnabled,
         endpoint: diagnosticsEndpoint,
+        runId: diagnosticsRunId,
       })
       return
     }
