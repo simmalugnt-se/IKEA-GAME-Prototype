@@ -1,56 +1,18 @@
-const blockedHighScoreInitials = new Set([
-  'ASS',
-  'BAJ',
-  'CUM',
-  'DIE',
-  'FAN',
-  'FUC',
-  'FUK',
-  'HOR',
-  'KUK',
-  'SEX',
-  'SHT',
-  'SUK',
-  'TIT',
-  'WTF',
-])
+import highScoreInitialsModerationData from './highScoreInitialsModerationData.json'
 
-const fallbackHighScoreInitials = [
-  'ACE',
-  'ADA',
-  'BOB',
-  'DEX',
-  'EVA',
-  'FIN',
-  'GUS',
-  'JAX',
-  'KAI',
-  'LEO',
-  'MIA',
-  'NIA',
-  'RIO',
-  'SOL',
-  'UMA',
-  'ZOE',
-]
-
-const moderationCharacterMap: Record<string, string> = {
-  '0': 'O',
-  '1': 'I',
-  '3': 'E',
-  '4': 'A',
-  '5': 'S',
-  '7': 'T',
-  Å: 'A',
-  Ä: 'A',
-  Ö: 'O',
-}
+const blockedHighScoreInitials = new Set(highScoreInitialsModerationData.blockedHighScoreInitials)
+const fallbackHighScoreInitials = highScoreInitialsModerationData.fallbackHighScoreInitials
+const moderationCharacterMap: Record<string, string> = highScoreInitialsModerationData.moderationCharacterMap
 
 export function replaceBlockedHighScoreInitials(initials: string, rawInitials = initials): string {
-  return blockedHighScoreInitials.has(normalizeInitialsForModeration(initials))
-    || blockedHighScoreInitials.has(normalizeInitialsForModeration(rawInitials))
+  return isBlockedHighScoreInitials(initials)
+    || isBlockedHighScoreInitials(rawInitials)
     ? getRandomFallbackHighScoreInitials()
     : initials
+}
+
+export function isBlockedHighScoreInitials(initials: string): boolean {
+  return blockedHighScoreInitials.has(normalizeInitialsForModeration(initials))
 }
 
 function normalizeInitialsForModeration(initials: string): string {

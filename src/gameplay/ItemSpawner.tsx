@@ -32,12 +32,21 @@ const GAME_OVER_AUTO_POP_STAGGER_MS = 60;
 
 type ZGetter = () => number | undefined;
 
+const lastTriggerEventRuleIdByItemId = new Map<string, string>();
+
 function pickSpawnItemTriggerEventRuleId(item: SpawnedItemDescriptor): string | null {
   const ruleIds = item.spawnItem.triggerEventRuleIds
     ?.map((ruleId) => ruleId.trim())
     .filter((ruleId) => ruleId.length > 0);
   if (ruleIds && ruleIds.length > 0) {
-    return ruleIds[Math.floor(Math.random() * ruleIds.length)] ?? null;
+    const lastRuleId = lastTriggerEventRuleIdByItemId.get(item.spawnItem.id);
+    const candidates =
+      ruleIds.length > 1 ? ruleIds.filter((ruleId) => ruleId !== lastRuleId) : ruleIds;
+    const pickedRuleId = candidates[Math.floor(Math.random() * candidates.length)] ?? null;
+    if (pickedRuleId) {
+      lastTriggerEventRuleIdByItemId.set(item.spawnItem.id, pickedRuleId);
+    }
+    return pickedRuleId;
   }
 
   const ruleId = item.spawnItem.triggerEventRuleId?.trim();

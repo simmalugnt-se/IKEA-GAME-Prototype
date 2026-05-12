@@ -176,6 +176,11 @@
   will-change: font-variation-settings, font-weight;
 }
 
+.gfo-high-score-entry-letter-rejected {
+  color: #C96C05;
+  animation: high-score-letter-reject-pulse 1400ms steps(1, end) both;
+}
+
 .gfo-high-score-entry-help {
   max-width: 35ch;
   font-size: 2rem;
@@ -273,9 +278,14 @@
 }
 
 .gfo-alphabet-letter-confirmed::before,
+.gfo-alphabet-letter-rejected::before,
 .gfo-alphabet-letter-delete-confirmed::before {
   transform: translateX(0);
   animation: gfo-keyboard-confirm-pulse 1400ms steps(1, end) both;
+}
+
+.gfo-alphabet-letter-rejected {
+  --gfo-button-dwell-color: #C96C05;
 }
 
 .gfo-timer-wrap {
@@ -337,5 +347,26 @@
   50% {
     font-variation-settings: "wght" 350, "slnt" var(--popdot-style1-slnt), "wdth" var(--popdot-style1-wdth), "SQRE" var(--popdot-style1-sqre);
     font-weight: 350;
+  }
+}
+
+@keyframes high-score-letter-reject-pulse {
+
+  0%,
+  13%,
+  26%,
+  39%,
+  52%,
+  65%,
+  100% {
+    color: #C96C05;
+  }
+
+  8%,
+  21%,
+  34%,
+  47%,
+  60% {
+    color: #ffffff;
   }
 }
