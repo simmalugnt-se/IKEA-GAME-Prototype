@@ -1013,7 +1013,8 @@ export function GameFlowOverlay() {
       <div className="gfo-center-wrap">
         <div className="gfo-idle-prompt-wrap">
           <div className="popdot-text-base popdot-style-1 popdot-shadow-8 gfo-idle-prompt gfo-vt-idle-prompt">POP BALLOON TO START!</div>
-          <div className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-idle-prompt gfo-idle-prompt-sub gfo-vt-idle-prompt">Max 1 person in the room</div>
+          <div className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-idle-prompt gfo-idle-prompt-sub gfo-vt-idle-prompt">One player at a time</div>
+          <div className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-idle-prompt gfo-idle-prompt-sub gfo-vt-idle-prompt">Stand in the spotlight</div>
         </div>
       </div>
     )
