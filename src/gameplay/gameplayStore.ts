@@ -93,6 +93,8 @@ type PendingPair = {
 }
 
 const ENABLE_AUTOMATIC_SPAWN_EVENT_TRIGGERS = false
+const SCORE_POP_TWO_LINE_HEIGHT_PX = 54
+const SCORE_POP_STACK_GAP_PX = 16
 
 type GameplayState = {
   score: number
@@ -1149,6 +1151,11 @@ function formatTimeDeltaLabel(deltaMs: number): string {
   return `${prefix}${rounded}S`
 }
 
+function buildTimeBonusEffectLabel(deltaMs: number): string {
+  const timeLabel = formatTimeDeltaLabel(deltaMs)
+  return timeLabel ? `${timeLabel}\nTIMEBONUS` : ''
+}
+
 function buildSpawnItemEffectLabel(scoreDelta: number, timeDeltaMs: number, feedbackText?: string): string {
   const lines: string[] = []
   if (typeof feedbackText === 'string' && feedbackText.trim().length > 0) {
@@ -1416,13 +1423,28 @@ function flushPendingComboStrike(): void {
       x: sumX * invCount,
       y: sumY * invCount,
     }
+    const comboTimeBonusStepMs = resolveComboTimeBonusStepMs()
+    const comboTimeBonusMs = Math.max(0, finalMultiplier - 2) * comboTimeBonusStepMs
+    const hasComboTimeBonus = comboTimeBonusMs > 0
+    const stackedPopOffsetY = hasComboTimeBonus
+      ? (SCORE_POP_TWO_LINE_HEIGHT_PX + SCORE_POP_STACK_GAP_PX) * 0.5
+      : 0
     emitScorePop({
       text: `X${finalMultiplier}\nCOMBO!`,
       x: comboOrigin.x,
-      y: comboOrigin.y,
+      y: comboOrigin.y - stackedPopOffsetY,
       burst: false,
       style: 'style5',
     })
+    if (hasComboTimeBonus) {
+      emitScorePop({
+        text: buildTimeBonusEffectLabel(comboTimeBonusMs),
+        x: comboOrigin.x,
+        y: comboOrigin.y + stackedPopOffsetY,
+        burst: false,
+        style: 'style5',
+      })
+    }
     playGameSound({ type: 'combo_triggered', multiplier: finalMultiplier })
     sendScoreboardEvent({
       type: 'combo_triggered',
@@ -2085,6 +2107,12 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
 
     if (!accepted || !isRunTimerScopeActive(scopeToken)) return
 
+    set((state) => ({
+      ...state,
+      runTimeFeedbackText: formatTimeDeltaLabel(normalizedDeltaMs),
+      runTimeFeedbackSequence: state.runTimeFeedbackSequence + 1,
+    }))
+
     if (normalizedDeltaMs > 0) {
       playGameSound({ type: 'time_bonus' })
       sendScoreboardEvent({
@@ -2248,14 +2276,14 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
     }
     if (timeDeltaMs !== 0) {
       get().addRunTimeMs(timeDeltaMs, 'spawn_item')
-      set((state) => ({
-        ...state,
-        runTimeFeedbackText: formatTimeDeltaLabel(timeDeltaMs),
-        runTimeFeedbackSequence: state.runTimeFeedbackSequence + 1,
-      }))
     }
 
-    const text = buildSpawnItemEffectLabel(appliedScoreDelta, timeDeltaMs, event.feedbackText)
+    const isPlainTimeBonus = appliedScoreDelta === 0
+      && timeDeltaMs > 0
+      && (typeof event.feedbackText !== 'string' || event.feedbackText.trim().length === 0)
+    const text = isPlainTimeBonus
+      ? buildTimeBonusEffectLabel(timeDeltaMs)
+      : buildSpawnItemEffectLabel(appliedScoreDelta, timeDeltaMs, event.feedbackText)
     if (!text) return
 
     emitScorePop({
@@ -2263,7 +2291,7 @@ export const useGameplayStore = create<GameplayState>((set, get) => {
       x: event.x,
       y: event.y,
       burst: true,
-      style: appliedScoreDelta < 0 || timeDeltaMs < 0 ? 'style5' : 'style2',
+      style: isPlainTimeBonus || appliedScoreDelta < 0 || timeDeltaMs < 0 ? 'style5' : 'style2',
     })
   },
 
