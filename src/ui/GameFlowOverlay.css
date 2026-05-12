@@ -80,16 +80,29 @@
 }
 
 .gfo-idle-prompt-sub {
-  font-size: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .125rem;
+  font-size: 1.25rem;
   line-height: 0.85em;
-  margin-top: 0.08rem;
   text-align: center;
   max-width: 100%;
+  margin-top: 2rem;
   width: 100%;
+  animation: gfo-idle-prompt-sub--blink .3s ease-in-out infinite alternate;
 }
 
-.gfo-idle-prompt:not(.gfo-idle-prompt-sub) + .gfo-idle-prompt-sub {
-  margin-top: 1.4rem;
+@keyframes gfo-idle-prompt-sub--blink {
+  from {
+    font-variation-settings: "wght" 300, "slnt" var(--popdot-style3-slnt), "wdth" var(--popdot-style3-wdth), "SQRE" var(--popdot-style3-sqre);
+    font-weight: 150;
+  }
+
+  to {
+    font-variation-settings: "wght" 150, "slnt" var(--popdot-style3-slnt), "wdth" var(--popdot-style3-wdth), "SQRE" var(--popdot-style3-sqre);
+    font-weight: 150;
+  }
 }
 
 .gfo-game-over-row {
