@@ -9,6 +9,7 @@ type CategoryState = {
 type AudioUnlockedListener = () => void
 export type AudioLoopHandle = {
   stop: () => void
+  setPlaybackRate: (rate: number) => void
 }
 
 let ctx: AudioContext | null = null
@@ -22,7 +23,7 @@ let masterGain: GainNode | null = null
 let sfxBusGain: GainNode | null = null
 let musicBusGain: GainNode | null = null
 let sfxPlaybackRateScale = 1
-const activeSfxSources = new Set<AudioBufferSourceNode>()
+const activeSfxSources = new Map<AudioBufferSourceNode, number>()
 
 function normalizeVolume(value: number | undefined, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
@@ -32,6 +33,11 @@ function normalizeVolume(value: number | undefined, fallback: number): number {
 function normalizePlaybackRateScale(value: number | undefined, fallback = 1): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.max(0.001, value)
+}
+
+function applySfxSourcePlaybackRate(source: AudioBufferSourceNode): void {
+  const localScale = activeSfxSources.get(source) ?? 1
+  source.playbackRate.value = sfxPlaybackRateScale * localScale
 }
 
 function notifyAudioUnlockedOnce(): void {
@@ -201,7 +207,6 @@ export function playAudioBank(bankId: AudioBankId, volumeScale = 1): void {
 
   const source = audioCtx.createBufferSource()
   source.buffer = buffer
-  source.playbackRate.value = sfxPlaybackRateScale
 
   const gain = audioCtx.createGain()
   const bankVolume = AUDIO_SETTINGS.banks[bankId].volume
@@ -212,7 +217,8 @@ export function playAudioBank(bankId: AudioBankId, volumeScale = 1): void {
     throw new Error('SFX bus is not initialized.')
   }
   gain.connect(sfxBusGain)
-  activeSfxSources.add(source)
+  activeSfxSources.set(source, 1)
+  applySfxSourcePlaybackRate(source)
   source.onended = () => {
     activeSfxSources.delete(source)
     source.disconnect()
@@ -235,7 +241,6 @@ export function startLoopingAudioBank(bankId: AudioBankId, volumeScale = 1): Aud
   const source = audioCtx.createBufferSource()
   source.buffer = buffer
   source.loop = true
-  source.playbackRate.value = sfxPlaybackRateScale
 
   const gain = audioCtx.createGain()
   const bankVolume = AUDIO_SETTINGS.banks[bankId].volume
@@ -246,7 +251,8 @@ export function startLoopingAudioBank(bankId: AudioBankId, volumeScale = 1): Aud
     throw new Error('SFX bus is not initialized.')
   }
   gain.connect(sfxBusGain)
-  activeSfxSources.add(source)
+  activeSfxSources.set(source, 1)
+  applySfxSourcePlaybackRate(source)
 
   let stopped = false
   let cleaned = false
@@ -267,6 +273,11 @@ export function startLoopingAudioBank(bankId: AudioBankId, volumeScale = 1): Aud
       source.stop()
       cleanup()
     },
+    setPlaybackRate: (rate: number) => {
+      if (stopped) return
+      activeSfxSources.set(source, normalizePlaybackRateScale(rate, 1))
+      applySfxSourcePlaybackRate(source)
+    },
   }
 }
 
@@ -274,8 +285,8 @@ export function setSfxPlaybackRateScale(scale: number): void {
   const nextScale = normalizePlaybackRateScale(scale, 1)
   if (Math.abs(nextScale - sfxPlaybackRateScale) <= 0.0001) return
   sfxPlaybackRateScale = nextScale
-  activeSfxSources.forEach((source) => {
-    source.playbackRate.value = nextScale
+  activeSfxSources.forEach((_localScale, source) => {
+    applySfxSourcePlaybackRate(source)
   })
 }
 

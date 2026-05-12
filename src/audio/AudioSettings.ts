@@ -146,7 +146,7 @@ export const AUDIO_SETTINGS: AudioSettings = {
     },
     tenSecondsLeft: {
       files: PLACEHOLDER_SOUND_FILES,
-      volume: 0,
+      volume: 0.5,
     },
     highScoreEntryHover: {
       files: PLACEHOLDER_SOUND_FILES,

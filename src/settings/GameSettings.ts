@@ -280,7 +280,7 @@ export const SETTINGS: Settings = {
     },
     run: {
       mode: "time",
-      timeLimitMs: 60000,
+      timeLimitMs: 15000,
       // Combo time bonus step after X2: X3 = 1s, X4 = 2s with 1000ms.
       comboTimeBonusStepMs: 1000,
       popStreakTimeBonusEveryPops: 15,

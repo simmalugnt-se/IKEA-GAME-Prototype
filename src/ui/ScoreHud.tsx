@@ -16,6 +16,8 @@ const CLOCK_LIGATURE = '#CLOCK'
 const TIME_TICK_INTERVAL_MS = 100
 const TIME_FEEDBACK_HOLD_MS = 1600
 const TIME_FEEDBACK_TRANSITION_MS = 260
+const TEN_SECONDS_LEFT_WINDOW_MS = 10000
+const TEN_SECONDS_LEFT_MAX_PLAYBACK_RATE = 2.5
 
 function formatClockValue(remainingMs: number): string {
   const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
@@ -26,6 +28,11 @@ function formatClockValue(remainingMs: number): string {
 
 function formatInlineTimeFeedback(text: string): string {
   return text.replace(/S\b/g, 's')
+}
+
+function getTenSecondsLeftPlaybackRate(remainingMs: number): number {
+  const progress = 1 - Math.max(0, Math.min(TEN_SECONDS_LEFT_WINDOW_MS, remainingMs)) / TEN_SECONDS_LEFT_WINDOW_MS
+  return 1 + progress * (TEN_SECONDS_LEFT_MAX_PLAYBACK_RATE - 1)
 }
 
 export function ScoreHud() {
@@ -335,7 +342,7 @@ export function ScoreHud() {
     && flowState === 'run'
     && !paused
     && displayRemainingTimeMs > 0
-    && displayRemainingTimeMs <= 10000
+    && displayRemainingTimeMs <= TEN_SECONDS_LEFT_WINDOW_MS
   )
 
   useEffect(() => {
@@ -343,12 +350,13 @@ export function ScoreHud() {
       if (tenSecondsLeftLoopRef.current === null) {
         tenSecondsLeftLoopRef.current = startGameSoundLoop({ type: 'ten_seconds_left' })
       }
+      tenSecondsLeftLoopRef.current?.setPlaybackRate(getTenSecondsLeftPlaybackRate(displayRemainingTimeMs))
       return
     }
 
     tenSecondsLeftLoopRef.current?.stop()
     tenSecondsLeftLoopRef.current = null
-  }, [isAudioOn, tenSecondsLeftActive])
+  }, [displayRemainingTimeMs, isAudioOn, tenSecondsLeftActive])
 
   useEffect(() => {
     return () => {
