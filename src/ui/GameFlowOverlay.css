@@ -1,6 +1,10 @@
 .gfo-center-wrap {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 31;
   pointer-events: none;
   display: flex;
@@ -10,10 +14,8 @@
   gap: 6rem;
   color: #ffffff;
   text-align: center;
-}
-
-.gfo-center-wrap-alphabet-grid {
-  gap: 2.25rem;
+  width: fit-content;
+  max-width: 100vw;
 }
 
 .gfo-stack-center {
@@ -104,10 +106,29 @@
 
 .gfo-score-value {
   font-size: 24rem;
+  white-space: nowrap;
 }
 
 .gfo-score-value-entry {
   font-size: 8rem;
+}
+
+.gfo-game-over-input-score-grid {
+  grid-template-columns: 28.25rem 1fr;
+  gap: 6rem;
+  width: 100%;
+  padding: 0 1.5rem 0 6rem;
+}
+
+.gfo-high-score-entry-panel {
+  display: grid;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6rem;
+  padding: 1.5rem 1.5rem 1.5rem 6rem;
+  border-radius: 3.5rem;
+  background-color: #000000;
 }
 
 .gfo-high-score-entry-row {
@@ -125,14 +146,10 @@
 }
 
 .gfo-high-score-entry-letter {
-  font-size: 32rem;
-  width: 1.19ch;
+  font-size: 16rem;
+  width: 1ch;
   text-align: center;
   text-transform: uppercase;
-}
-
-.gfo-high-score-entry-letter-compact {
-  font-size: 12rem;
 }
 
 .gfo-high-score-entry-letter-active {
@@ -140,40 +157,71 @@
   will-change: font-variation-settings, font-weight;
 }
 
+.gfo-high-score-entry-help {
+  max-width: 35ch;
+  font-size: 2rem;
+  text-align: center;
+  text-wrap: balance;
+}
+
 .gfo-alphabet-grid {
+  --gfo-keyboard-bg: #ffffff;
+  --gfo-keyboard-key-bg: #111111;
+  --gfo-keyboard-key-fg: #ffffff;
+  --gfo-keyboard-delete-bg: #D2BE27;
+  --gfo-keyboard-delete-fg: #111111;
+  --gfo-keyboard-padding: 0.75rem;
+  --gfo-keyboard-gap: 0.5rem;
+  --gfo-keyboard-radius: 2rem;
+  --gfo-keyboard-key-radius: 1.25rem;
+  --gfo-keyboard-key-padding-block: 1rem;
+  --gfo-keyboard-key-padding-inline: 1.5rem;
+  --gfo-keyboard-key-font-size: 5rem;
+  --gfo-keyboard-delete-font-size: 3rem;
+  --gfo-keyboard-delete-dwell-color: #C96C05;
+
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 0.8rem;
-  width: min(78rem, calc(100vw - 8rem));
+  grid-template-columns: repeat(11, max-content);
+  gap: var(--gfo-keyboard-gap);
+  padding: var(--gfo-keyboard-padding);
+  border-radius: var(--gfo-keyboard-radius);
+  background: var(--gfo-keyboard-bg);
+  box-shadow: 1rem 1rem 0 #000000;
 }
 
 .gfo-alphabet-letter {
   appearance: none;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
-  height: 4.4rem;
-  padding: 0;
-  border: 0.25rem solid #ffffff;
-  border-radius: 0;
-  background: #000000;
-  color: #ffffff;
-  font-size: 3.2rem;
+  padding: var(--gfo-keyboard-key-padding-block) var(--gfo-keyboard-key-padding-inline);
+  border: 0;
+  border-radius: var(--gfo-keyboard-key-radius);
+  background: var(--gfo-keyboard-key-bg);
+  color: var(--gfo-keyboard-key-fg);
+  font-size: var(--gfo-keyboard-key-font-size);
   line-height: 1;
   text-align: center;
   text-transform: uppercase;
 }
 
+.gfo-alphabet-letter:not(.gfo-alphabet-letter-delete) .gfo-button-dwell-label {
+  letter-spacing: 0;
+}
+
 .gfo-alphabet-letter::before {
-  border-radius: 0;
+  border-radius: var(--gfo-keyboard-key-radius);
 }
 
-.gfo-alphabet-letter-selected {
-  background: #ffffff;
-  color: #000000;
-}
+.gfo-alphabet-letter-delete {
+  --gfo-button-dwell-color: var(--gfo-keyboard-delete-dwell-color);
 
-.gfo-alphabet-letter-selected::before {
-  background: var(--gfo-button-dwell-color, #669E10);
+  grid-column: span 2;
+  background: var(--gfo-keyboard-delete-bg);
+  color: var(--gfo-keyboard-delete-fg);
+  font-size: var(--gfo-keyboard-delete-font-size);
 }
 
 .gfo-button-dwellable {
@@ -200,15 +248,13 @@
   z-index: 1;
 }
 
-.gfo-entry-next-stable {
-  /* Tweak this if the label feels cramped in your current type style. */
-  --gfo-entry-next-inline-size: 15ch;
-  inline-size: var(--gfo-entry-next-inline-size);
-  min-inline-size: var(--gfo-entry-next-inline-size);
-}
-
 .gfo-button-dwell-hold::before {
   transition: transform var(--gfo-button-dwell-ms, 1s) linear;
+  transform: translateX(0);
+}
+
+.gfo-alphabet-letter-confirmed::before,
+.gfo-alphabet-letter-delete-confirmed::before {
   transform: translateX(0);
 }
 

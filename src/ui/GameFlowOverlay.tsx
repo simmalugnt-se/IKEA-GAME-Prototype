@@ -45,7 +45,16 @@ const GAME_OVER_SCORE_TICK_MS = 1000
 const GAME_OVER_PREVIEW_SCORE = 65300
 const HIGH_SCORE_INITIALS_LENGTH = 3
 const BUTTON_DWELL_HOLD_CLASS = 'gfo-button-dwell-hold'
+const ALPHABET_CONFIRM_CLASS = 'gfo-alphabet-letter-confirmed'
+const DELETE_CONFIRM_CLASS = 'gfo-alphabet-letter-delete-confirmed'
 const HIGH_SCORE_ENTRY_HOVER_SOUND_COOLDOWN_MS = 80
+const HIGH_SCORE_KEYBOARD_CONFIRM_MS = 320
+const HIGH_SCORE_KEYBOARD_ROWS: readonly (readonly string[])[] = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Å'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ö', 'Ä'],
+  ['DEL', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '.', '-'],
+]
+const HIGH_SCORE_DELETE_KEY = 'DEL'
 
 type GameOverPreviewMode = 'off' | 'state1' | 'state2'
 type FlowScenarioOverride = `flow:${string}`
@@ -53,8 +62,7 @@ type FlowScenarioOverride = `flow:${string}`
 type HitZones = {
   letters: Array<ScreenRect | null>
   alphabet: Array<ScreenRect | null>
-  back: ScreenRect | null
-  next: ScreenRect | null
+  delete: ScreenRect | null
 }
 
 type ButtonDwellState = {
@@ -203,8 +211,7 @@ function resolveInitialLetters(rawInitials: string): [string, string, string] {
 }
 
 function clearHitZones(zones: HitZones): void {
-  zones.back = null
-  zones.next = null
+  zones.delete = null
   for (let i = 0; i < HIGH_SCORE_INITIALS_LENGTH; i += 1) {
     zones.letters[i] = null
   }
@@ -243,13 +250,11 @@ export function GameFlowOverlay() {
   const alphabetLetterRefs = useRef<Array<HTMLButtonElement | null>>(
     Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
   )
-  const backButtonRef = useRef<HTMLButtonElement | null>(null)
-  const nextButtonRef = useRef<HTMLButtonElement | null>(null)
+  const deleteButtonRef = useRef<HTMLButtonElement | null>(null)
   const hitZonesRef = useRef<HitZones>({
     letters: [null, null, null],
     alphabet: Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
-    back: null,
-    next: null,
+    delete: null,
   })
 
   const gestureRafIdRef = useRef<number | null>(null)
@@ -277,11 +282,7 @@ export function GameFlowOverlay() {
     createLetterPassState(),
     createLetterPassState(),
   ])
-  const backDwellBySlotRef = useRef<ButtonDwellBySlot>([
-    createButtonDwellState(),
-    createButtonDwellState(),
-  ])
-  const nextDwellBySlotRef = useRef<ButtonDwellBySlot>([
+  const deleteDwellBySlotRef = useRef<ButtonDwellBySlot>([
     createButtonDwellState(),
     createButtonDwellState(),
   ])
@@ -289,10 +290,20 @@ export function GameFlowOverlay() {
     createAlphabetDwellState(),
     createAlphabetDwellState(),
   ])
-  const backButtonHoldClassActiveRef = useRef(false)
-  const nextButtonHoldClassActiveRef = useRef(false)
+  const deleteButtonHoldClassActiveRef = useRef(false)
   const [heldAlphabetLetterIndices, setHeldAlphabetLetterIndices] = useState<readonly number[]>([])
   const heldAlphabetLetterIndicesRef = useRef<readonly number[]>(heldAlphabetLetterIndices)
+  const [confirmedAlphabetLetterIndices, setConfirmedAlphabetLetterIndices] = useState<readonly number[]>([])
+  const confirmedAlphabetLetterIndicesRef = useRef<readonly number[]>(confirmedAlphabetLetterIndices)
+  const [isDeleteConfirmed, setIsDeleteConfirmed] = useState(false)
+  const alphabetConfirmTimeoutIdsRef = useRef<Array<number | null>>(
+    Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
+  )
+  const alphabetConfirmRafIdsRef = useRef<Array<number | null>>(
+    Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
+  )
+  const deleteConfirmTimeoutIdRef = useRef<number | null>(null)
+  const deleteConfirmRafIdRef = useRef<number | null>(null)
   const activeLetterIndexRef = useRef(activeLetterIndex)
   const initialsRef = useRef(normalizeHighScoreInitials(gameOverInitials, HIGH_SCORE_INITIALS_LENGTH))
   const setGameOverInitialsRef = useRef(setGameOverInitials)
@@ -341,10 +352,6 @@ export function GameFlowOverlay() {
   const greenPalette = SETTINGS.palette.variants.green.colors
   const dwellProgressColor = greenPalette[1]?.base ?? greenPalette[0]?.base ?? '#669E10'
 
-  const backDisabled = activeLetterIndex <= 0
-  const nextLabel = activeLetterIndex >= HIGH_SCORE_INITIALS_LENGTH - 1
-    ? 'GO!'
-    : 'NEXT LETTER'
   const buttonDwellStyle = {
     '--gfo-button-dwell-ms': `${buttonDwellMs}ms`,
     '--gfo-button-dwell-color': dwellProgressColor,
@@ -363,6 +370,10 @@ export function GameFlowOverlay() {
   useEffect(() => {
     heldAlphabetLetterIndicesRef.current = heldAlphabetLetterIndices
   }, [heldAlphabetLetterIndices])
+
+  useEffect(() => {
+    confirmedAlphabetLetterIndicesRef.current = confirmedAlphabetLetterIndices
+  }, [confirmedAlphabetLetterIndices])
 
   useEffect(() => {
     initialsRef.current = normalizeHighScoreInitials(gameOverInitials, HIGH_SCORE_INITIALS_LENGTH)
@@ -418,6 +429,98 @@ export function GameFlowOverlay() {
     heldAlphabetLetterIndicesRef.current = normalized
     setHeldAlphabetLetterIndices(normalized)
   }, [])
+
+  const removeConfirmedAlphabetLetterIndex = useCallback((letterIndex: number): void => {
+    setConfirmedAlphabetLetterIndices((previous) => {
+      if (!previous.includes(letterIndex)) return previous
+      const next = previous.filter((index) => index !== letterIndex)
+      confirmedAlphabetLetterIndicesRef.current = next
+      return next
+    })
+  }, [])
+
+  const clearConfirmedAlphabetFeedback = useCallback((): void => {
+    for (const timeoutId of alphabetConfirmTimeoutIdsRef.current) {
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
+    }
+    for (const rafId of alphabetConfirmRafIdsRef.current) {
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
+    alphabetConfirmTimeoutIdsRef.current.fill(null)
+    alphabetConfirmRafIdsRef.current.fill(null)
+    confirmedAlphabetLetterIndicesRef.current = []
+    setConfirmedAlphabetLetterIndices((previous) => (previous.length === 0 ? previous : []))
+  }, [])
+
+  const clearDeleteConfirmFeedback = useCallback((): void => {
+    if (deleteConfirmTimeoutIdRef.current !== null) {
+      window.clearTimeout(deleteConfirmTimeoutIdRef.current)
+      deleteConfirmTimeoutIdRef.current = null
+    }
+    if (deleteConfirmRafIdRef.current !== null) {
+      cancelAnimationFrame(deleteConfirmRafIdRef.current)
+      deleteConfirmRafIdRef.current = null
+    }
+    setIsDeleteConfirmed(false)
+  }, [])
+
+  const startDeleteConfirmFeedback = useCallback((): void => {
+    if (deleteConfirmTimeoutIdRef.current !== null) {
+      window.clearTimeout(deleteConfirmTimeoutIdRef.current)
+      deleteConfirmTimeoutIdRef.current = null
+    }
+    if (deleteConfirmRafIdRef.current !== null) {
+      cancelAnimationFrame(deleteConfirmRafIdRef.current)
+      deleteConfirmRafIdRef.current = null
+    }
+
+    setIsDeleteConfirmed(false)
+
+    deleteConfirmRafIdRef.current = requestAnimationFrame(() => {
+      deleteConfirmRafIdRef.current = null
+      setIsDeleteConfirmed(true)
+
+      deleteConfirmTimeoutIdRef.current = window.setTimeout(() => {
+        deleteConfirmTimeoutIdRef.current = null
+        setIsDeleteConfirmed(false)
+      }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
+    })
+  }, [])
+
+  const startAlphabetLetterConfirmFeedback = useCallback((letterIndex: number): void => {
+    if (letterIndex < 0 || letterIndex >= HIGH_SCORE_ALPHABET.length) return
+
+    const previousTimeoutId = alphabetConfirmTimeoutIdsRef.current[letterIndex]
+    if (previousTimeoutId !== null) {
+      window.clearTimeout(previousTimeoutId)
+      alphabetConfirmTimeoutIdsRef.current[letterIndex] = null
+    }
+
+    const previousRafId = alphabetConfirmRafIdsRef.current[letterIndex]
+    if (previousRafId !== null) {
+      cancelAnimationFrame(previousRafId)
+      alphabetConfirmRafIdsRef.current[letterIndex] = null
+    }
+
+    removeConfirmedAlphabetLetterIndex(letterIndex)
+
+    alphabetConfirmRafIdsRef.current[letterIndex] = requestAnimationFrame(() => {
+      alphabetConfirmRafIdsRef.current[letterIndex] = null
+      setConfirmedAlphabetLetterIndices((previous) => {
+        const next = Array.from(new Set([
+          ...previous.filter((index) => index !== letterIndex),
+          letterIndex,
+        ])).sort((a, b) => a - b)
+        confirmedAlphabetLetterIndicesRef.current = next
+        return next
+      })
+
+      alphabetConfirmTimeoutIdsRef.current[letterIndex] = window.setTimeout(() => {
+        alphabetConfirmTimeoutIdsRef.current[letterIndex] = null
+        removeConfirmedAlphabetLetterIndex(letterIndex)
+      }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
+    })
+  }, [removeConfirmedAlphabetLetterIndex])
 
   const resolveAlphabetLetterIndexAtPoint = useCallback((x: number, y: number): number => {
     const alphabetZones = hitZonesRef.current.alphabet
@@ -578,21 +681,19 @@ export function GameFlowOverlay() {
     const enteredInput = visualFlowState === 'game_over_input'
     activeLetterIndexRef.current = 0
     heldAlphabetLetterIndicesRef.current = []
+    clearConfirmedAlphabetFeedback()
+    clearDeleteConfirmFeedback()
     if (!enteredInput) {
       resetLetterPassBySlot(letterPassBySlotRef.current)
-      resetButtonDwellBySlot(backDwellBySlotRef.current)
-      resetButtonDwellBySlot(nextDwellBySlotRef.current)
+      resetButtonDwellBySlot(deleteDwellBySlotRef.current)
       resetAlphabetDwellBySlot(alphabetDwellBySlotRef.current)
-      setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
-      setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, false)
+      setButtonDwellClass(deleteButtonRef.current, deleteButtonHoldClassActiveRef, false)
     } else {
       lastLetterActionAtMsRef.current = Number.NEGATIVE_INFINITY
       resetLetterPassBySlot(letterPassBySlotRef.current)
-      resetButtonDwellBySlot(backDwellBySlotRef.current)
-      resetButtonDwellBySlot(nextDwellBySlotRef.current)
+      resetButtonDwellBySlot(deleteDwellBySlotRef.current)
       resetAlphabetDwellBySlot(alphabetDwellBySlotRef.current)
-      setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, false)
-      setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, false)
+      setButtonDwellClass(deleteButtonRef.current, deleteButtonHoldClassActiveRef, false)
       lastSweepSeqRef.current = getLatestCursorSweepSeq()
     }
 
@@ -603,7 +704,14 @@ export function GameFlowOverlay() {
     return () => {
       cancelAnimationFrame(rafId)
     }
-  }, [visualFlowState])
+  }, [clearConfirmedAlphabetFeedback, clearDeleteConfirmFeedback, visualFlowState])
+
+  useEffect(() => {
+    return () => {
+      clearConfirmedAlphabetFeedback()
+      clearDeleteConfirmFeedback()
+    }
+  }, [clearConfirmedAlphabetFeedback, clearDeleteConfirmFeedback])
 
   useEffect(() => {
     const shouldTickTime = previewMode === 'state2' && effectiveFlowState === 'game_over_input'
@@ -714,10 +822,8 @@ export function GameFlowOverlay() {
         zones.alphabet[i] = node ? toScreenRect(node.getBoundingClientRect()) : null
       }
 
-      const backNode = backButtonRef.current
-      const nextNode = nextButtonRef.current
-      zones.back = backNode ? toScreenRect(backNode.getBoundingClientRect()) : null
-      zones.next = nextNode ? toScreenRect(nextNode.getBoundingClientRect()) : null
+      const deleteNode = deleteButtonRef.current
+      zones.delete = deleteNode ? toScreenRect(deleteNode.getBoundingClientRect()) : null
     }
 
     updateHitZones()
@@ -739,7 +845,7 @@ export function GameFlowOverlay() {
       window.removeEventListener('resize', updateHitZones)
       window.removeEventListener('scroll', updateHitZones)
     }
-  }, [activeLetterIndex, effectiveFlowState, highScoreEntryMode, nextLabel])
+  }, [activeLetterIndex, effectiveFlowState, highScoreEntryMode])
 
   useEffect(() => {
     if (effectiveFlowState !== 'game_over_input') return
@@ -747,11 +853,9 @@ export function GameFlowOverlay() {
 
     let disposed = false
     const letterPassBySlot = letterPassBySlotRef.current
-    const backDwellBySlot = backDwellBySlotRef.current
-    const nextDwellBySlot = nextDwellBySlotRef.current
+    const deleteDwellBySlot = deleteDwellBySlotRef.current
     const alphabetDwellBySlot = alphabetDwellBySlotRef.current
-    const backButton = backButtonRef.current
-    const nextButton = nextButtonRef.current
+    const deleteButton = deleteButtonRef.current
 
     const frame = () => {
       if (disposed) return
@@ -857,13 +961,11 @@ export function GameFlowOverlay() {
 
       const nowMs = performance.now()
       const zones = hitZonesRef.current
-      const backZone = zones.back
-      const nextZone = zones.next
+      const deleteZone = zones.delete
       const pointerRenderStates = pointerRenderScratchRef.current
       let resolvedLetterIndex = activeLetterIndexRef.current
 
-      let backHoldClassActive = false
-      let nextHoldClassActive = false
+      let deleteHoldClassActive = false
       const heldAlphabetLetterIndicesNext: number[] = []
 
       for (let slot = 0; slot < 2; slot += 1) {
@@ -872,11 +974,8 @@ export function GameFlowOverlay() {
         const pointerX = pointerState.x
         const pointerY = pointerState.y
 
-        const touchingBack = pointerActive && pointerState.interactable && backZone !== null
-          ? pointInScreenRect(pointerX, pointerY, backZone)
-          : false
-        const touchingNext = pointerActive && pointerState.interactable && nextZone !== null
-          ? pointInScreenRect(pointerX, pointerY, nextZone)
+        const touchingDelete = pointerActive && pointerState.interactable && deleteZone !== null
+          ? pointInScreenRect(pointerX, pointerY, deleteZone)
           : false
         const alphabetLetterIndex = pointerActive && pointerState.interactable && isAlphabetGridMode
           ? resolveAlphabetLetterIndexAtPoint(pointerX, pointerY)
@@ -905,16 +1004,9 @@ export function GameFlowOverlay() {
           && alphabetLetterIndex !== alphabetDwell.blockedLetterIndex
         )
 
-        const backTriggered = updateButtonDwellState(
-          backDwellBySlot[slot],
-          touchingBack,
-          nowMs,
-          buttonDwellMs,
-          buttonDwellJitterGraceMs,
-        )
-        const nextTriggered = updateButtonDwellState(
-          nextDwellBySlot[slot],
-          touchingNext,
+        const deleteTriggered = updateButtonDwellState(
+          deleteDwellBySlot[slot],
+          touchingDelete,
           nowMs,
           buttonDwellMs,
           buttonDwellJitterGraceMs,
@@ -927,32 +1019,20 @@ export function GameFlowOverlay() {
           buttonDwellJitterGraceMs,
         )
 
-        if (backTriggered) {
-          registerGameOverInputInteractionRef.current()
+        if (deleteTriggered) {
           if (resolvedLetterIndex > 0) {
+            registerGameOverInputInteractionRef.current()
+            startDeleteConfirmFeedback()
             resolvedLetterIndex -= 1
             transitionActiveLetterIndex(resolvedLetterIndex)
             resetAlphabetDwellBySlot(alphabetDwellBySlot)
           }
         }
 
-        if (nextTriggered) {
-          playGameSound({ type: 'high_score_entry_lock' })
-
-          if (resolvedLetterIndex >= HIGH_SCORE_INITIALS_LENGTH - 1) {
-            submitGameOverInitialsRef.current('submitted')
-            break
-          }
-
-          resolvedLetterIndex += 1
-          transitionActiveLetterIndex(resolvedLetterIndex)
-          registerGameOverInputInteractionRef.current()
-          resetAlphabetDwellBySlot(alphabetDwellBySlot)
-        }
-
         if (alphabetTriggered) {
           const selectedLetterIndex = alphabetLetterIndex
           const result = selectAlphabetLetter(alphabetLetterIndex, resolvedLetterIndex)
+          startAlphabetLetterConfirmFeedback(selectedLetterIndex)
           resetAlphabetDwellBySlot(alphabetDwellBySlot)
           blockAlphabetDwellState(alphabetDwell, selectedLetterIndex)
           if (result === 'submitted') {
@@ -961,19 +1041,15 @@ export function GameFlowOverlay() {
           resolvedLetterIndex = result
         }
 
-        if (backDwellBySlot[slot].inside && !backDwellBySlot[slot].triggeredThisVisit) {
-          backHoldClassActive = true
-        }
-        if (nextDwellBySlot[slot].inside && !nextDwellBySlot[slot].triggeredThisVisit) {
-          nextHoldClassActive = true
+        if (deleteDwellBySlot[slot].inside && !deleteDwellBySlot[slot].triggeredThisVisit) {
+          deleteHoldClassActive = true
         }
         if (alphabetEligible && alphabetDwell.dwell.inside && !alphabetDwell.dwell.triggeredThisVisit) {
           heldAlphabetLetterIndicesNext.push(alphabetLetterIndex)
         }
       }
 
-      setButtonDwellClass(backButtonRef.current, backButtonHoldClassActiveRef, backHoldClassActive)
-      setButtonDwellClass(nextButtonRef.current, nextButtonHoldClassActiveRef, nextHoldClassActive)
+      setButtonDwellClass(deleteButtonRef.current, deleteButtonHoldClassActiveRef, deleteHoldClassActive)
       setHeldAlphabetLetterIndicesIfChanged(heldAlphabetLetterIndicesNext)
     }
 
@@ -986,12 +1062,10 @@ export function GameFlowOverlay() {
         gestureRafIdRef.current = null
       }
       resetLetterPassBySlot(letterPassBySlot)
-      resetButtonDwellBySlot(backDwellBySlot)
-      resetButtonDwellBySlot(nextDwellBySlot)
+      resetButtonDwellBySlot(deleteDwellBySlot)
       resetAlphabetDwellBySlot(alphabetDwellBySlot)
       setHeldAlphabetLetterIndicesIfChanged([])
-      setButtonDwellClass(backButton, backButtonHoldClassActiveRef, false)
-      setButtonDwellClass(nextButton, nextButtonHoldClassActiveRef, false)
+      setButtonDwellClass(deleteButton, deleteButtonHoldClassActiveRef, false)
     }
   }, [
     buttonDwellJitterGraceMs,
@@ -1005,6 +1079,8 @@ export function GameFlowOverlay() {
     resolveAlphabetLetterIndexAtPoint,
     selectAlphabetLetter,
     setHeldAlphabetLetterIndicesIfChanged,
+    startDeleteConfirmFeedback,
+    startAlphabetLetterConfirmFeedback,
     transitionActiveLetterIndex,
   ])
 
@@ -1013,7 +1089,7 @@ export function GameFlowOverlay() {
       <div className="gfo-center-wrap">
         <div className="gfo-idle-prompt-wrap">
           <div className="popdot-text-base popdot-style-1 popdot-shadow-8 gfo-idle-prompt gfo-vt-idle-prompt">POP BALLOON TO START!</div>
-          <div className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-idle-prompt gfo-idle-prompt-sub gfo-vt-idle-prompt">Max 1 person in the room</div>
+          <div className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-idle-prompt gfo-idle-prompt-sub gfo-vt-idle-prompt-sub">Max 1 person in the room</div>
         </div>
       </div>
     )
@@ -1031,119 +1107,120 @@ export function GameFlowOverlay() {
     return (
       <div
         ref={overlayRootRef}
-        className={[
-          'gfo-center-wrap',
-          isAlphabetGridMode ? 'gfo-center-wrap-alphabet-grid' : '',
-        ].filter(Boolean).join(' ')}
+        className="gfo-center-wrap"
       >
-        <div className="gfo-2-cols-grid gfo-gap-8">
-          <div className="gfo-score-row gfo-stack-center gfo-gap-2">
-            <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label gfo-vt-score-label">TOTAL SCORE:</span>
-            <span className="popdot-text-base popdot-style-1 popdot-shadow-12 gfo-score-value-entry gfo-vt-score-value">{formatScore(displayGameOverScore)}</span>
-          </div>
-
+        <div className="gfo-2-cols-grid gfo-game-over-input-score-grid">
           <div className="gfo-ranking-row gfo-stack-center gfo-gap-2">
             <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label gfo-vt-ranking-label">YOUR PLACE:</span>
             <span className="popdot-text-base popdot-style-1 popdot-shadow-12 gfo-score-value-entry gfo-vt-ranking-value">{rankingValue}</span>
           </div>
-        </div>
 
-        <div className="gfo-high-score-entry-row gfo-stack-center gfo-gap-2">
-          <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-high-score-entry-label gfo-vt-entry-label">HIGH SCORE ENTRY:</span>
-          <div className="gfo-high-score-entry gfo-row-center">
-            <span
-              ref={(node) => { letterSlotRefs.current[0] = node }}
-              className={[
-                'popdot-text-base',
-                'popdot-style-1',
-                'popdot-shadow-16',
-                'gfo-high-score-entry-letter',
-                isAlphabetGridMode ? 'gfo-high-score-entry-letter-compact' : '',
-                'gfo-vt-entry-letter-0',
-                activeLetterIndex === 0 ? 'gfo-high-score-entry-letter-active' : '',
-              ].filter(Boolean).join(' ')}
-            >
-              {letter0}
-            </span>
-            <span
-              ref={(node) => { letterSlotRefs.current[1] = node }}
-              className={[
-                'popdot-text-base',
-                'popdot-style-1',
-                'popdot-shadow-16',
-                'gfo-high-score-entry-letter',
-                isAlphabetGridMode ? 'gfo-high-score-entry-letter-compact' : '',
-                'gfo-vt-entry-letter-1',
-                activeLetterIndex === 1 ? 'gfo-high-score-entry-letter-active' : '',
-              ].filter(Boolean).join(' ')}
-            >
-              {letter1}
-            </span>
-            <span
-              ref={(node) => { letterSlotRefs.current[2] = node }}
-              className={[
-                'popdot-text-base',
-                'popdot-style-1',
-                'popdot-shadow-16',
-                'gfo-high-score-entry-letter',
-                isAlphabetGridMode ? 'gfo-high-score-entry-letter-compact' : '',
-                'gfo-vt-entry-letter-2',
-                activeLetterIndex === 2 ? 'gfo-high-score-entry-letter-active' : '',
-              ].filter(Boolean).join(' ')}
-            >
-              {letter2}
-            </span>
+          <div className="gfo-score-row gfo-stack-center gfo-gap-2">
+            <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-score-label gfo-vt-score-label">TOTAL SCORE:</span>
+            <span className="popdot-text-base popdot-style-1 popdot-shadow-12 gfo-score-value-entry gfo-vt-score-value">{formatScore(displayGameOverScore)}</span>
           </div>
         </div>
 
-        {isAlphabetGridMode ? (
-          <div className="gfo-alphabet-grid" style={buttonDwellStyle}>
-            {HIGH_SCORE_ALPHABET.map((letter, index) => {
-              const selectedForActiveSlot = (
-                (activeLetterIndex === 0 && letter0 === letter)
-                || (activeLetterIndex === 1 && letter1 === letter)
-                || (activeLetterIndex === 2 && letter2 === letter)
-              )
-              const held = heldAlphabetLetterIndices.includes(index)
-              return (
-                <button
-                  key={letter}
-                  ref={(node) => { alphabetLetterRefs.current[index] = node }}
-                  type="button"
-                  className={[
-                    'gfo-alphabet-letter',
-                    'gfo-button-dwellable',
-                    'popdot-text-base',
-                    'popdot-style-1',
-                    'popdot-box-shadow-8',
-                    selectedForActiveSlot ? 'gfo-alphabet-letter-selected' : '',
-                    held ? BUTTON_DWELL_HOLD_CLASS : '',
-                  ].filter(Boolean).join(' ')}
-                >
-                  <span className="gfo-button-dwell-label">{letter}</span>
-                </button>
-              )
-            })}
+        <div className="gfo-high-score-entry-panel gfo-vt-entry-panel">
+          <div className="gfo-high-score-entry-row gfo-stack-center gfo-gap-2">
+            <span className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-high-score-entry-label gfo-vt-entry-label">HIGH SCORE ENTRY:</span>
+            <div className="gfo-high-score-entry gfo-row-center">
+              <span
+                ref={(node) => { letterSlotRefs.current[0] = node }}
+                className={[
+                  'popdot-text-base',
+                  'popdot-style-1',
+                  'popdot-shadow-16',
+                  'gfo-high-score-entry-letter',
+                  'gfo-vt-entry-letter-0',
+                  activeLetterIndex === 0 ? 'gfo-high-score-entry-letter-active' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                {letter0}
+              </span>
+              <span
+                ref={(node) => { letterSlotRefs.current[1] = node }}
+                className={[
+                  'popdot-text-base',
+                  'popdot-style-1',
+                  'popdot-shadow-16',
+                  'gfo-high-score-entry-letter',
+                  'gfo-vt-entry-letter-1',
+                  activeLetterIndex === 1 ? 'gfo-high-score-entry-letter-active' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                {letter1}
+              </span>
+              <span
+                ref={(node) => { letterSlotRefs.current[2] = node }}
+                className={[
+                  'popdot-text-base',
+                  'popdot-style-1',
+                  'popdot-shadow-16',
+                  'gfo-high-score-entry-letter',
+                  'gfo-vt-entry-letter-2',
+                  activeLetterIndex === 2 ? 'gfo-high-score-entry-letter-active' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                {letter2}
+              </span>
+            </div>
           </div>
-        ) : null}
 
-        <div className="gfo-row-center gfo-gap-2">
-          <button
-            ref={backButtonRef}
-            disabled={backDisabled}
-            className="popdot-button popdot-button-black popdot-text-base popdot-style-1 popdot-box-shadow-16 gfo-button-dwellable gfo-vt-entry-back"
-            style={buttonDwellStyle}
-          >
-            <span className="gfo-button-dwell-label">BACK</span>
-          </button>
-          <button
-            ref={nextButtonRef}
-            className="popdot-button popdot-text-base popdot-style-1 popdot-box-shadow-16 gfo-button-dwellable gfo-entry-next-stable gfo-vt-entry-next"
-            style={buttonDwellStyle}
-          >
-            <span className="gfo-button-dwell-label">{nextLabel}</span>
-          </button>
+          {isAlphabetGridMode ? (
+            <div className="gfo-alphabet-grid gfo-vt-entry-keyboard" style={buttonDwellStyle}>
+              {HIGH_SCORE_KEYBOARD_ROWS.map((row, rowIndex) => (
+                row.map((key) => {
+                  if (key === HIGH_SCORE_DELETE_KEY) {
+                    return (
+                      <button
+                        key={`${rowIndex}-${key}`}
+                        ref={deleteButtonRef}
+                        type="button"
+                        className={[
+                          'gfo-alphabet-letter',
+                          'gfo-alphabet-letter-delete',
+                          'gfo-button-dwellable',
+                          'popdot-text-base',
+                          'popdot-style-6',
+                          isDeleteConfirmed ? DELETE_CONFIRM_CLASS : '',
+                        ].filter(Boolean).join(' ')}
+                      >
+                        <span className="gfo-button-dwell-label">{key}</span>
+                      </button>
+                    )
+                  }
+
+                  const index = HIGH_SCORE_ALPHABET.indexOf(key)
+                  const held = heldAlphabetLetterIndices.includes(index)
+                  const confirmed = confirmedAlphabetLetterIndices.includes(index)
+                  return (
+                    <button
+                      key={`${rowIndex}-${key}`}
+                      ref={(node) => {
+                        if (index >= 0) alphabetLetterRefs.current[index] = node
+                      }}
+                      type="button"
+                      className={[
+                        'gfo-alphabet-letter',
+                        'gfo-button-dwellable',
+                        'popdot-text-base',
+                        'popdot-style-3',
+                        held ? BUTTON_DWELL_HOLD_CLASS : '',
+                        confirmed ? ALPHABET_CONFIRM_CLASS : '',
+                      ].filter(Boolean).join(' ')}
+                    >
+                      <span className="gfo-button-dwell-label">{key}</span>
+                    </button>
+                  )
+                })
+              ))}
+            </div>
+          ) : null}
+
         </div>
+
+        <div className="popdot-text-base popdot-style-2 popdot-shadow-4 gfo-high-score-entry-help gfo-vt-entry-help">Hold your hand over a letter to type.</div>
 
         {isTimerVisible ? (
           <div className="gfo-timer-wrap gfo-center-content">

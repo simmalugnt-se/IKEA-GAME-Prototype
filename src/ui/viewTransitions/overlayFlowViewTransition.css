@@ -3,6 +3,10 @@
   view-transition-name: gfo-idle-prompt;
 }
 
+.gfo-vt-idle-prompt-sub {
+  view-transition-name: gfo-idle-prompt-sub;
+}
+
 .gfo-vt-game-over-title {
   view-transition-name: gfo-game-over-title;
 }
@@ -39,12 +43,16 @@
   view-transition-name: gfo-entry-letter-2;
 }
 
-.gfo-vt-entry-back {
-  view-transition-name: gfo-entry-back;
+.gfo-vt-entry-panel {
+  view-transition-name: gfo-entry-panel;
 }
 
-.gfo-vt-entry-next {
-  view-transition-name: gfo-entry-next;
+.gfo-vt-entry-help {
+  view-transition-name: gfo-entry-help;
+}
+
+.gfo-vt-entry-keyboard {
+  view-transition-name: gfo-entry-keyboard;
 }
 
 /* Section B: Default Variable Contract */
@@ -64,6 +72,16 @@
   --gfo-vt-idle-prompt-pair-duration: var(--gfo-vt-default-duration);
   --gfo-vt-idle-prompt-pair-delay: var(--gfo-vt-default-delay);
   --gfo-vt-idle-prompt-pair-ease: var(--gfo-vt-default-pair-ease);
+
+  --gfo-vt-idle-prompt-sub-in-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-idle-prompt-sub-in-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-idle-prompt-sub-in-ease: var(--gfo-vt-default-in-ease);
+  --gfo-vt-idle-prompt-sub-out-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-idle-prompt-sub-out-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-idle-prompt-sub-out-ease: var(--gfo-vt-default-out-ease);
+  --gfo-vt-idle-prompt-sub-pair-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-idle-prompt-sub-pair-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-idle-prompt-sub-pair-ease: var(--gfo-vt-default-pair-ease);
 
   --gfo-vt-game-over-title-in-duration: var(--gfo-vt-default-duration);
   --gfo-vt-game-over-title-in-delay: var(--gfo-vt-default-delay);
@@ -155,30 +173,42 @@
   --gfo-vt-entry-letter-2-pair-delay: var(--gfo-vt-default-delay);
   --gfo-vt-entry-letter-2-pair-ease: var(--gfo-vt-default-pair-ease);
 
-  --gfo-vt-entry-back-in-duration: var(--gfo-vt-default-duration);
-  --gfo-vt-entry-back-in-delay: var(--gfo-vt-default-delay);
-  --gfo-vt-entry-back-in-ease: var(--gfo-vt-default-in-ease);
-  --gfo-vt-entry-back-out-duration: var(--gfo-vt-default-duration);
-  --gfo-vt-entry-back-out-delay: var(--gfo-vt-default-delay);
-  --gfo-vt-entry-back-out-ease: var(--gfo-vt-default-out-ease);
-  --gfo-vt-entry-back-pair-duration: var(--gfo-vt-default-duration);
-  --gfo-vt-entry-back-pair-delay: var(--gfo-vt-default-delay);
-  --gfo-vt-entry-back-pair-ease: var(--gfo-vt-default-pair-ease);
+  --gfo-vt-entry-panel-in-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-panel-in-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-panel-in-ease: var(--gfo-vt-default-in-ease);
+  --gfo-vt-entry-panel-out-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-panel-out-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-panel-out-ease: var(--gfo-vt-default-out-ease);
+  --gfo-vt-entry-panel-pair-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-panel-pair-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-panel-pair-ease: var(--gfo-vt-default-pair-ease);
 
-  --gfo-vt-entry-next-in-duration: var(--gfo-vt-default-duration);
-  --gfo-vt-entry-next-in-delay: var(--gfo-vt-default-delay);
-  --gfo-vt-entry-next-in-ease: var(--gfo-vt-default-in-ease);
-  --gfo-vt-entry-next-out-duration: var(--gfo-vt-default-duration);
-  --gfo-vt-entry-next-out-delay: var(--gfo-vt-default-delay);
-  --gfo-vt-entry-next-out-ease: var(--gfo-vt-default-out-ease);
-  --gfo-vt-entry-next-pair-duration: var(--gfo-vt-default-duration);
-  --gfo-vt-entry-next-pair-delay: var(--gfo-vt-default-delay);
-  --gfo-vt-entry-next-pair-ease: var(--gfo-vt-default-pair-ease);
+  --gfo-vt-entry-help-in-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-help-in-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-help-in-ease: var(--gfo-vt-default-in-ease);
+  --gfo-vt-entry-help-out-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-help-out-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-help-out-ease: var(--gfo-vt-default-out-ease);
+  --gfo-vt-entry-help-pair-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-help-pair-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-help-pair-ease: var(--gfo-vt-default-pair-ease);
+
+  --gfo-vt-entry-keyboard-in-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-keyboard-in-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-keyboard-in-ease: var(--gfo-vt-default-in-ease);
+  --gfo-vt-entry-keyboard-out-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-keyboard-out-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-keyboard-out-ease: var(--gfo-vt-default-out-ease);
+  --gfo-vt-entry-keyboard-pair-duration: var(--gfo-vt-default-duration);
+  --gfo-vt-entry-keyboard-pair-delay: var(--gfo-vt-default-delay);
+  --gfo-vt-entry-keyboard-pair-ease: var(--gfo-vt-default-pair-ease);
+
 }
 
 /* Section C: Scenario Matrix */
 :root[data-gfo-vt-scope='flow'][data-gfo-vt-scenario='flow:idle>run'] {
   --gfo-vt-idle-prompt-out-duration: 0ms;
+  --gfo-vt-idle-prompt-sub-out-duration: 0ms;
 }
 
 :root[data-gfo-vt-scope='flow'][data-gfo-vt-scenario='flow:run>game_over_travel'] {
@@ -208,10 +238,12 @@
   --gfo-vt-entry-letter-1-in-delay: 700ms;
   --gfo-vt-entry-letter-2-in-duration: 500ms;
   --gfo-vt-entry-letter-2-in-delay: 850ms;
-  --gfo-vt-entry-back-in-duration: 500ms;
-  --gfo-vt-entry-back-in-delay: 1s;
-  --gfo-vt-entry-next-in-duration: 500ms;
-  --gfo-vt-entry-next-in-delay: 1s;
+  --gfo-vt-entry-panel-in-duration: 500ms;
+  --gfo-vt-entry-panel-in-delay: 350ms;
+  --gfo-vt-entry-help-in-duration: 500ms;
+  --gfo-vt-entry-help-in-delay: 1000ms;
+  --gfo-vt-entry-keyboard-in-duration: 500ms;
+  --gfo-vt-entry-keyboard-in-delay: 500ms;
 }
 
 :root[data-gfo-vt-scope='flow'][data-gfo-vt-scenario='flow:game_over_input>game_over_travel'] {
@@ -233,10 +265,12 @@
   --gfo-vt-entry-letter-1-out-delay: 200ms;
   --gfo-vt-entry-letter-2-out-duration: 500ms;
   --gfo-vt-entry-letter-2-out-delay: 300ms;
-  --gfo-vt-entry-back-out-duration: 500ms;
-  --gfo-vt-entry-back-out-delay: 400ms;
-  --gfo-vt-entry-next-out-duration: 500ms;
-  --gfo-vt-entry-next-out-delay: 500ms;
+  --gfo-vt-entry-panel-out-duration: 500ms;
+  --gfo-vt-entry-panel-out-delay: 400ms;
+  --gfo-vt-entry-help-out-duration: 500ms;
+  --gfo-vt-entry-help-out-delay: 400ms;
+  --gfo-vt-entry-keyboard-out-duration: 500ms;
+  --gfo-vt-entry-keyboard-out-delay: 400ms;
 }
 
 :root[data-gfo-vt-scope='flow'][data-gfo-vt-scenario='flow:game_over_input>idle'] {
@@ -250,24 +284,29 @@
   --gfo-vt-ranking-value-out-delay: 450ms;
 
   --gfo-vt-entry-label-out-duration: 250ms;
-  --gfo-vt-entry-label-out-delay: 350ms;
+  --gfo-vt-entry-label-out-delay: 300ms;
   --gfo-vt-entry-letter-0-out-duration: 250ms;
-  --gfo-vt-entry-letter-0-out-delay: 300ms;
+  --gfo-vt-entry-letter-0-out-delay: 250ms;
   --gfo-vt-entry-letter-1-out-duration: 250ms;
-  --gfo-vt-entry-letter-1-out-delay: 250ms;
+  --gfo-vt-entry-letter-1-out-delay: 200ms;
   --gfo-vt-entry-letter-2-out-duration: 250ms;
-  --gfo-vt-entry-letter-2-out-delay: 150ms;
-  --gfo-vt-entry-back-out-duration: 250ms;
-  --gfo-vt-entry-back-out-delay: 50ms;
-  --gfo-vt-entry-next-out-duration: 250ms;
-  --gfo-vt-entry-next-out-delay: 0ms;
+  --gfo-vt-entry-letter-2-out-delay: 100ms;
+  --gfo-vt-entry-panel-out-duration: 400ms;
+  --gfo-vt-entry-panel-out-delay: 300ms;
+  --gfo-vt-entry-help-out-duration: 250ms;
+  --gfo-vt-entry-help-out-delay: 150ms;
+  --gfo-vt-entry-keyboard-out-duration: 300ms;
+  --gfo-vt-entry-keyboard-out-delay: 300ms;
 
   --gfo-vt-idle-prompt-in-duration: 500ms;
-  --gfo-vt-idle-prompt-in-delay: 500ms;
+  --gfo-vt-idle-prompt-in-delay: 800ms;
+  --gfo-vt-idle-prompt-sub-in-duration: 500ms;
+  --gfo-vt-idle-prompt-sub-in-delay: 900ms;
 }
 
 :root[data-gfo-vt-scope='flow'][data-gfo-vt-scenario='flow:game_over_travel>idle'] {
   --gfo-vt-idle-prompt-in-duration: 500ms;
+  --gfo-vt-idle-prompt-sub-in-duration: 500ms;
   --gfo-vt-game-over-title-out-duration: 500ms;
   --gfo-vt-score-label-out-duration: 500ms;
   --gfo-vt-score-label-out-delay: 0ms;
@@ -277,12 +316,17 @@
 
 :root[data-gfo-vt-scope='flow'][data-gfo-vt-scenario='flow:run>idle'] {
   --gfo-vt-idle-prompt-in-duration: 500ms;
+  --gfo-vt-idle-prompt-sub-in-duration: 500ms;
 }
 
 :root[data-gfo-vt-scope='step'] {
   --gfo-vt-idle-prompt-in-duration: 0ms;
   --gfo-vt-idle-prompt-out-duration: 0ms;
   --gfo-vt-idle-prompt-pair-duration: 0ms;
+
+  --gfo-vt-idle-prompt-sub-in-duration: 0ms;
+  --gfo-vt-idle-prompt-sub-out-duration: 0ms;
+  --gfo-vt-idle-prompt-sub-pair-duration: 0ms;
 
   --gfo-vt-game-over-title-in-duration: 0ms;
   --gfo-vt-game-over-title-out-duration: 0ms;
@@ -320,45 +364,22 @@
   --gfo-vt-entry-letter-2-out-duration: 0ms;
   --gfo-vt-entry-letter-2-pair-duration: 0ms;
 
-  --gfo-vt-entry-back-in-duration: 0ms;
-  --gfo-vt-entry-back-out-duration: 0ms;
-  --gfo-vt-entry-back-pair-duration: 0ms;
+  --gfo-vt-entry-panel-in-duration: 0ms;
+  --gfo-vt-entry-panel-out-duration: 0ms;
+  --gfo-vt-entry-panel-pair-duration: 0ms;
 
-  --gfo-vt-entry-next-in-duration: 0ms;
-  --gfo-vt-entry-next-out-duration: 0ms;
-  --gfo-vt-entry-next-pair-duration: 0ms;
-}
+  --gfo-vt-entry-help-in-duration: 0ms;
+  --gfo-vt-entry-help-out-duration: 0ms;
+  --gfo-vt-entry-help-pair-duration: 0ms;
 
-:root[data-gfo-vt-scope='step'][data-gfo-vt-scenario='step:0>1'] {
-  --gfo-vt-entry-back-in-duration: 500ms;
-  --gfo-vt-entry-back-in-delay: 100ms;
-  --gfo-vt-entry-next-pair-duration: 500ms;
-  --gfo-vt-entry-next-pair-delay: 0ms;
-}
-
-:root[data-gfo-vt-scope='step'][data-gfo-vt-scenario='step:1>2'] {
-  --gfo-vt-entry-back-pair-duration: 500ms;
-  --gfo-vt-entry-back-pair-delay: 0ms;
-  --gfo-vt-entry-next-pair-duration: 500ms;
-  --gfo-vt-entry-next-pair-delay: 0ms;
-}
-
-:root[data-gfo-vt-scope='step'][data-gfo-vt-scenario='step:2>1'] {
-  --gfo-vt-entry-back-pair-duration: 500ms;
-  --gfo-vt-entry-back-pair-delay: 0ms;
-  --gfo-vt-entry-next-pair-duration: 500ms;
-  --gfo-vt-entry-next-pair-delay: 0ms;
-}
-
-:root[data-gfo-vt-scope='step'][data-gfo-vt-scenario='step:1>0'] {
-  --gfo-vt-entry-back-out-duration: 500ms;
-  --gfo-vt-entry-back-out-delay: 0ms;
-  --gfo-vt-entry-next-pair-duration: 500ms;
-  --gfo-vt-entry-next-pair-delay: 0ms;
+  --gfo-vt-entry-keyboard-in-duration: 0ms;
+  --gfo-vt-entry-keyboard-out-duration: 0ms;
+  --gfo-vt-entry-keyboard-pair-duration: 0ms;
 }
 
 /* Step scope: disable VT names for all non-button targets so they swap immediately. */
 :root[data-gfo-vt-scope='step'] .gfo-vt-idle-prompt,
+:root[data-gfo-vt-scope='step'] .gfo-vt-idle-prompt-sub,
 :root[data-gfo-vt-scope='step'] .gfo-vt-game-over-title,
 :root[data-gfo-vt-scope='step'] .gfo-vt-score-label,
 :root[data-gfo-vt-scope='step'] .gfo-vt-score-value,
@@ -367,12 +388,16 @@
 :root[data-gfo-vt-scope='step'] .gfo-vt-entry-label,
 :root[data-gfo-vt-scope='step'] .gfo-vt-entry-letter-0,
 :root[data-gfo-vt-scope='step'] .gfo-vt-entry-letter-1,
-:root[data-gfo-vt-scope='step'] .gfo-vt-entry-letter-2 {
+:root[data-gfo-vt-scope='step'] .gfo-vt-entry-letter-2,
+:root[data-gfo-vt-scope='step'] .gfo-vt-entry-panel,
+:root[data-gfo-vt-scope='step'] .gfo-vt-entry-help,
+:root[data-gfo-vt-scope='step'] .gfo-vt-entry-keyboard {
   view-transition-name: none;
 }
 
 /* Step scope: only buttons participate in VT */
 :root[data-gfo-vt-scope='step']::view-transition-old(gfo-idle-prompt),
+:root[data-gfo-vt-scope='step']::view-transition-old(gfo-idle-prompt-sub),
 :root[data-gfo-vt-scope='step']::view-transition-old(gfo-game-over-title),
 :root[data-gfo-vt-scope='step']::view-transition-old(gfo-score-label),
 :root[data-gfo-vt-scope='step']::view-transition-old(gfo-score-value),
@@ -382,7 +407,11 @@
 :root[data-gfo-vt-scope='step']::view-transition-old(gfo-entry-letter-0),
 :root[data-gfo-vt-scope='step']::view-transition-old(gfo-entry-letter-1),
 :root[data-gfo-vt-scope='step']::view-transition-old(gfo-entry-letter-2),
+:root[data-gfo-vt-scope='step']::view-transition-old(gfo-entry-panel),
+:root[data-gfo-vt-scope='step']::view-transition-old(gfo-entry-help),
+:root[data-gfo-vt-scope='step']::view-transition-old(gfo-entry-keyboard),
 :root[data-gfo-vt-scope='step']::view-transition-new(gfo-idle-prompt),
+:root[data-gfo-vt-scope='step']::view-transition-new(gfo-idle-prompt-sub),
 :root[data-gfo-vt-scope='step']::view-transition-new(gfo-game-over-title),
 :root[data-gfo-vt-scope='step']::view-transition-new(gfo-score-label),
 :root[data-gfo-vt-scope='step']::view-transition-new(gfo-score-value),
@@ -392,7 +421,11 @@
 :root[data-gfo-vt-scope='step']::view-transition-new(gfo-entry-letter-0),
 :root[data-gfo-vt-scope='step']::view-transition-new(gfo-entry-letter-1),
 :root[data-gfo-vt-scope='step']::view-transition-new(gfo-entry-letter-2),
+:root[data-gfo-vt-scope='step']::view-transition-new(gfo-entry-panel),
+:root[data-gfo-vt-scope='step']::view-transition-new(gfo-entry-help),
+:root[data-gfo-vt-scope='step']::view-transition-new(gfo-entry-keyboard),
 :root[data-gfo-vt-scope='step']::view-transition-group(gfo-idle-prompt),
+:root[data-gfo-vt-scope='step']::view-transition-group(gfo-idle-prompt-sub),
 :root[data-gfo-vt-scope='step']::view-transition-group(gfo-game-over-title),
 :root[data-gfo-vt-scope='step']::view-transition-group(gfo-score-label),
 :root[data-gfo-vt-scope='step']::view-transition-group(gfo-score-value),
@@ -401,7 +434,10 @@
 :root[data-gfo-vt-scope='step']::view-transition-group(gfo-entry-label),
 :root[data-gfo-vt-scope='step']::view-transition-group(gfo-entry-letter-0),
 :root[data-gfo-vt-scope='step']::view-transition-group(gfo-entry-letter-1),
-:root[data-gfo-vt-scope='step']::view-transition-group(gfo-entry-letter-2) {
+:root[data-gfo-vt-scope='step']::view-transition-group(gfo-entry-letter-2),
+:root[data-gfo-vt-scope='step']::view-transition-group(gfo-entry-panel),
+:root[data-gfo-vt-scope='step']::view-transition-group(gfo-entry-help),
+:root[data-gfo-vt-scope='step']::view-transition-group(gfo-entry-keyboard) {
   animation: none;
 }
 
@@ -436,6 +472,33 @@
   animation-duration: var(--gfo-vt-idle-prompt-pair-duration);
   animation-timing-function: var(--gfo-vt-idle-prompt-pair-ease);
   animation-delay: var(--gfo-vt-idle-prompt-pair-delay);
+  animation-fill-mode: both;
+}
+
+::view-transition-old(gfo-idle-prompt-sub) {
+  pointer-events: none;
+  transform-origin: center;
+  animation-name: gfo-vt-exit-transform, gfo-vt-hide-discrete;
+  animation-duration: var(--gfo-vt-idle-prompt-sub-out-duration), 0ms;
+  animation-timing-function: var(--gfo-vt-idle-prompt-sub-out-ease), steps(1, end);
+  animation-delay: var(--gfo-vt-idle-prompt-sub-out-delay), calc(var(--gfo-vt-idle-prompt-sub-out-delay) + var(--gfo-vt-idle-prompt-sub-out-duration));
+  animation-fill-mode: both, both;
+}
+
+::view-transition-new(gfo-idle-prompt-sub) {
+  pointer-events: none;
+  transform-origin: center;
+  animation-name: gfo-vt-show-discrete, gfo-vt-enter-transform;
+  animation-duration: 0ms, var(--gfo-vt-idle-prompt-sub-in-duration);
+  animation-timing-function: steps(1, end), var(--gfo-vt-idle-prompt-sub-in-ease);
+  animation-delay: var(--gfo-vt-idle-prompt-sub-in-delay), var(--gfo-vt-idle-prompt-sub-in-delay);
+  animation-fill-mode: both, both;
+}
+
+::view-transition-group(gfo-idle-prompt-sub) {
+  animation-duration: var(--gfo-vt-idle-prompt-sub-pair-duration);
+  animation-timing-function: var(--gfo-vt-idle-prompt-sub-pair-ease);
+  animation-delay: var(--gfo-vt-idle-prompt-sub-pair-delay);
   animation-fill-mode: both;
 }
 
@@ -682,57 +745,84 @@
   animation-fill-mode: both;
 }
 
-::view-transition-old(gfo-entry-back) {
+::view-transition-old(gfo-entry-panel) {
   pointer-events: none;
   transform-origin: center;
   animation-name: gfo-vt-exit-transform, gfo-vt-hide-discrete;
-  animation-duration: var(--gfo-vt-entry-back-out-duration), 0ms;
-  animation-timing-function: var(--gfo-vt-entry-back-out-ease), steps(1, end);
-  animation-delay: var(--gfo-vt-entry-back-out-delay), calc(var(--gfo-vt-entry-back-out-delay) + var(--gfo-vt-entry-back-out-duration));
+  animation-duration: var(--gfo-vt-entry-panel-out-duration), 0ms;
+  animation-timing-function: var(--gfo-vt-entry-panel-out-ease), steps(1, end);
+  animation-delay: var(--gfo-vt-entry-panel-out-delay), calc(var(--gfo-vt-entry-panel-out-delay) + var(--gfo-vt-entry-panel-out-duration));
   animation-fill-mode: both, both;
 }
 
-::view-transition-new(gfo-entry-back) {
+::view-transition-new(gfo-entry-panel) {
   pointer-events: none;
   transform-origin: center;
   animation-name: gfo-vt-show-discrete, gfo-vt-enter-transform;
-  animation-duration: 0ms, var(--gfo-vt-entry-back-in-duration);
-  animation-timing-function: steps(1, end), var(--gfo-vt-entry-back-in-ease);
-  animation-delay: var(--gfo-vt-entry-back-in-delay), var(--gfo-vt-entry-back-in-delay);
+  animation-duration: 0ms, var(--gfo-vt-entry-panel-in-duration);
+  animation-timing-function: steps(1, end), var(--gfo-vt-entry-panel-in-ease);
+  animation-delay: var(--gfo-vt-entry-panel-in-delay), var(--gfo-vt-entry-panel-in-delay);
   animation-fill-mode: both, both;
 }
 
-::view-transition-group(gfo-entry-back) {
-  animation-duration: var(--gfo-vt-entry-back-pair-duration);
-  animation-timing-function: var(--gfo-vt-entry-back-pair-ease);
-  animation-delay: var(--gfo-vt-entry-back-pair-delay);
+::view-transition-group(gfo-entry-panel) {
+  animation-duration: var(--gfo-vt-entry-panel-pair-duration);
+  animation-timing-function: var(--gfo-vt-entry-panel-pair-ease);
+  animation-delay: var(--gfo-vt-entry-panel-pair-delay);
   animation-fill-mode: both;
 }
 
-::view-transition-old(gfo-entry-next) {
+::view-transition-old(gfo-entry-help) {
   pointer-events: none;
   transform-origin: center;
   animation-name: gfo-vt-exit-transform, gfo-vt-hide-discrete;
-  animation-duration: var(--gfo-vt-entry-next-out-duration), 0ms;
-  animation-timing-function: var(--gfo-vt-entry-next-out-ease), steps(1, end);
-  animation-delay: var(--gfo-vt-entry-next-out-delay), calc(var(--gfo-vt-entry-next-out-delay) + var(--gfo-vt-entry-next-out-duration));
+  animation-duration: var(--gfo-vt-entry-help-out-duration), 0ms;
+  animation-timing-function: var(--gfo-vt-entry-help-out-ease), steps(1, end);
+  animation-delay: var(--gfo-vt-entry-help-out-delay), calc(var(--gfo-vt-entry-help-out-delay) + var(--gfo-vt-entry-help-out-duration));
   animation-fill-mode: both, both;
 }
 
-::view-transition-new(gfo-entry-next) {
+::view-transition-new(gfo-entry-help) {
   pointer-events: none;
   transform-origin: center;
   animation-name: gfo-vt-show-discrete, gfo-vt-enter-transform;
-  animation-duration: 0ms, var(--gfo-vt-entry-next-in-duration);
-  animation-timing-function: steps(1, end), var(--gfo-vt-entry-next-in-ease);
-  animation-delay: var(--gfo-vt-entry-next-in-delay), var(--gfo-vt-entry-next-in-delay);
+  animation-duration: 0ms, var(--gfo-vt-entry-help-in-duration);
+  animation-timing-function: steps(1, end), var(--gfo-vt-entry-help-in-ease);
+  animation-delay: var(--gfo-vt-entry-help-in-delay), var(--gfo-vt-entry-help-in-delay);
   animation-fill-mode: both, both;
 }
 
-::view-transition-group(gfo-entry-next) {
-  animation-duration: var(--gfo-vt-entry-next-pair-duration);
-  animation-timing-function: var(--gfo-vt-entry-next-pair-ease);
-  animation-delay: var(--gfo-vt-entry-next-pair-delay);
+::view-transition-group(gfo-entry-help) {
+  animation-duration: var(--gfo-vt-entry-help-pair-duration);
+  animation-timing-function: var(--gfo-vt-entry-help-pair-ease);
+  animation-delay: var(--gfo-vt-entry-help-pair-delay);
+  animation-fill-mode: both;
+}
+
+::view-transition-old(gfo-entry-keyboard) {
+  pointer-events: none;
+  transform-origin: center;
+  animation-name: gfo-vt-exit-transform, gfo-vt-hide-discrete;
+  animation-duration: var(--gfo-vt-entry-keyboard-out-duration), 0ms;
+  animation-timing-function: var(--gfo-vt-entry-keyboard-out-ease), steps(1, end);
+  animation-delay: var(--gfo-vt-entry-keyboard-out-delay), calc(var(--gfo-vt-entry-keyboard-out-delay) + var(--gfo-vt-entry-keyboard-out-duration));
+  animation-fill-mode: both, both;
+}
+
+::view-transition-new(gfo-entry-keyboard) {
+  pointer-events: none;
+  transform-origin: center;
+  animation-name: gfo-vt-show-discrete, gfo-vt-enter-transform;
+  animation-duration: 0ms, var(--gfo-vt-entry-keyboard-in-duration);
+  animation-timing-function: steps(1, end), var(--gfo-vt-entry-keyboard-in-ease);
+  animation-delay: var(--gfo-vt-entry-keyboard-in-delay), var(--gfo-vt-entry-keyboard-in-delay);
+  animation-fill-mode: both, both;
+}
+
+::view-transition-group(gfo-entry-keyboard) {
+  animation-duration: var(--gfo-vt-entry-keyboard-pair-duration);
+  animation-timing-function: var(--gfo-vt-entry-keyboard-pair-ease);
+  animation-delay: var(--gfo-vt-entry-keyboard-pair-delay);
   animation-fill-mode: both;
 }
 
@@ -776,18 +866,6 @@
   animation-timing-function: linear;
   animation-delay: var(--gfo-vt-score-value-pair-delay);
   animation-fill-mode: both;
-}
-
-:root[data-gfo-vt-scope='step'][data-gfo-vt-kind='pair']::view-transition-old(gfo-entry-next),
-:root[data-gfo-vt-scope='step'][data-gfo-vt-kind='pair']::view-transition-new(gfo-entry-next) {
-  animation: none;
-}
-
-:root[data-gfo-vt-scope='step'][data-gfo-vt-kind='pair'][data-gfo-vt-scenario='step:1>2']::view-transition-old(gfo-entry-back),
-:root[data-gfo-vt-scope='step'][data-gfo-vt-kind='pair'][data-gfo-vt-scenario='step:1>2']::view-transition-new(gfo-entry-back),
-:root[data-gfo-vt-scope='step'][data-gfo-vt-kind='pair'][data-gfo-vt-scenario='step:2>1']::view-transition-old(gfo-entry-back),
-:root[data-gfo-vt-scope='step'][data-gfo-vt-kind='pair'][data-gfo-vt-scenario='step:2>1']::view-transition-new(gfo-entry-back) {
-  animation: none;
 }
 
 @keyframes gfo-vt-enter-transform {
