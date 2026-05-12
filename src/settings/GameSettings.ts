@@ -593,7 +593,7 @@ export const SETTINGS: Settings = {
           type: "spawn_ground_ball_wave",
           count: 12,
           ballSizePreset: "lg",
-          colorIndices: [1, 2, 5, 6, 7, 8],
+          colorIndices: [7],
           entrySides: ["top", "left", "right", "bottom"],
           edgeInset: 0.15,
           spawnPadding: 1.5,
@@ -796,7 +796,11 @@ export const getPaletteEntry = (
 };
 
 // Current spawn event summary:
-// - Bonus events are triggered by gift_balloon triggerEventRuleIds.
+// - Bonus events are currently direct reward effects, triggered by gift_balloon triggerEventRuleIds.
+// - Automatic combo/streak bonus triggers are disabled in gameplayStore.ts
+//   (ENABLE_AUTOMATIC_SPAWN_EVENT_TRIGGERS = false).
+// - The trigger.type / minMultiplier / requiredPops fields on these rules are retained for the
+//   disabled automatic path and debug tooling; gift_balloon direct triggers do not require them.
 // - combo_cluster_reward: spawns 7 cluster balloons. = cluster
 // - ten_pop_cluster_reward: 10 pops without miss + score >= 50000 -> spawn 7 cluster balloons. = cluster
 // - ground_ball_wave_reward: ground ball wave.
