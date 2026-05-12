@@ -27,9 +27,6 @@
       "children": [
         {
           "id": "ec4688e3-b871-4889-8539-1004da0c89d9",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -54,15 +51,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "b89736d0-127d-4633-a090-659e45fba3b2",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -87,15 +85,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "023b1331-b98c-4d51-9e41-aba5881f2b9b",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -120,15 +119,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "d7f880e3-e64d-4873-b51a-73fbae5e26de",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -153,15 +153,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "8fb351ed-80ae-4a58-aff3-871b2bb4d960",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -186,15 +187,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "ce42bf8c-d675-4c62-a287-328bb30e50bc",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -219,15 +221,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "5b411992-06ee-4599-b26d-67bd699c9ff9",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -252,15 +255,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "95c6f90d-8014-445e-9984-c79cadfaeb8e",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -285,15 +289,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "5752434c-c84c-490c-b3bf-622d427eac20",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -318,15 +323,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "dec92938-110b-4e1f-a559-ac709d2ab330",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -351,15 +357,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "968ed8a7-ed1a-43ea-80f4-1dd2f1a33405",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -384,15 +391,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "4de8fbf8-6fdb-48fb-b27f-2d7afca88151",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -417,8 +425,12 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
@@ -447,6 +459,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -477,6 +490,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -507,6 +521,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -537,6 +552,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -567,6 +583,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -597,6 +614,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -627,6 +645,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -657,6 +676,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -687,6 +707,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -717,6 +738,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -747,6 +769,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -777,6 +800,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -807,15 +831,13 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
         },
         {
           "id": "9d4b323d-e068-40fe-9dde-ea6f7fc051c7",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -840,15 +862,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "557ae8aa-6191-42ce-9771-ee2f27d6ec22",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -873,15 +896,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "e37cbf2c-884a-4e9c-8950-a0f67e50533d",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -906,15 +930,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "9b714fdb-6d0b-4eff-8ca1-226ee6fbc004",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -939,15 +964,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "ccb205e2-bb88-41cd-ad03-9f08bf1d546d",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -972,15 +998,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "85c0c897-344a-49cd-9bec-19287363225f",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1005,15 +1032,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "9add0ae4-803b-4f4c-8dda-b584c2716780",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1038,15 +1066,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "27b1cd13-cc0c-488a-9b72-79efb60682c5",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1071,15 +1100,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "7fdc6273-36ae-489c-8ed1-0c78f42f8dab",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1104,15 +1134,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "e912e16e-8c19-4464-8c96-aeb05d298a11",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1137,15 +1168,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "6dbf3558-cc19-4111-be64-c2020c660708",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1170,15 +1202,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "51fe8040-cd9a-4fe7-8aea-4000ae2359b5",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1203,15 +1236,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "5e807820-0a6e-4c48-a103-8f52bc027423",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1236,15 +1270,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "6e9040e6-2699-4b22-95bb-2e236e63414f",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1269,15 +1304,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "d7d16789-222f-4c8f-8e99-90762d247fd2",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1302,15 +1338,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "f98929d0-912d-4226-9c9c-b6656b977feb",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1335,15 +1372,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "082b4524-6454-4a44-bb6c-1b2d2b4fc0dd",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1368,15 +1406,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "1bf36775-daf9-4917-9cf6-0dcaba994da9",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1401,15 +1440,16 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
           "id": "046453ac-1080-4d37-be91-3d01d8315cd5",
-          "builder": {
-            "hiddenInBuilder": false
-          },
           "nodeType": "object",
           "type": "BlockElement",
           "position": [
@@ -1434,8 +1474,12 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
+          },
+          "builder": {
+            "hiddenInBuilder": false
           }
         },
         {
@@ -1464,6 +1508,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1494,6 +1539,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1524,6 +1570,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1554,6 +1601,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1584,6 +1632,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1614,6 +1663,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1644,6 +1694,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1674,6 +1725,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1704,6 +1756,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1734,6 +1787,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1764,6 +1818,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1794,6 +1849,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1824,6 +1880,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1854,6 +1911,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1884,6 +1942,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1914,6 +1973,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1944,6 +2004,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -1974,6 +2035,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2004,6 +2066,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2034,6 +2097,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2064,6 +2128,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2094,6 +2159,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2124,6 +2190,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2154,6 +2221,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2184,6 +2252,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2214,6 +2283,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2244,6 +2314,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2274,6 +2345,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2304,6 +2376,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2334,6 +2407,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2364,6 +2438,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2394,6 +2469,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2424,6 +2500,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2454,6 +2531,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2484,6 +2562,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2514,6 +2593,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2544,6 +2624,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2574,6 +2655,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2604,6 +2686,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2634,6 +2717,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2664,6 +2748,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2694,6 +2779,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2724,6 +2810,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2754,6 +2841,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2784,6 +2872,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2814,6 +2903,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2844,6 +2934,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2874,6 +2965,7 @@
             "color": 1,
             "singleTone": false,
             "hidden": false,
+            "physics": "dynamic",
             "contagionCarrier": false,
             "contagionInfectable": true
           }
@@ -2929,12 +3021,7 @@
             "signedRotation": false,
             "signedScale": false,
             "exclude": false,
-            "excludeThreshold": 0.65,
-            "color": [
-              2,
-              1,
-              0
-            ]
+            "excludeThreshold": 0.65
           }
         }
       ]
@@ -2947,8 +3034,8 @@
   ],
   "builderSettings": {
     "palette": {
-      "source": "override",
-      "override": "green"
+      "source": "gameActive",
+      "override": "greyscale"
     }
   },
   "sceneMetrics": {
