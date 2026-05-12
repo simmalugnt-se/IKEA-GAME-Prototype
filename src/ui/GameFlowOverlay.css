@@ -275,6 +275,7 @@
 .gfo-alphabet-letter-confirmed::before,
 .gfo-alphabet-letter-delete-confirmed::before {
   transform: translateX(0);
+  animation: gfo-keyboard-confirm-pulse 1400ms steps(1, end) both;
 }
 
 .gfo-timer-wrap {
@@ -303,6 +304,26 @@
   position: absolute;
   inset: 0;
   font-size: 2rem;
+}
+
+@keyframes gfo-keyboard-confirm-pulse {
+  0%,
+  13%,
+  26%,
+  39%,
+  52%,
+  65%,
+  100% {
+    opacity: 1;
+  }
+
+  8%,
+  21%,
+  34%,
+  47%,
+  60% {
+    opacity: 0;
+  }
 }
 
 @keyframes high-score-letter-wght-pulse {

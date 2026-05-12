@@ -48,7 +48,7 @@ const BUTTON_DWELL_HOLD_CLASS = 'gfo-button-dwell-hold'
 const ALPHABET_CONFIRM_CLASS = 'gfo-alphabet-letter-confirmed'
 const DELETE_CONFIRM_CLASS = 'gfo-alphabet-letter-delete-confirmed'
 const HIGH_SCORE_ENTRY_HOVER_SOUND_COOLDOWN_MS = 80
-const HIGH_SCORE_KEYBOARD_CONFIRM_MS = 320
+const HIGH_SCORE_KEYBOARD_CONFIRM_MS = 1400
 const HIGH_SCORE_KEYBOARD_ROWS: readonly (readonly string[])[] = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Å'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ö', 'Ä'],
@@ -296,14 +296,11 @@ export function GameFlowOverlay() {
   const [confirmedAlphabetLetterIndices, setConfirmedAlphabetLetterIndices] = useState<readonly number[]>([])
   const confirmedAlphabetLetterIndicesRef = useRef<readonly number[]>(confirmedAlphabetLetterIndices)
   const [isDeleteConfirmed, setIsDeleteConfirmed] = useState(false)
+  const isDeleteConfirmedRef = useRef(isDeleteConfirmed)
   const alphabetConfirmTimeoutIdsRef = useRef<Array<number | null>>(
     Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
   )
-  const alphabetConfirmRafIdsRef = useRef<Array<number | null>>(
-    Array.from({ length: HIGH_SCORE_ALPHABET.length }, () => null),
-  )
   const deleteConfirmTimeoutIdRef = useRef<number | null>(null)
-  const deleteConfirmRafIdRef = useRef<number | null>(null)
   const activeLetterIndexRef = useRef(activeLetterIndex)
   const initialsRef = useRef(normalizeHighScoreInitials(gameOverInitials, HIGH_SCORE_INITIALS_LENGTH))
   const setGameOverInitialsRef = useRef(setGameOverInitials)
@@ -376,6 +373,10 @@ export function GameFlowOverlay() {
   }, [confirmedAlphabetLetterIndices])
 
   useEffect(() => {
+    isDeleteConfirmedRef.current = isDeleteConfirmed
+  }, [isDeleteConfirmed])
+
+  useEffect(() => {
     initialsRef.current = normalizeHighScoreInitials(gameOverInitials, HIGH_SCORE_INITIALS_LENGTH)
   }, [gameOverInitials])
 
@@ -443,11 +444,7 @@ export function GameFlowOverlay() {
     for (const timeoutId of alphabetConfirmTimeoutIdsRef.current) {
       if (timeoutId !== null) window.clearTimeout(timeoutId)
     }
-    for (const rafId of alphabetConfirmRafIdsRef.current) {
-      if (rafId !== null) cancelAnimationFrame(rafId)
-    }
     alphabetConfirmTimeoutIdsRef.current.fill(null)
-    alphabetConfirmRafIdsRef.current.fill(null)
     confirmedAlphabetLetterIndicesRef.current = []
     setConfirmedAlphabetLetterIndices((previous) => (previous.length === 0 ? previous : []))
   }, [])
@@ -457,10 +454,7 @@ export function GameFlowOverlay() {
       window.clearTimeout(deleteConfirmTimeoutIdRef.current)
       deleteConfirmTimeoutIdRef.current = null
     }
-    if (deleteConfirmRafIdRef.current !== null) {
-      cancelAnimationFrame(deleteConfirmRafIdRef.current)
-      deleteConfirmRafIdRef.current = null
-    }
+    isDeleteConfirmedRef.current = false
     setIsDeleteConfirmed(false)
   }, [])
 
@@ -469,22 +463,15 @@ export function GameFlowOverlay() {
       window.clearTimeout(deleteConfirmTimeoutIdRef.current)
       deleteConfirmTimeoutIdRef.current = null
     }
-    if (deleteConfirmRafIdRef.current !== null) {
-      cancelAnimationFrame(deleteConfirmRafIdRef.current)
-      deleteConfirmRafIdRef.current = null
-    }
 
-    setIsDeleteConfirmed(false)
+    isDeleteConfirmedRef.current = true
+    setIsDeleteConfirmed(true)
 
-    deleteConfirmRafIdRef.current = requestAnimationFrame(() => {
-      deleteConfirmRafIdRef.current = null
-      setIsDeleteConfirmed(true)
-
-      deleteConfirmTimeoutIdRef.current = window.setTimeout(() => {
-        deleteConfirmTimeoutIdRef.current = null
-        setIsDeleteConfirmed(false)
-      }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
-    })
+    deleteConfirmTimeoutIdRef.current = window.setTimeout(() => {
+      deleteConfirmTimeoutIdRef.current = null
+      isDeleteConfirmedRef.current = false
+      setIsDeleteConfirmed(false)
+    }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
   }, [])
 
   const startAlphabetLetterConfirmFeedback = useCallback((letterIndex: number): void => {
@@ -496,30 +483,19 @@ export function GameFlowOverlay() {
       alphabetConfirmTimeoutIdsRef.current[letterIndex] = null
     }
 
-    const previousRafId = alphabetConfirmRafIdsRef.current[letterIndex]
-    if (previousRafId !== null) {
-      cancelAnimationFrame(previousRafId)
-      alphabetConfirmRafIdsRef.current[letterIndex] = null
-    }
-
-    removeConfirmedAlphabetLetterIndex(letterIndex)
-
-    alphabetConfirmRafIdsRef.current[letterIndex] = requestAnimationFrame(() => {
-      alphabetConfirmRafIdsRef.current[letterIndex] = null
-      setConfirmedAlphabetLetterIndices((previous) => {
-        const next = Array.from(new Set([
-          ...previous.filter((index) => index !== letterIndex),
-          letterIndex,
-        ])).sort((a, b) => a - b)
-        confirmedAlphabetLetterIndicesRef.current = next
-        return next
-      })
-
-      alphabetConfirmTimeoutIdsRef.current[letterIndex] = window.setTimeout(() => {
-        alphabetConfirmTimeoutIdsRef.current[letterIndex] = null
-        removeConfirmedAlphabetLetterIndex(letterIndex)
-      }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
+    setConfirmedAlphabetLetterIndices((previous) => {
+      const next = Array.from(new Set([
+        ...previous.filter((index) => index !== letterIndex),
+        letterIndex,
+      ])).sort((a, b) => a - b)
+      confirmedAlphabetLetterIndicesRef.current = next
+      return next
     })
+
+    alphabetConfirmTimeoutIdsRef.current[letterIndex] = window.setTimeout(() => {
+      alphabetConfirmTimeoutIdsRef.current[letterIndex] = null
+      removeConfirmedAlphabetLetterIndex(letterIndex)
+    }, HIGH_SCORE_KEYBOARD_CONFIRM_MS)
   }, [removeConfirmedAlphabetLetterIndex])
 
   const resolveAlphabetLetterIndexAtPoint = useCallback((x: number, y: number): number => {
@@ -1049,7 +1025,11 @@ export function GameFlowOverlay() {
         }
       }
 
-      setButtonDwellClass(deleteButtonRef.current, deleteButtonHoldClassActiveRef, deleteHoldClassActive)
+      setButtonDwellClass(
+        deleteButtonRef.current,
+        deleteButtonHoldClassActiveRef,
+        deleteHoldClassActive || isDeleteConfirmedRef.current,
+      )
       setHeldAlphabetLetterIndicesIfChanged(heldAlphabetLetterIndicesNext)
     }
 
