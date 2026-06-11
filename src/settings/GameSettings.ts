@@ -291,7 +291,7 @@ export const SETTINGS: Settings = {
     },
     highScore: {
       storageMode: "database",
-      maxEntries: 256,
+      maxEntries: 0,
       localStorageKey: "ikea-game.highscores.v1",
       databaseApiBaseUrl: "http://127.0.0.1:5175",
       databaseFallbackMode: "local_storage",

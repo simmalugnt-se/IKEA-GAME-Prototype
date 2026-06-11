@@ -459,10 +459,10 @@ export const settingsSections: SectionDescriptor[] = [
                 options: HIGH_SCORE_STORAGE_MODES,
             },
             {
-                type: 'number', label: 'highScore.maxEntries',
+                type: 'number', label: 'highScore.maxEntries (0 = unlimited)',
                 get: () => SETTINGS.gameplay.highScore.maxEntries,
                 set: (v) => { SETTINGS.gameplay.highScore.maxEntries = v; bump() },
-                min: 1, max: 5000, step: 1,
+                min: 0, max: 100000, step: 1,
             },
             {
                 type: 'text', label: 'highScore.localStorageKey',

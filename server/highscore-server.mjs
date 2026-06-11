@@ -16,7 +16,6 @@ const diagnosticsOverlayEnabled = process.env.IKEA_GAME_DIAGNOSTICS_OVERLAY === 
 const diagnosticsLogDir = process.env.IKEA_GAME_DIAGNOSTICS_LOG_DIR || path.join(repoRoot, 'logs')
 const diagnosticsRunId = process.env.IKEA_GAME_INSTALLATION_RUN_ID || null
 const diagnosticsEndpoint = `http://${host}:${port}/api/diagnostics`
-const defaultLimit = 256
 const maxBodyBytes = 1024 * 1024
 const maxDiagnosticsBodyBytes = 16 * 1024
 const maxDiagnosticsStringLength = 4000
@@ -62,6 +61,18 @@ const selectEntries = db.prepare(`
   LIMIT ?
 `)
 
+const selectAllEntries = db.prepare(`
+  SELECT
+    run_id AS runId,
+    score,
+    initials,
+    submitted_at_ms AS submittedAtMs,
+    submitted_at_iso AS submittedAtIso,
+    reason
+  FROM high_scores
+  ORDER BY score DESC, submitted_at_ms ASC, run_id ASC
+`)
+
 const insertEntry = db.prepare(`
   INSERT OR IGNORE INTO high_scores
     (run_id, score, initials, submitted_at_ms, submitted_at_iso, reason)
@@ -86,13 +97,16 @@ const importEntries = db.transaction((entries, limit) => {
   for (const entry of entries) {
     insertEntry.run(entry)
   }
-  pruneEntries.run(limit)
+  if (limit !== null) {
+    pruneEntries.run(limit)
+  }
 })
 
 function normalizeLimit(raw) {
+  if (raw === null || raw === undefined || raw === '') return null
   const value = Number(raw)
-  if (!Number.isFinite(value)) return defaultLimit
-  return Math.max(1, Math.min(5000, Math.trunc(value)))
+  if (!Number.isFinite(value) || value <= 0) return null
+  return Math.max(1, Math.trunc(value))
 }
 
 function normalizeReason(raw) {
@@ -168,7 +182,7 @@ function resolveRank(entries, submitted) {
 }
 
 function getSnapshot(limit) {
-  return selectEntries.all(limit)
+  return limit === null ? selectAllEntries.all() : selectEntries.all(limit)
 }
 
 function getEntryCount() {
@@ -357,7 +371,9 @@ async function handleRequest(req, res) {
       const limit = normalizeLimit(body.maxEntries)
       const entry = normalizeEntry(body)
       insertEntry.run(entry)
-      pruneEntries.run(limit)
+      if (limit !== null) {
+        pruneEntries.run(limit)
+      }
       const entries = getSnapshot(limit)
       sendJson(req, res, 200, {
         accepted: true,

@@ -59,7 +59,7 @@ type DatabaseSubmissionResponse = DatabaseSnapshotResponse & {
 
 const DEFAULT_LOCAL_STORAGE_KEY = 'ikea-game.highscores.v1'
 const DEFAULT_DATABASE_API_BASE_URL = 'http://127.0.0.1:5175'
-const DEFAULT_MAX_ENTRIES = 256
+const DEFAULT_MAX_ENTRIES = 0
 const DATABASE_FETCH_TIMEOUT_MS = 2000
 
 const listeners = new Set<HighScoreSnapshotListener>()
@@ -90,7 +90,11 @@ function resolveConfiguredFallbackMode(): HighScoreDatabaseFallbackMode {
 }
 
 function resolveConfiguredMaxEntries(): number {
-  return Math.max(1, normalizeNonNegativeInt(SETTINGS.gameplay.highScore.maxEntries, DEFAULT_MAX_ENTRIES))
+  return normalizeNonNegativeInt(SETTINGS.gameplay.highScore.maxEntries, DEFAULT_MAX_ENTRIES)
+}
+
+function hasMaxEntriesCap(maxEntries: number): boolean {
+  return maxEntries > 0
 }
 
 function resolveConfiguredLocalStorageKey(): string {
@@ -192,7 +196,7 @@ function normalizeSnapshotEntries(raw: unknown): HighScoreSubmissionRecord[] {
 
 function sortAndTrimRecords(records: HighScoreSubmissionRecord[], maxEntries: number): void {
   records.sort(compareRecords)
-  if (records.length > maxEntries) {
+  if (hasMaxEntriesCap(maxEntries) && records.length > maxEntries) {
     records.length = maxEntries
   }
 }
