@@ -72,9 +72,15 @@ export const SETTINGS: Settings = {
     watchdog: {
       enabled: true,
       gameIdleReloadMs: 20 * 60 * 1000,
+      gameIdleReloadPreDelayMs: 2000,
       scoreboardReloadMs: 4 * 60 * 60 * 1000,
       scoreboardStaleReloadMs: 10 * 60 * 1000,
       webglContextLostReloadMs: 1500,
+      webglInitFailureReloadMs: 3000,
+      webglInitFailureReloadBackoffMs: 4000,
+      webglInitFailureReloadMaxMs: 20000,
+      webglInitFailureMaxAttempts: 5,
+      webglInitHealthCheckDelayMs: 8000,
     },
   },
 

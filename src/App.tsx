@@ -7,7 +7,12 @@ import { preloadAudioBanks } from "@/audio/SoundManager";
 import { initGameplayDiagnostics } from "@/diagnostics/gameplayDiagnostics";
 import { CursorTrailCanvas } from "@/input/CursorTrailCanvas";
 import { isInstallationStopShortcut, requestInstallationStop } from "@/installationStop";
-import { useGameInstallationWatchdog, useWebglContextLossReload } from "@/installationWatchdog";
+import {
+  markWebglInitialized,
+  useGameInstallationWatchdog,
+  useWebglContextLossReload,
+  useWebglRenderHealthCheck,
+} from "@/installationWatchdog";
 import { Scene } from "@/scene/Scene";
 import { SETTINGS, getActiveBackground } from "@/settings/GameSettings";
 import { useSettingsVersion } from "@/settings/settingsStore";
@@ -82,6 +87,7 @@ function GameApp() {
   useSettingsVersion();
   useGameInstallationWatchdog();
   useWebglContextLossReload();
+  useWebglRenderHealthCheck();
   const [isSettingsPanelVisible, setIsSettingsPanelVisible] = useState(false);
 
   useEffect(() => {
@@ -143,6 +149,9 @@ function GameApp() {
           antialias: false,
           stencil: false,
           depth: true,
+        }}
+        onCreated={() => {
+          markWebglInitialized();
         }}
       >
         <color attach="background" args={[backgroundColor]} />

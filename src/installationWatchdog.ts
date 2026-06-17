@@ -12,14 +12,113 @@ const ACTIVITY_EVENTS = [
   "touchstart",
 ] as const;
 
-function reloadPage(reason: string): void {
-  console.warn(`[installationWatchdog] Reloading page: ${reason}`);
-  logDiagnosticsEvent("watchdog_reload", { reason }, "warn");
-  window.setTimeout(() => window.location.reload(), 250);
-}
+const WEBGL_FAILURE_STORAGE_KEY = "ikea-game.webglRecoveryAttempts";
+
+let reloadScheduled = false;
+let webglInitialized = false;
+let webglInitFailureRecoveryInitialized = false;
 
 function getWatchdogSettings() {
   return SETTINGS.installation.watchdog;
+}
+
+function readWebglRecoveryAttempts(): number {
+  try {
+    const raw = window.sessionStorage.getItem(WEBGL_FAILURE_STORAGE_KEY);
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeWebglRecoveryAttempts(attempts: number): void {
+  try {
+    if (attempts <= 0) {
+      window.sessionStorage.removeItem(WEBGL_FAILURE_STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(WEBGL_FAILURE_STORAGE_KEY, String(attempts));
+  } catch {
+    // Ignore storage failures in kiosk mode.
+  }
+}
+
+export function markWebglInitialized(): void {
+  webglInitialized = true;
+  writeWebglRecoveryAttempts(0);
+}
+
+function isWebGlFailureText(text: string): boolean {
+  return /webgl/i.test(text) || /BindToCurrentSequence/i.test(text);
+}
+
+function isWebGlFailureReason(reason: unknown): boolean {
+  if (reason instanceof Error) {
+    return isWebGlFailureText(reason.message) || isWebGlFailureText(reason.name);
+  }
+  return isWebGlFailureText(String(reason ?? ""));
+}
+
+function computeWebglRecoveryDelayMs(attempt: number): number {
+  const { webglInitFailureReloadMs, webglInitFailureReloadBackoffMs, webglInitFailureReloadMaxMs } =
+    getWatchdogSettings();
+  const delay = webglInitFailureReloadMs + Math.max(0, attempt - 1) * webglInitFailureReloadBackoffMs;
+  return Math.min(delay, webglInitFailureReloadMaxMs);
+}
+
+function navigateForRecovery(attempt: number): void {
+  const url = new URL(window.location.href);
+  url.searchParams.set("_gpuRecover", String(attempt));
+  url.searchParams.set("_t", String(Date.now()));
+  window.location.replace(url.toString());
+}
+
+function scheduleWatchdogReload(reason: string, delayMs = 250): void {
+  if (reloadScheduled) return;
+  reloadScheduled = true;
+
+  console.warn(`[installationWatchdog] Reloading page: ${reason}`);
+  logDiagnosticsEvent("watchdog_reload", { reason, reloadDelayMs: delayMs }, "warn");
+  window.setTimeout(() => {
+    window.location.reload();
+  }, delayMs);
+}
+
+function scheduleWebglRecoveryReload(reason: string, source: string): void {
+  const watchdog = getWatchdogSettings();
+  if (!watchdog.enabled || reloadScheduled) return;
+
+  const attempt = readWebglRecoveryAttempts() + 1;
+  writeWebglRecoveryAttempts(attempt);
+  reloadScheduled = true;
+
+  const reloadDelayMs = computeWebglRecoveryDelayMs(attempt);
+  const maxAttempts = Math.max(1, watchdog.webglInitFailureMaxAttempts);
+  const exhausted = attempt >= maxAttempts;
+  console.warn(
+    `[installationWatchdog] WebGL recovery reload scheduled in ${reloadDelayMs}ms`
+    + ` (attempt ${attempt}, source=${source}): ${reason}`,
+  );
+  logDiagnosticsEvent(
+    "webgl_init_failed",
+    { reason, source, attempt, maxAttempts, exhausted, reloadDelayMs },
+    "error",
+  );
+  if (exhausted) {
+    console.error(
+      `[installationWatchdog] WebGL recovery attempts exhausted after ${attempt} attempts: ${reason}`,
+    );
+    logDiagnosticsEvent(
+      "webgl_init_recovery_exhausted",
+      { reason, source, attempt, maxAttempts, reloadDelayMs },
+      "error",
+    );
+  }
+
+  window.setTimeout(() => {
+    navigateForRecovery(attempt);
+  }, reloadDelayMs);
 }
 
 export function useGameInstallationWatchdog(): void {
@@ -53,7 +152,10 @@ export function useGameInstallationWatchdog(): void {
 
       const idleForMs = now - Math.max(lastActivityAt, idleStartedAt);
       if (idleForMs >= watchdog.gameIdleReloadMs) {
-        reloadPage(`game idle for ${Math.round(idleForMs / 1000)}s`);
+        scheduleWatchdogReload(
+          `game idle for ${Math.round(idleForMs / 1000)}s`,
+          watchdog.gameIdleReloadPreDelayMs,
+        );
       }
     }, 30_000);
 
@@ -101,7 +203,7 @@ export function useScoreboardInstallationWatchdog(
       }
 
       if (maintenanceReloadPending && latestEventRef.current?.type === "idle_started") {
-        reloadPage("scoreboard scheduled maintenance reload while idle");
+        scheduleWatchdogReload("scoreboard scheduled maintenance reload while idle");
       }
 
       const receiverStatus = receiverStatusRef.current;
@@ -116,7 +218,7 @@ export function useScoreboardInstallationWatchdog(
       }
 
       if (now - disconnectedSinceRef.current >= watchdog.scoreboardStaleReloadMs) {
-        reloadPage("scoreboard WebSocket disconnected");
+        scheduleWatchdogReload("scoreboard WebSocket disconnected");
       }
     }, 30_000);
 
@@ -132,17 +234,18 @@ export function useWebglContextLossReload(): void {
     let reloadTimer = 0;
     const onContextLost = (event: Event) => {
       event.preventDefault();
-      if (reloadTimer !== 0) return;
+      if (reloadTimer !== 0 || reloadScheduled) return;
       logDiagnosticsEvent("webgl_context_lost", {
         reloadDelayMs: watchdog.webglContextLostReloadMs,
       }, "error");
       reloadTimer = window.setTimeout(() => {
-        reloadPage("WebGL context lost");
+        scheduleWatchdogReload("WebGL context lost");
       }, watchdog.webglContextLostReloadMs);
     };
     const onContextRestored = () => {
       if (reloadTimer !== 0) window.clearTimeout(reloadTimer);
       reloadTimer = 0;
+      markWebglInitialized();
       logDiagnosticsEvent("webgl_context_restored");
     };
 
@@ -153,5 +256,44 @@ export function useWebglContextLossReload(): void {
       document.removeEventListener("webglcontextrestored", onContextRestored, true);
       if (reloadTimer !== 0) window.clearTimeout(reloadTimer);
     };
+  }, []);
+}
+
+export function initWebglInitFailureRecovery(): void {
+  if (webglInitFailureRecoveryInitialized || typeof window === "undefined") return;
+  webglInitFailureRecoveryInitialized = true;
+
+  if (window.location.pathname !== "/") return;
+
+  const watchdog = getWatchdogSettings();
+  if (!watchdog.enabled) return;
+
+  const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+    if (!isWebGlFailureReason(event.reason)) return;
+    event.preventDefault();
+    const message = event.reason instanceof Error ? event.reason.message : String(event.reason ?? "");
+    scheduleWebglRecoveryReload(message, "unhandledrejection");
+  };
+
+  const onWindowError = (event: ErrorEvent) => {
+    if (!isWebGlFailureText(event.message)) return;
+    scheduleWebglRecoveryReload(event.message, "window_error");
+  };
+
+  window.addEventListener("unhandledrejection", onUnhandledRejection);
+  window.addEventListener("error", onWindowError);
+}
+
+export function useWebglRenderHealthCheck(): void {
+  useEffect(() => {
+    const watchdog = getWatchdogSettings();
+    if (!watchdog.enabled) return;
+
+    const timeoutId = window.setTimeout(() => {
+      if (reloadScheduled || webglInitialized) return;
+      scheduleWebglRecoveryReload("game canvas WebGL context missing after startup", "health_check");
+    }, watchdog.webglInitHealthCheckDelayMs);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 }

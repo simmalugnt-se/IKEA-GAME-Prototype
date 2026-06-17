@@ -248,9 +248,15 @@ export type Settings = {
     watchdog: {
       enabled: boolean
       gameIdleReloadMs: number
+      gameIdleReloadPreDelayMs: number
       scoreboardReloadMs: number
       scoreboardStaleReloadMs: number
       webglContextLostReloadMs: number
+      webglInitFailureReloadMs: number
+      webglInitFailureReloadBackoffMs: number
+      webglInitFailureReloadMaxMs: number
+      webglInitFailureMaxAttempts: number
+      webglInitHealthCheckDelayMs: number
     }
   }
   scoreboard: {
