@@ -19,6 +19,7 @@ let webglInitialized = false;
 let webglInitFailureRecoveryInitialized = false;
 let lastIdleSceneRenderAt = 0;
 let lastIdleSceneTriangles = 0;
+let lastIdleSceneStaleLoggedAt = 0;
 
 function getWatchdogSettings() {
   return SETTINGS.installation.watchdog;
@@ -350,12 +351,20 @@ export function useIdleSceneRenderWatchdog(): void {
         return;
       }
 
-      const staleForMs = lastIdleSceneRenderAt > 0 ? now - lastIdleSceneRenderAt : Number.POSITIVE_INFINITY;
-      if (staleForMs >= watchdog.idleSceneRenderStaleMs) {
-        scheduleWebglRecoveryReload(
-          `idle scene watchdog: no 3D render for ${Math.round(staleForMs / 1000)}s`
-          + ` (lastTriangles=${lastIdleSceneTriangles})`,
-          "idle_scene_health",
+      const hasHealthyRender = lastIdleSceneRenderAt > 0;
+      const staleForMs = hasHealthyRender ? now - lastIdleSceneRenderAt : null;
+      const staleForCheckMs = staleForMs ?? Number.POSITIVE_INFINITY;
+      if (staleForCheckMs >= watchdog.idleSceneRenderStaleMs && now - lastIdleSceneStaleLoggedAt >= 5 * 60 * 1000) {
+        lastIdleSceneStaleLoggedAt = now;
+        logDiagnosticsEvent(
+          "idle_scene_render_stale",
+          {
+            hasHealthyRender,
+            staleForMs,
+            staleForSeconds: staleForMs === null ? null : Math.round(staleForMs / 1000),
+            lastTriangles: lastIdleSceneTriangles,
+          },
+          "warn",
         );
       }
     }, 30_000);
@@ -394,11 +403,19 @@ export function usePageLoadSurvivalCheck(): void {
       const { flowState } = useGameplayStore.getState();
       if (flowState !== "idle") return;
 
-      const renderAgeMs = lastIdleSceneRenderAt > 0 ? Date.now() - lastIdleSceneRenderAt : Number.POSITIVE_INFINITY;
-      if (renderAgeMs >= watchdog.idleSceneRenderCheckGraceMs) {
-        scheduleWebglRecoveryReload(
-          "page load survival: idle scene not rendering after startup window",
-          "page_load_survival",
+      const hasHealthyRender = lastIdleSceneRenderAt > 0;
+      const renderAgeMs = hasHealthyRender ? Date.now() - lastIdleSceneRenderAt : null;
+      const renderAgeForCheckMs = renderAgeMs ?? Number.POSITIVE_INFINITY;
+      if (renderAgeForCheckMs >= watchdog.idleSceneRenderCheckGraceMs) {
+        logDiagnosticsEvent(
+          "page_load_survival_idle_render_missing",
+          {
+            hasHealthyRender,
+            renderAgeMs,
+            renderAgeSeconds: renderAgeMs === null ? null : Math.round(renderAgeMs / 1000),
+            lastTriangles: lastIdleSceneTriangles,
+          },
+          "warn",
         );
       }
     }, watchdog.pageLoadSurvivalMs);
