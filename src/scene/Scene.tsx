@@ -15,6 +15,7 @@ import {
   useGameplayStore,
 } from "@/gameplay/gameplayStore";
 import { ItemSpawner } from "@/gameplay/ItemSpawner";
+import { IdleSceneRenderHealth } from "@/scene/IdleSceneRenderHealth";
 import { LevelTileManager } from "@/levels/LevelTileManager";
 import { LiveLevelSync } from "@/LiveLevelSync";
 import { ScoreboardBridge } from "@/scoreboard/ScoreboardBridge";
@@ -334,6 +335,7 @@ export function Scene() {
 
       {/* Debug: FPS / MS / MB overlay */}
       {isDebug && SETTINGS.debug.showStats && <Stats className="debug-stats" />}
+      <IdleSceneRenderHealth />
     </>
   );
 }

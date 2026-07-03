@@ -10,6 +10,8 @@ import { isInstallationStopShortcut, requestInstallationStop } from "@/installat
 import {
   markWebglInitialized,
   useGameInstallationWatchdog,
+  useIdleSceneRenderWatchdog,
+  usePageLoadSurvivalCheck,
   useWebglContextLossReload,
   useWebglRenderHealthCheck,
 } from "@/installationWatchdog";
@@ -88,6 +90,8 @@ function GameApp() {
   useGameInstallationWatchdog();
   useWebglContextLossReload();
   useWebglRenderHealthCheck();
+  useIdleSceneRenderWatchdog();
+  usePageLoadSurvivalCheck();
   const [isSettingsPanelVisible, setIsSettingsPanelVisible] = useState(false);
 
   useEffect(() => {

@@ -4,10 +4,14 @@ This project includes a few conservative recovery mechanisms for long museum/kio
 
 ## Route Reloads
 
-The main game route `/` has an idle-only reload watchdog:
+The main game route `/` no longer uses periodic idle reloads by default:
 
-- after `SETTINGS.installation.watchdog.gameIdleReloadMs`
-- default: `20 minutes`
+- `SETTINGS.installation.watchdog.gameIdleReloadMs` is `0` (disabled)
+- the museum already reboots daily at 09:00
+- idle reload can be re-enabled by setting a positive value if needed
+
+When enabled, the idle reload watchdog:
+
 - only reloads when gameplay is in the `idle` flow state
 - does not reload during active play, game-over travel, or initials entry
 

@@ -71,8 +71,11 @@ export const SETTINGS: Settings = {
   installation: {
     watchdog: {
       enabled: true,
-      gameIdleReloadMs: 20 * 60 * 1000,
+      gameIdleReloadMs: 0,
       gameIdleReloadPreDelayMs: 2000,
+      idleSceneRenderStaleMs: 2 * 60 * 1000,
+      idleSceneRenderCheckGraceMs: 45 * 1000,
+      pageLoadSurvivalMs: 45 * 1000,
       scoreboardReloadMs: 4 * 60 * 60 * 1000,
       scoreboardStaleReloadMs: 10 * 60 * 1000,
       webglContextLostReloadMs: 1500,

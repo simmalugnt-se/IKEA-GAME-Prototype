@@ -17,6 +17,8 @@ const WEBGL_FAILURE_STORAGE_KEY = "ikea-game.webglRecoveryAttempts";
 let reloadScheduled = false;
 let webglInitialized = false;
 let webglInitFailureRecoveryInitialized = false;
+let lastIdleSceneRenderAt = 0;
+let lastIdleSceneTriangles = 0;
 
 function getWatchdogSettings() {
   return SETTINGS.installation.watchdog;
@@ -47,6 +49,29 @@ function writeWebglRecoveryAttempts(attempts: number): void {
 export function markWebglInitialized(): void {
   webglInitialized = true;
   writeWebglRecoveryAttempts(0);
+}
+
+export function markIdleSceneRenderHealthy(triangleCount: number): void {
+  if (triangleCount <= 0) return;
+  lastIdleSceneRenderAt = Date.now();
+  lastIdleSceneTriangles = triangleCount;
+}
+
+function getPrimaryGameCanvas(): HTMLCanvasElement | null {
+  const canvas = document.querySelector("canvas");
+  return canvas instanceof HTMLCanvasElement ? canvas : null;
+}
+
+function isPrimaryGameCanvasUsable(): boolean {
+  const canvas = getPrimaryGameCanvas();
+  if (!canvas) return false;
+  if (canvas.clientWidth <= 0 || canvas.clientHeight <= 0) return false;
+
+  const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+  if (gl instanceof WebGLRenderingContext || gl instanceof WebGL2RenderingContext) {
+    return !gl.isContextLost();
+  }
+  return false;
 }
 
 function isWebGlFailureText(text: string): boolean {
@@ -150,12 +175,14 @@ export function useGameInstallationWatchdog(): void {
       if (flowState !== "idle") return;
       if (idleStartedAt <= 0) idleStartedAt = now;
 
-      const idleForMs = now - Math.max(lastActivityAt, idleStartedAt);
-      if (idleForMs >= watchdog.gameIdleReloadMs) {
-        scheduleWatchdogReload(
-          `game idle for ${Math.round(idleForMs / 1000)}s`,
-          watchdog.gameIdleReloadPreDelayMs,
-        );
+      if (watchdog.gameIdleReloadMs > 0) {
+        const idleForMs = now - Math.max(lastActivityAt, idleStartedAt);
+        if (idleForMs >= watchdog.gameIdleReloadMs) {
+          scheduleWatchdogReload(
+            `game idle for ${Math.round(idleForMs / 1000)}s`,
+            watchdog.gameIdleReloadPreDelayMs,
+          );
+        }
       }
     }, 30_000);
 
@@ -293,6 +320,88 @@ export function useWebglRenderHealthCheck(): void {
       if (reloadScheduled || webglInitialized) return;
       scheduleWebglRecoveryReload("game canvas WebGL context missing after startup", "health_check");
     }, watchdog.webglInitHealthCheckDelayMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+}
+
+export function useIdleSceneRenderWatchdog(): void {
+  useEffect(() => {
+    const watchdog = getWatchdogSettings();
+    if (!watchdog.enabled) return;
+
+    let idleStartedAt = useGameplayStore.getState().flowState === "idle" ? Date.now() : 0;
+    const unsubscribeGameplay = useGameplayStore.subscribe((state, previousState) => {
+      if (state.flowState !== previousState.flowState) {
+        idleStartedAt = state.flowState === "idle" ? Date.now() : 0;
+      }
+    });
+
+    const intervalId = window.setInterval(() => {
+      const { flowState } = useGameplayStore.getState();
+      if (flowState !== "idle") return;
+
+      const now = Date.now();
+      if (idleStartedAt <= 0) idleStartedAt = now;
+      if (now - idleStartedAt < watchdog.idleSceneRenderCheckGraceMs) return;
+
+      if (!webglInitialized || !isPrimaryGameCanvasUsable()) {
+        scheduleWebglRecoveryReload("idle scene watchdog: game canvas unavailable", "idle_scene_health");
+        return;
+      }
+
+      const staleForMs = lastIdleSceneRenderAt > 0 ? now - lastIdleSceneRenderAt : Number.POSITIVE_INFINITY;
+      if (staleForMs >= watchdog.idleSceneRenderStaleMs) {
+        scheduleWebglRecoveryReload(
+          `idle scene watchdog: no 3D render for ${Math.round(staleForMs / 1000)}s`
+          + ` (lastTriangles=${lastIdleSceneTriangles})`,
+          "idle_scene_health",
+        );
+      }
+    }, 30_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      unsubscribeGameplay();
+    };
+  }, []);
+}
+
+export function usePageLoadSurvivalCheck(): void {
+  useEffect(() => {
+    const watchdog = getWatchdogSettings();
+    if (!watchdog.enabled) return;
+
+    const timeoutId = window.setTimeout(() => {
+      if (reloadScheduled) return;
+
+      if (!webglInitialized) {
+        scheduleWebglRecoveryReload(
+          "page load survival: WebGL never initialized after startup window",
+          "page_load_survival",
+        );
+        return;
+      }
+
+      if (!isPrimaryGameCanvasUsable()) {
+        scheduleWebglRecoveryReload(
+          "page load survival: game canvas unavailable after startup window",
+          "page_load_survival",
+        );
+        return;
+      }
+
+      const { flowState } = useGameplayStore.getState();
+      if (flowState !== "idle") return;
+
+      const renderAgeMs = lastIdleSceneRenderAt > 0 ? Date.now() - lastIdleSceneRenderAt : Number.POSITIVE_INFINITY;
+      if (renderAgeMs >= watchdog.idleSceneRenderCheckGraceMs) {
+        scheduleWebglRecoveryReload(
+          "page load survival: idle scene not rendering after startup window",
+          "page_load_survival",
+        );
+      }
+    }, watchdog.pageLoadSurvivalMs);
 
     return () => window.clearTimeout(timeoutId);
   }, []);

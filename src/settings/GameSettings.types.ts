@@ -249,6 +249,9 @@ export type Settings = {
       enabled: boolean
       gameIdleReloadMs: number
       gameIdleReloadPreDelayMs: number
+      idleSceneRenderStaleMs: number
+      idleSceneRenderCheckGraceMs: number
+      pageLoadSurvivalMs: number
       scoreboardReloadMs: number
       scoreboardStaleReloadMs: number
       webglContextLostReloadMs: number
