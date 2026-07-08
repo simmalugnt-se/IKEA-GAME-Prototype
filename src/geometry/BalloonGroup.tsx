@@ -12,6 +12,7 @@ import {
   type BalloonLifecyclePopMeta,
 } from "@/gameplay/BalloonLifecycleRuntime";
 import { useGameplayStore } from "@/gameplay/gameplayStore";
+import { markIdleBalloonPresent } from "@/installationWatchdog";
 import { emitScorePop } from "@/input/scorePopEmitter";
 import { BlockElement } from "@/primitives/BlockElement";
 import { BallElement, BALL_RADII_M } from "@/primitives/BallElement";
@@ -834,6 +835,9 @@ export function BalloonGroup({
   }, [onRegisterCullZ, probeWorld]);
 
   useFrame(() => {
+    if (flowRole === "idle_start" && flowState === "idle" && !popped) {
+      markIdleBalloonPresent();
+    }
     if (!popped || feltPlayedRef.current) return;
     if (suppressPayload) return;
     const pos = payloadRef.current?.getPosition();

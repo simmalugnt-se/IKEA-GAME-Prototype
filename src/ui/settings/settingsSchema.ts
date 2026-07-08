@@ -465,6 +465,12 @@ export const settingsSections: SectionDescriptor[] = [
                 min: 0, max: 100000, step: 1,
             },
             {
+                type: 'number', label: 'highScore.minScoreToPersist',
+                get: () => SETTINGS.gameplay.highScore.minScoreToPersist,
+                set: (v) => { SETTINGS.gameplay.highScore.minScoreToPersist = v; bump() },
+                min: 0, max: 100000, step: 1,
+            },
+            {
                 type: 'text', label: 'highScore.localStorageKey',
                 get: () => SETTINGS.gameplay.highScore.localStorageKey,
                 set: (v) => { SETTINGS.gameplay.highScore.localStorageKey = v; bump() },

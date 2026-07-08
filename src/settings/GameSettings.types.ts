@@ -260,6 +260,14 @@ export type Settings = {
       webglInitFailureReloadMaxMs: number
       webglInitFailureMaxAttempts: number
       webglInitHealthCheckDelayMs: number
+      canvasPixelHealthEnabled: boolean
+      canvasPixelSampleGridSize: number
+      canvasPixelMinLumaRange: number
+      canvasPixelMinLumaStdDev: number
+      canvasPixelMinBottomLumaRange: number
+      canvasPixelMinMeshesForCheck: number
+      canvasPixelFrozenSampleStreak: number
+      canvasPixelFrozenMinCameraDelta: number
     }
   }
   scoreboard: {
@@ -358,6 +366,7 @@ export type Settings = {
     highScore: {
       storageMode: HighScoreStorageMode
       maxEntries: number
+      minScoreToPersist: number
       localStorageKey: string
       databaseApiBaseUrl: string
       databaseFallbackMode: HighScoreDatabaseFallbackMode

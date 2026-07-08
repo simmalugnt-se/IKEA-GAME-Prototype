@@ -18,7 +18,7 @@ export type HighScoreSubmissionRecord = {
 }
 
 export type HighScoreSubmissionResult = {
-  accepted: true
+  accepted: boolean
   rank: number | null
   totalEntries: number
   storageMode: HighScoreStorageMode
@@ -42,6 +42,7 @@ type PersistedHighScoreRecord = {
 
 type HighScoreStoreConfig = {
   maxEntries: number
+  minScoreToPersist: number
   localStorageKey: string
   databaseApiBaseUrl: string
 }
@@ -60,6 +61,7 @@ type DatabaseSubmissionResponse = DatabaseSnapshotResponse & {
 const DEFAULT_LOCAL_STORAGE_KEY = 'ikea-game.highscores.v1'
 const DEFAULT_DATABASE_API_BASE_URL = 'http://127.0.0.1:5175'
 const DEFAULT_MAX_ENTRIES = 0
+const DEFAULT_MIN_SCORE_TO_PERSIST = 101
 const DATABASE_FETCH_TIMEOUT_MS = 2000
 
 const listeners = new Set<HighScoreSnapshotListener>()
@@ -93,6 +95,17 @@ function resolveConfiguredMaxEntries(): number {
   return normalizeNonNegativeInt(SETTINGS.gameplay.highScore.maxEntries, DEFAULT_MAX_ENTRIES)
 }
 
+function resolveConfiguredMinScoreToPersist(): number {
+  return normalizeNonNegativeInt(
+    SETTINGS.gameplay.highScore.minScoreToPersist,
+    DEFAULT_MIN_SCORE_TO_PERSIST,
+  )
+}
+
+function isScorePersistable(score: number, minScoreToPersist: number): boolean {
+  return score >= minScoreToPersist
+}
+
 function hasMaxEntriesCap(maxEntries: number): boolean {
   return maxEntries > 0
 }
@@ -114,6 +127,7 @@ function resolveConfiguredDatabaseApiBaseUrl(): string {
 function resolveConfig(): HighScoreStoreConfig {
   return {
     maxEntries: resolveConfiguredMaxEntries(),
+    minScoreToPersist: resolveConfiguredMinScoreToPersist(),
     localStorageKey: resolveConfiguredLocalStorageKey(),
     databaseApiBaseUrl: resolveConfiguredDatabaseApiBaseUrl(),
   }
@@ -186,15 +200,27 @@ function normalizePersistedRecord(raw: unknown): HighScoreSubmissionRecord | nul
 function normalizeSnapshotEntries(raw: unknown): HighScoreSubmissionRecord[] {
   if (!Array.isArray(raw)) return []
   const records: HighScoreSubmissionRecord[] = []
+  const minScoreToPersist = resolveConfiguredMinScoreToPersist()
   for (const entry of raw) {
     const normalized = normalizePersistedRecord(entry)
-    if (normalized) records.push(normalized)
+    if (normalized && isScorePersistable(normalized.score, minScoreToPersist)) {
+      records.push(normalized)
+    }
   }
   sortAndTrimRecords(records, resolveConfiguredMaxEntries())
   return records
 }
 
-function sortAndTrimRecords(records: HighScoreSubmissionRecord[], maxEntries: number): void {
+function sortAndTrimRecords(
+  records: HighScoreSubmissionRecord[],
+  maxEntries: number,
+  minScoreToPersist = resolveConfiguredMinScoreToPersist(),
+): void {
+  for (let i = records.length - 1; i >= 0; i -= 1) {
+    if (!isScorePersistable(records[i]!.score, minScoreToPersist)) {
+      records.splice(i, 1)
+    }
+  }
   records.sort(compareRecords)
   if (hasMaxEntriesCap(maxEntries) && records.length > maxEntries) {
     records.length = maxEntries
@@ -333,7 +359,12 @@ class DatabaseHighScoreStore {
   private readyPromise: Promise<void> | null = null
 
   configure(config: HighScoreStoreConfig): void {
-    const nextConfigKey = `${config.databaseApiBaseUrl}|${config.localStorageKey}|${config.maxEntries}`
+    const nextConfigKey = [
+      config.databaseApiBaseUrl,
+      config.localStorageKey,
+      config.maxEntries,
+      config.minScoreToPersist,
+    ].join('|')
     if (this.configKey === nextConfigKey) return
     this.configKey = nextConfigKey
     this.state = 'unknown'
@@ -382,7 +413,7 @@ class DatabaseHighScoreStore {
     databaseUnavailableWarned = false
 
     return {
-      accepted: true,
+      accepted: response.accepted !== false,
       rank: typeof response.rank === 'number' ? Math.max(1, Math.trunc(response.rank)) : resolveRank(entries, record),
       totalEntries: Number.isFinite(response.totalEntries) ? Math.max(0, Math.trunc(Number(response.totalEntries))) : entries.length,
       storageMode: 'database',
@@ -566,8 +597,15 @@ function resolvePlacement(
   snapshot: readonly HighScoreSubmissionRecord[],
   candidate: HighScoreSubmissionRecord,
   maxEntries: number,
+  minScoreToPersist: number,
 ): { rank: number | null, totalEntries: number } {
   const records = snapshot.map((entry) => ({ ...entry }))
+  if (!isScorePersistable(candidate.score, minScoreToPersist)) {
+    return {
+      rank: null,
+      totalEntries: records.length,
+    }
+  }
   records.push(candidate)
   sortAndTrimRecords(records, maxEntries)
   return {
@@ -580,6 +618,16 @@ export async function submitHighScore(record: HighScoreSubmissionRecord): Promis
   const normalizedRecord = normalizeRecordInput(record)
   const config = resolveConfig()
   const configuredMode = resolveConfiguredStorageMode()
+
+  if (!isScorePersistable(normalizedRecord.score, config.minScoreToPersist)) {
+    const snapshot = getHighScoreSnapshot()
+    return {
+      accepted: false,
+      rank: null,
+      totalEntries: snapshot.length,
+      storageMode: resolveEffectiveStorageMode(),
+    }
+  }
 
   if (configuredMode === 'database') {
     databaseStore.configure(config)
@@ -657,7 +705,12 @@ export function getHighScorePreviewPlacement(score: number): HighScorePreviewPla
     reason: 'submitted',
   })
 
-  const placement = resolvePlacement(snapshot, previewRecord, config.maxEntries)
+  const placement = resolvePlacement(
+    snapshot,
+    previewRecord,
+    config.maxEntries,
+    config.minScoreToPersist,
+  )
   return {
     rank: placement.rank,
     totalEntries: placement.totalEntries,

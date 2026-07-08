@@ -4,6 +4,8 @@ import { logDiagnosticsEvent } from "@/diagnostics/diagnosticsLogger";
 import type { ScoreboardEvent } from "@/scoreboard/scoreboardEvents";
 import type { ScoreboardReceiverStatus } from "@/scoreboard/scoreboardReceiver";
 import { SETTINGS } from "@/settings/GameSettings";
+import type { IdleSceneHealthEvaluation } from "@/scene/idleSceneHealth";
+import { resetCanvasRenderFrozenTracker } from "@/scene/canvasRenderFrozen";
 
 const ACTIVITY_EVENTS = [
   "keydown",
@@ -18,8 +20,8 @@ let reloadScheduled = false;
 let webglInitialized = false;
 let webglInitFailureRecoveryInitialized = false;
 let lastIdleSceneRenderAt = 0;
-let lastIdleSceneTriangles = 0;
-let lastIdleSceneStaleLoggedAt = 0;
+let lastIdleBalloonPresentAt = 0;
+let lastIdleSceneHealth: IdleSceneHealthEvaluation | null = null;
 
 function getWatchdogSettings() {
   return SETTINGS.installation.watchdog;
@@ -50,12 +52,26 @@ function writeWebglRecoveryAttempts(attempts: number): void {
 export function markWebglInitialized(): void {
   webglInitialized = true;
   writeWebglRecoveryAttempts(0);
+  resetCanvasRenderFrozenTracker();
 }
 
-export function markIdleSceneRenderHealthy(triangleCount: number): void {
-  if (triangleCount <= 0) return;
+export function markIdleBalloonPresent(): void {
+  lastIdleBalloonPresentAt = Date.now();
+}
+
+export function isIdleBalloonPresent(maxAgeMs = 15_000): boolean {
+  if (lastIdleBalloonPresentAt <= 0) return false;
+  return Date.now() - lastIdleBalloonPresentAt <= maxAgeMs;
+}
+
+export function markIdleSceneRenderHealthy(evaluation: IdleSceneHealthEvaluation): void {
+  if (!evaluation.healthy) return;
   lastIdleSceneRenderAt = Date.now();
-  lastIdleSceneTriangles = triangleCount;
+  lastIdleSceneHealth = evaluation;
+}
+
+export function getLastIdleSceneHealth(): IdleSceneHealthEvaluation | null {
+  return lastIdleSceneHealth;
 }
 
 function getPrimaryGameCanvas(): HTMLCanvasElement | null {
@@ -73,6 +89,21 @@ function isPrimaryGameCanvasUsable(): boolean {
     return !gl.isContextLost();
   }
   return false;
+}
+
+function isCanvasRenderRecoveryFailure(evaluation: IdleSceneHealthEvaluation): boolean {
+  if (evaluation.healthy) return false;
+  if (!evaluation.canvasPixelCheckApplied) return false;
+
+  const failureReasons = evaluation.failureReasons;
+  const renderFailure = failureReasons.includes("canvas_render_blank")
+    || failureReasons.includes("canvas_render_frozen");
+  if (!renderFailure) return false;
+
+  return evaluation.levelSegmentCount >= 1
+    && evaluation.visibleMeshCount >= getWatchdogSettings().canvasPixelMinMeshesForCheck
+    && !failureReasons.includes("level_tiling_not_initialized")
+    && !failureReasons.includes("no_level_segments");
 }
 
 function isWebGlFailureText(text: string): boolean {
@@ -326,45 +357,61 @@ export function useWebglRenderHealthCheck(): void {
   }, []);
 }
 
+function isSceneRenderWatchdogFlowState(flowState: string): boolean {
+  return flowState === "idle" || flowState === "run";
+}
+
 export function useIdleSceneRenderWatchdog(): void {
   useEffect(() => {
     const watchdog = getWatchdogSettings();
     if (!watchdog.enabled) return;
 
-    let idleStartedAt = useGameplayStore.getState().flowState === "idle" ? Date.now() : 0;
+    let sceneWatchStartedAt = isSceneRenderWatchdogFlowState(useGameplayStore.getState().flowState)
+      ? Date.now()
+      : 0;
     const unsubscribeGameplay = useGameplayStore.subscribe((state, previousState) => {
-      if (state.flowState !== previousState.flowState) {
-        idleStartedAt = state.flowState === "idle" ? Date.now() : 0;
+      if (state.flowState === previousState.flowState) return;
+      const wasWatched = isSceneRenderWatchdogFlowState(previousState.flowState);
+      const isWatched = isSceneRenderWatchdogFlowState(state.flowState);
+      if (isWatched && !wasWatched) {
+        sceneWatchStartedAt = Date.now();
       }
     });
 
     const intervalId = window.setInterval(() => {
       const { flowState } = useGameplayStore.getState();
-      if (flowState !== "idle") return;
+      if (!isSceneRenderWatchdogFlowState(flowState)) return;
 
       const now = Date.now();
-      if (idleStartedAt <= 0) idleStartedAt = now;
-      if (now - idleStartedAt < watchdog.idleSceneRenderCheckGraceMs) return;
+      if (sceneWatchStartedAt <= 0) sceneWatchStartedAt = now;
+      if (now - sceneWatchStartedAt < watchdog.idleSceneRenderCheckGraceMs) return;
 
       if (!webglInitialized || !isPrimaryGameCanvasUsable()) {
-        scheduleWebglRecoveryReload("idle scene watchdog: game canvas unavailable", "idle_scene_health");
+        scheduleWebglRecoveryReload("scene render watchdog: game canvas unavailable", "idle_scene_health");
         return;
       }
 
       const hasHealthyRender = lastIdleSceneRenderAt > 0;
-      const staleForMs = hasHealthyRender ? now - lastIdleSceneRenderAt : null;
-      const staleForCheckMs = staleForMs ?? Number.POSITIVE_INFINITY;
-      if (staleForCheckMs >= watchdog.idleSceneRenderStaleMs && now - lastIdleSceneStaleLoggedAt >= 5 * 60 * 1000) {
-        lastIdleSceneStaleLoggedAt = now;
-        logDiagnosticsEvent(
+      const timeSinceSceneWatchMs = now - sceneWatchStartedAt;
+      const timeSinceHealthyMs = hasHealthyRender ? now - lastIdleSceneRenderAt : timeSinceSceneWatchMs;
+      if (timeSinceHealthyMs >= watchdog.idleSceneRenderStaleMs) {
+        const lastHealth = getLastIdleSceneHealth();
+        logDiagnosticsEvent("idle_scene_render_stale", {
+          flowState,
+          staleForMs: timeSinceHealthyMs,
+          levelSegmentCount: lastHealth?.levelSegmentCount ?? null,
+          visibleMeshCount: lastHealth?.visibleMeshCount ?? null,
+          pixelHealthy: lastHealth?.pixelHealthy ?? null,
+          pixelLumaRange: lastHealth?.pixelLumaRange ?? null,
+          pixelBottomLumaRange: lastHealth?.pixelBottomLumaRange ?? null,
+          failureReasons: lastHealth?.failureReasons ?? [],
+        }, "warn");
+        scheduleWebglRecoveryReload(
+          `scene render watchdog: healthy canvas/scene missing for ${Math.round(timeSinceHealthyMs / 1000)}s`
+          + ` (flow=${flowState}, segments=${lastHealth?.levelSegmentCount ?? "?"},`
+          + ` meshes=${lastHealth?.visibleMeshCount ?? "?"},`
+          + ` pixelRange=${lastHealth?.pixelLumaRange ?? "?"})`,
           "idle_scene_render_stale",
-          {
-            hasHealthyRender,
-            staleForMs,
-            staleForSeconds: staleForMs === null ? null : Math.round(staleForMs / 1000),
-            lastTriangles: lastIdleSceneTriangles,
-          },
-          "warn",
         );
       }
     }, 30_000);
@@ -407,19 +454,30 @@ export function usePageLoadSurvivalCheck(): void {
       const renderAgeMs = hasHealthyRender ? Date.now() - lastIdleSceneRenderAt : null;
       const renderAgeForCheckMs = renderAgeMs ?? Number.POSITIVE_INFINITY;
       if (renderAgeForCheckMs >= watchdog.idleSceneRenderCheckGraceMs) {
-        logDiagnosticsEvent(
-          "page_load_survival_idle_render_missing",
-          {
-            hasHealthyRender,
-            renderAgeMs,
-            renderAgeSeconds: renderAgeMs === null ? null : Math.round(renderAgeMs / 1000),
-            lastTriangles: lastIdleSceneTriangles,
-          },
-          "warn",
+        scheduleWebglRecoveryReload(
+          "page load survival: idle level/balloon scene not healthy after startup window",
+          "page_load_survival",
         );
       }
     }, watchdog.pageLoadSurvivalMs);
 
     return () => window.clearTimeout(timeoutId);
   }, []);
+}
+
+export function requestCanvasRenderRecovery(
+  evaluation: IdleSceneHealthEvaluation,
+  source: string,
+): "full" | null {
+  const watchdog = getWatchdogSettings();
+  if (!watchdog.enabled || reloadScheduled) return null;
+  if (!isCanvasRenderRecoveryFailure(evaluation)) return null;
+
+  const reasons = evaluation.failureReasons.join(", ");
+  scheduleWebglRecoveryReload(
+    `canvas render recovery from ${source}: ${reasons}`
+    + ` (segments=${evaluation.levelSegmentCount}, meshes=${evaluation.visibleMeshCount})`,
+    "canvas_render_recovery",
+  );
+  return "full";
 }

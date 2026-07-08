@@ -5,6 +5,13 @@ import { useGameplayStore } from '@/gameplay/gameplayStore'
 import { getFrustumCornersOnFloor } from '@/gameplay/frustumBounds'
 import { SETTINGS } from '@/settings/GameSettings'
 import { resolveTileSpanMetrics, useLevelTilingStore, type LevelSegment, type LevelSpawnMode } from '@/levels/levelTilingStore'
+import {
+  logLevelTileCulled,
+  logLevelTileSpawned,
+  logLevelTileSpawnModeChanged,
+  maybeLogLevelTileHeartbeat,
+  maybeLogLevelTileSegmentsEmpty,
+} from '@/levels/levelTilingDiagnostics'
 import { renderNode } from '@/LevelRenderer'
 import * as THREE from 'three'
 
@@ -149,12 +156,25 @@ export function LevelTileManager() {
 
   useEffect(() => {
     if (!initialized) return
+    const previousSpawnMode = useLevelTilingStore.getState().spawnMode
     if (flowState === 'run') {
       setSpawnMode('run', true)
+      logLevelTileSpawnModeChanged({
+        flowState,
+        previousSpawnMode,
+        spawnMode: 'run',
+        resetIndex: true,
+      })
       return
     }
     if (flowState === 'idle') {
       setSpawnMode('idle', true)
+      logLevelTileSpawnModeChanged({
+        flowState,
+        previousSpawnMode,
+        spawnMode: 'idle',
+        resetIndex: true,
+      })
     }
   }, [flowState, initialized, setSpawnMode])
 
@@ -231,7 +251,16 @@ export function LevelTileManager() {
       }
 
       if (immediateCullIds.length > 0) {
+        const activeBefore = currentSegments.length
         cullSegments(immediateCullIds)
+        logLevelTileCulled({
+          flowState,
+          spawnMode: useLevelTilingStore.getState().spawnMode,
+          culledSegmentIds: [...immediateCullIds],
+          activeSegmentsBefore: activeBefore,
+          activeSegmentsAfter: useLevelTilingStore.getState().segments.length,
+          reason: 'game_over_entry',
+        })
         immediateCullIds.length = 0
         rebaseNextAttachWorldZ()
       }
@@ -271,9 +300,18 @@ export function LevelTileManager() {
       spawnNextSegment()
       spawnSafety += 1
       currentSegments = useLevelTilingStore.getState().segments
+      const spawnedSegment = currentSegments[currentSegments.length - 1]
+      logLevelTileSpawned({
+        flowState,
+        spawnMode: useLevelTilingStore.getState().spawnMode,
+        segmentId: spawnedSegment?.id ?? null,
+        filename: spawnedSegment?.filename ?? null,
+        activeSegments: currentSegments.length,
+        nearWorldZ: spawnedSegment?.nearWorldZ ?? null,
+        farWorldZ: spawnedSegment?.farWorldZ ?? null,
+      })
       if (TILING_DEBUG) {
         const nowMs = performance.now()
-        const spawnedSegment = currentSegments[currentSegments.length - 1]
         const previousSpawnAtMs = lastSpawnAtMsRef.current
         const secondsSincePreviousSpawn = previousSpawnAtMs === null
           ? null
@@ -318,9 +356,39 @@ export function LevelTileManager() {
           activeSegmentsBeforeCull: currentSegments.length,
         })
       }
+      const activeBefore = currentSegments.length
       cullSegments(cullIds)
+      const activeAfter = useLevelTilingStore.getState().segments.length
+      logLevelTileCulled({
+        flowState,
+        spawnMode: useLevelTilingStore.getState().spawnMode,
+        culledSegmentIds: [...cullIds],
+        activeSegmentsBefore: activeBefore,
+        activeSegmentsAfter: activeAfter,
+        reason: 'visibility',
+      })
       cullIds.length = 0
     }
+
+    const tilingState = useLevelTilingStore.getState()
+    if (
+      (flowState === 'idle' || flowState === 'run')
+      && tilingState.segments.length === 0
+    ) {
+      maybeLogLevelTileSegmentsEmpty({
+        flowState,
+        spawnMode: tilingState.spawnMode,
+        reason: 'no_active_segments_after_update',
+      })
+    }
+
+    maybeLogLevelTileHeartbeat({
+      flowState,
+      spawnMode: tilingState.spawnMode,
+      activeSegments: tilingState.segments.length,
+      viewCenterZ,
+      frontierZ: Number.isFinite(frontierZ) ? frontierZ : null,
+    })
 
     if (TILING_DEBUG) {
       const nowMs = performance.now()

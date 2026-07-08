@@ -368,7 +368,7 @@ export function GameFlowOverlay() {
     void highScoreSnapshotVersion
     return getHighScoreSubmissionPreviewPlacement(resolvedScoreTarget)
   }, [highScoreSnapshotVersion, resolvedScoreTarget])
-  const rankingValue = previewPlacement.rank === null ? '-' : String(previewPlacement.rank)
+  const rankingValue = previewPlacement.rank === null ? 'DNF' : String(previewPlacement.rank)
 
   useEffect(() => {
     activeLetterIndexRef.current = activeLetterIndex

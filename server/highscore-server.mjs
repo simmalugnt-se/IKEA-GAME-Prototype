@@ -19,6 +19,10 @@ const diagnosticsEndpoint = `http://${host}:${port}/api/diagnostics`
 const maxBodyBytes = 1024 * 1024
 const maxDiagnosticsBodyBytes = 16 * 1024
 const maxDiagnosticsStringLength = 4000
+const minHighScoreToPersist = normalizeLimitlessNonNegativeInt(
+  process.env.HIGHSCORE_MIN_SCORE_TO_PERSIST || '101',
+  101,
+)
 const blockedHighScoreInitials = new Set(highScoreInitialsModerationData.blockedHighScoreInitials)
 const fallbackHighScoreInitials = highScoreInitialsModerationData.fallbackHighScoreInitials
 const moderationCharacterMap = new Map(Object.entries(highScoreInitialsModerationData.moderationCharacterMap))
@@ -57,6 +61,7 @@ const selectEntries = db.prepare(`
     submitted_at_iso AS submittedAtIso,
     reason
   FROM high_scores
+  WHERE score >= ?
   ORDER BY score DESC, submitted_at_ms ASC, run_id ASC
   LIMIT ?
 `)
@@ -70,6 +75,7 @@ const selectAllEntries = db.prepare(`
     submitted_at_iso AS submittedAtIso,
     reason
   FROM high_scores
+  WHERE score >= ?
   ORDER BY score DESC, submitted_at_ms ASC, run_id ASC
 `)
 
@@ -111,6 +117,10 @@ function normalizeLimit(raw) {
 
 function normalizeReason(raw) {
   return raw === 'timeout' ? 'timeout' : 'submitted'
+}
+
+function isPersistableEntry(entry) {
+  return entry.score >= minHighScoreToPersist
 }
 
 function normalizeInitials(raw) {
@@ -182,7 +192,9 @@ function resolveRank(entries, submitted) {
 }
 
 function getSnapshot(limit) {
-  return limit === null ? selectAllEntries.all() : selectEntries.all(limit)
+  return limit === null
+    ? selectAllEntries.all(minHighScoreToPersist)
+    : selectEntries.all(minHighScoreToPersist, limit)
 }
 
 function getEntryCount() {
@@ -370,6 +382,17 @@ async function handleRequest(req, res) {
       const body = await readJsonBody(req)
       const limit = normalizeLimit(body.maxEntries)
       const entry = normalizeEntry(body)
+      if (!isPersistableEntry(entry)) {
+        const entries = getSnapshot(limit)
+        sendJson(req, res, 200, {
+          accepted: false,
+          rank: null,
+          totalEntries: entries.length,
+          storageMode: 'database',
+          entries,
+        })
+        return
+      }
       insertEntry.run(entry)
       if (limit !== null) {
         pruneEntries.run(limit)
@@ -389,11 +412,13 @@ async function handleRequest(req, res) {
       const body = await readJsonBody(req)
       const limit = normalizeLimit(body.maxEntries)
       const rawEntries = Array.isArray(body.entries) ? body.entries : []
-      const entriesToImport = rawEntries.map(normalizeEntry)
+      const normalizedEntries = rawEntries.map(normalizeEntry)
+      const entriesToImport = normalizedEntries.filter(isPersistableEntry)
       importEntries(entriesToImport, limit)
       const entries = getSnapshot(limit)
       sendJson(req, res, 200, {
         importedEntries: entriesToImport.length,
+        rejectedEntries: normalizedEntries.length - entriesToImport.length,
         totalEntries: entries.length,
         storageMode: 'database',
         entries,
